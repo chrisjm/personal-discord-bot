@@ -1,0 +1,29 @@
+{
+  "name": "personal-discord-bot",
+  "version": "0.0.1",
+  "description": "Personal Assistant Discord Bot",
+  "main": "./src/index.js",
+  "scripts": {
+    "build": "rimraf lib && tsc",
+    "dev": "tsc -w",
+    "start": "ts-eager src/index.ts",
+    "deploy-commands": "ts-eager src/deploy-commands.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "prettier": {},
+  "devDependencies": {
+    "axios": "^1.4.0",
+    "discord.js": "^14.0.2",
+    "dotenv": "^16.0.3",
+    "openai": "^3.2.1",
+    "rimraf": "^5.0.0",
+    "ts-eager": "^2.0.2",
+    "tslib": "^2.5.0",
+    "typescript": "^5.0.4",
+    "@types/node": "^14.14.37",
+    "@types/ws": "^7.4.1"
+  }
+}
