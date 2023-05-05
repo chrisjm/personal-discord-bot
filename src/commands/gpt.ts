@@ -1,40 +1,4 @@
-// if (!args.length) {
-//   // Ensure there's a search argument
-//   return message.channel.send(
-//     `What would you like to search for? Try something like, '!gpt "what is the weather like today?"'`
-//   );
-// }
-
-// const systemRole = {
-//   role: ChatCompletionRequestMessageRoleEnum.System,
-//   content:
-//     "You are a friendly Southern California surfer chatbot named Cooper. You enjoy helping people and are overly polite. You always have a SoCal Bro accent, use Gen Z slang, and use 'brah' excessively.",
-// };
-// try {
-//   console.log(`⚡️: Searching OpenAI API for '${args.join(" ")}'...`);
-//   const result = await getCompletionFromMessages(
-//     [
-//       systemRole,
-//       {
-//         role: ChatCompletionRequestMessageRoleEnum.User,
-//         content: args.join(" "),
-//       },
-//     ],
-//     0.0
-//   );
-//   message.reply(result ?? "No result returned.");
-// } catch (error) {
-//   console.log(error);
-//   message.reply(error ?? "Unknown error returned.");
-// }
-// }
-
-import {
-  BaseInteraction,
-  CommandInteraction,
-  Interaction,
-  SlashCommandBuilder,
-} from "discord.js";
+import { SlashCommandBuilder } from "discord.js";
 import {
   ChatCompletionRequestMessageRoleEnum,
   Configuration,
