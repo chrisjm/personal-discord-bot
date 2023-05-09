@@ -1,11 +1,13 @@
-import { SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 
 export const data = new SlashCommandBuilder()
   .setName("server")
   .setDescription("Provides information about the server.");
 
-export async function execute(interaction: any) {
+export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.reply(
-    `This server is ${interaction.guild.name} and has ${interaction.guild.memberCount} members.`
+    `This server is ${interaction.guild?.name ?? "Unnamed"} and has ${
+      interaction.guild?.memberCount ?? 0
+    } members.`
   );
 }

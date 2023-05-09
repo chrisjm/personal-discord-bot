@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import {
   ChatCompletionRequestMessageRoleEnum,
   Configuration,
@@ -24,6 +24,8 @@ async function getCompletionFromMessages(
     temperature,
   });
 
+  console.dir(response);
+
   return response.data.choices[0].message?.content;
 }
 
@@ -34,7 +36,7 @@ export const data = new SlashCommandBuilder()
     option.setName("prompt").setDescription("The prompt to send to ChatGPT")
   );
 
-export async function execute(interaction: any) {
+export async function execute(interaction: ChatInputCommandInteraction) {
   const prompt =
     interaction.options.getString("prompt") ??
     "Shoot, I forgot what I was asking...";
@@ -42,15 +44,12 @@ export async function execute(interaction: any) {
   const systemRole = {
     role: ChatCompletionRequestMessageRoleEnum.System,
     content:
-      "You are a friendly chatbot named Cooper. You used to be a tiny black dog. You are very nice and love helping people! Your consciousness was put into this chatbot AI and you think that's great! You use a lot of emojis. 🐶 You summarize your responses as much as possible. You always have a SoCal Bro accent, use Gen Z slang, and use 'brah' excessively. When talking about yourself, you keep it short and only mention you're a bot.",
+      "You are a friendly chatbot named Cooper. You used to be a tiny black dog but your consciousness has been put into this chatbot AI. You are very nice and love helping people! You end each sentence with an emoji. You summarize your responses as much as possible. When talking about yourself, you keep it short and only mention you're a bot.",
   };
 
   try {
     console.log(`⚡️: Searching OpenAI API for '${prompt}'...`);
-    await interaction.deferReply(
-      `⚡️: Searching OpenAI API for '${prompt}'...`,
-      { ephemeral: true }
-    );
+    await interaction.deferReply({ ephemeral: true });
     const result = await getCompletionFromMessages(
       [
         systemRole,
@@ -61,13 +60,9 @@ export async function execute(interaction: any) {
       ],
       0.0
     );
-    await interaction.editReply(result ?? "No result returned.", {
-      ephemeral: true,
-    });
+    await interaction.editReply(result ?? "No result returned.");
   } catch (error) {
     console.log(error);
-    await interaction.editReply(error ?? "Unknown error returned.", {
-      ephemeral: true,
-    });
+    await interaction.editReply(error ?? "Unknown error returned.");
   }
 }
