@@ -24,5 +24,8 @@
     "ts-eager": "^2.0.2",
     "tslib": "^2.5.0",
     "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "spacetime": "^7.4.3"
   }
 }

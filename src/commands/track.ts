@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
+import spacetime from "spacetime";
 import axios from "axios";
 import {
   ActionRowBuilder,
@@ -21,24 +22,6 @@ interface WaterTrackerEntry {
   milliliters: { N: string };
 }
 
-function getDateOffsetUTCString(offset = 0) {
-  let datetime = new Date();
-  datetime.setDate(datetime.getDate() + offset);
-
-  let dateUTC = new Date(datetime.toUTCString());
-  // Set the start of the day to midnight UTC
-  dateUTC.setHours(0, 0, 0, 0);
-  const startOfDayUTC = new Date(dateUTC.getTime());
-  // Set the end of the day to 11:59:59.999 PM UTC
-  dateUTC.setHours(23, 59, 59, 999);
-  const endOfDayUTC = new Date(dateUTC.getTime());
-
-  return {
-    startOfDayUTC,
-    endOfDayUTC,
-  };
-}
-
 export const data = new SlashCommandBuilder()
   .setName("track-water")
   .setDescription("Track water intake")
@@ -48,9 +31,10 @@ export const data = new SlashCommandBuilder()
       .setDescription("What would you like to do?")
       .setRequired(true)
       .addChoices(
-        { name: "Add entry", value: "add" },
-        { name: "Show today's entries", value: "today" },
-        { name: "Show yesterday's entries", value: "yesterday" }
+        { name: "add", value: "add" },
+        { name: "today", value: "today" },
+        { name: "yesterday", value: "yesterday" },
+        { name: "range", value: "range" }
       )
   );
 
@@ -121,10 +105,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       });
     }
   } else if (interaction.options.getString("action") === "today") {
-    const { startOfDayUTC, endOfDayUTC } = getDateOffsetUTCString(0);
+    const now = spacetime.now("America/Los_Angeles");
     try {
       const response = await axios.get(
-        `${apiUrl}/range?start=${startOfDayUTC}&end=${endOfDayUTC}`
+        `${apiUrl}/range?start=${now.startOf("day").format("iso")}&end=${now
+          .endOf("day")
+          .format("iso")}`
       );
       const { data } = response;
       const items: WaterTrackerEntry[] = data.Items;
@@ -143,10 +129,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       await interaction.editReply({ content: `Error! ${e}` });
     }
   } else if (interaction.options.getString("action") === "yesterday") {
-    const { startOfDayUTC, endOfDayUTC } = getDateOffsetUTCString(-1);
+    const now = spacetime.now("America/Los_Angeles");
+    const yesterday = now.subtract(1, "day");
     try {
       const response = await axios.get(
-        `${apiUrl}/range?start=${startOfDayUTC}&end=${endOfDayUTC}`
+        `${apiUrl}/range?start=${yesterday
+          .startOf("day")
+          .format("iso")}&end=${yesterday.endOf("day").format("iso")}`
       );
       const { data } = response;
       const items: WaterTrackerEntry[] = data.Items;
@@ -164,9 +153,93 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       console.error(e);
       await interaction.editReply({ content: `Error! ${e}` });
     }
-  } else {
-    await interaction.reply(
-      `${interaction.options.getString("action")} not implemented`
+  } else if (interaction.options.getString("action") === "range") {
+    const now = spacetime.now("America/Los_Angeles");
+
+    const minusTwoDays = new ButtonBuilder()
+      .setCustomId("minus-2")
+      .setLabel("-2 Days")
+      .setStyle(ButtonStyle.Primary);
+
+    const minusThreeDays = new ButtonBuilder()
+      .setCustomId("minus-3")
+      .setLabel("-3 Days")
+      .setStyle(ButtonStyle.Primary);
+
+    const minusFourDays = new ButtonBuilder()
+      .setCustomId("minus-4")
+      .setLabel("-4 Days")
+      .setStyle(ButtonStyle.Primary);
+
+    const minusFiveDays = new ButtonBuilder()
+      .setCustomId("minus-5")
+      .setLabel("-5 Days")
+      .setStyle(ButtonStyle.Primary);
+
+    const cancel = new ButtonBuilder()
+      .setCustomId("cancel")
+      .setLabel("Cancel")
+      .setStyle(ButtonStyle.Danger);
+
+    const row = new ActionRowBuilder().addComponents(
+      minusTwoDays,
+      minusThreeDays,
+      minusFourDays,
+      minusFiveDays,
+      cancel
     );
+
+    const response = await interaction.reply({
+      content: `What date range?`,
+      components: [row],
+    });
+
+    // Security - Ensure same user clicked the button as the original interaction
+    const collectorFilter = (i: Interaction) =>
+      i.user.id === interaction.user.id;
+
+    try {
+      const confirmation = await response.awaitMessageComponent({
+        filter: collectorFilter,
+        time: 30_000,
+      });
+
+      if (confirmation.customId === "cancel") {
+        await confirmation.update({
+          content: "Action cancelled",
+          components: [],
+        });
+      } else {
+        const days = parseInt(confirmation.customId.split("-")[1]);
+        const rangeDate = now.subtract(days, "day");
+        const response = await axios.get(
+          `${apiUrl}/range?start=${rangeDate
+            .startOf("day")
+            .format("iso")}&end=${rangeDate.endOf("day").format("iso")}`
+        );
+        const { data } = response;
+        const items: WaterTrackerEntry[] = data.Items;
+        const entries = items.map((item) => {
+          const datetime = new Date(item.entry_datetime.S);
+          return `${datetime.toLocaleString()} - ${item.milliliters.N}mL`;
+        });
+        const totalMl = items.reduce(
+          (acc, curr) => acc + +curr.milliliters.N,
+          0
+        );
+        await confirmation.update({
+          content: `${CODE_START}${entries.join(
+            "\n"
+          )}\nTotal water intake: ${totalMl}mL\n${CODE_END}`,
+          components: [],
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      await interaction.editReply({
+        content: `Error! ${e}`,
+        components: [],
+      });
+    }
   }
 }
