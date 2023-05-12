@@ -33,7 +33,6 @@ export const data = new SlashCommandBuilder()
       .addChoices(
         { name: "add", value: "add" },
         { name: "today", value: "today" },
-        { name: "yesterday", value: "yesterday" },
         { name: "range", value: "range" }
       )
   );
@@ -115,8 +114,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const { data } = response;
       const items: WaterTrackerEntry[] = data.Items;
       const entries = items.map((item) => {
-        const datetime = new Date(item.entry_datetime.S);
-        return `${datetime.toLocaleString()} - ${item.milliliters.N}mL`;
+        const datetime = spacetime(new Date(item.entry_datetime.S));
+        return `${datetime.goto("America/Los_Angeles").format("nice")} - ${
+          item.milliliters.N
+        }mL`;
       });
       const totalMl = items.reduce((acc, curr) => acc + +curr.milliliters.N, 0);
       await interaction.reply({
@@ -128,33 +129,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       console.error(e);
       await interaction.editReply({ content: `Error! ${e}` });
     }
-  } else if (interaction.options.getString("action") === "yesterday") {
-    const now = spacetime.now("America/Los_Angeles");
-    const yesterday = now.subtract(1, "day");
-    try {
-      const response = await axios.get(
-        `${apiUrl}/range?start=${yesterday
-          .startOf("day")
-          .format("iso")}&end=${yesterday.endOf("day").format("iso")}`
-      );
-      const { data } = response;
-      const items: WaterTrackerEntry[] = data.Items;
-      const entries = items.map((item) => {
-        const datetime = new Date(item.entry_datetime.S);
-        return `${datetime.toLocaleString()} - ${item.milliliters.N}mL`;
-      });
-      const totalMl = items.reduce((acc, curr) => acc + +curr.milliliters.N, 0);
-      await interaction.reply({
-        content: `${CODE_START}${entries.join(
-          "\n"
-        )}\nYesterday's total water intake: ${totalMl}mL\n${CODE_END}`,
-      });
-    } catch (e) {
-      console.error(e);
-      await interaction.editReply({ content: `Error! ${e}` });
-    }
   } else if (interaction.options.getString("action") === "range") {
     const now = spacetime.now("America/Los_Angeles");
+
+    const yesterday = new ButtonBuilder()
+      .setCustomId("minus-1")
+      .setLabel("Yesterday")
+      .setStyle(ButtonStyle.Primary);
 
     const minusTwoDays = new ButtonBuilder()
       .setCustomId("minus-2")
@@ -182,6 +163,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       .setStyle(ButtonStyle.Danger);
 
     const row = new ActionRowBuilder().addComponents(
+      yesterday,
       minusTwoDays,
       minusThreeDays,
       minusFourDays,
@@ -190,7 +172,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     );
 
     const response = await interaction.reply({
-      content: `What date range?`,
+      content: `How far back in history?`,
       components: [row],
     });
 
@@ -220,8 +202,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const { data } = response;
         const items: WaterTrackerEntry[] = data.Items;
         const entries = items.map((item) => {
-          const datetime = new Date(item.entry_datetime.S);
-          return `${datetime.toLocaleString()} - ${item.milliliters.N}mL`;
+          const datetime = spacetime(new Date(item.entry_datetime.S));
+          return `${datetime.goto("America/Los_Angeles").format("nice")} - ${
+            item.milliliters.N
+          }mL`;
         });
         const totalMl = items.reduce(
           (acc, curr) => acc + +curr.milliliters.N,
