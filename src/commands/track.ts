@@ -152,11 +152,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       .setLabel("-4 Days")
       .setStyle(ButtonStyle.Primary);
 
-    const minusFiveDays = new ButtonBuilder()
-      .setCustomId("minus-5")
-      .setLabel("-5 Days")
-      .setStyle(ButtonStyle.Primary);
-
     const cancel = new ButtonBuilder()
       .setCustomId("cancel")
       .setLabel("Cancel")
@@ -167,7 +162,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       minusTwoDays,
       minusThreeDays,
       minusFourDays,
-      minusFiveDays,
       cancel
     );
 
