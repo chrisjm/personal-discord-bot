@@ -2,9 +2,9 @@
   "name": "personal-discord-bot",
   "version": "0.0.1",
   "description": "Personal Assistant Discord Bot",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
   "scripts": {
-    "build": "rimraf lib && tsc",
+    "build": "rimraf dist && tsc",
     "dev": "tsc -w",
     "start": "ts-eager src/index.ts",
     "deploy-commands": "ts-eager src/deploy-commands.ts",
