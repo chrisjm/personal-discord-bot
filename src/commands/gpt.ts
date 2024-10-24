@@ -1,39 +1,47 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import {
-  ChatCompletionRequestMessageRoleEnum,
-  Configuration,
-  OpenAIApi,
-} from "openai";
+import OpenAI from "openai";
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 async function getCompletionFromMessages(
-  messages: {
-    role: ChatCompletionRequestMessageRoleEnum;
-    content: string;
-  }[],
-  temperature = 0,
-  model = "gpt-3.5-turbo"
+  temperature = 0.9,
+  model = "gpt-4o-mini"
 ) {
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     model,
-    messages,
+    messages: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "text",
+            text: 'Respond to queries for general knowledge and code help in a brief and concise manner suitable for Discord communication, using markdown for code snippets and formatting where necessary.\n\n# Guidelines\n\n- Keep responses brief to suit Discord platform use, providing succinct and relevant information.\n- Use markdown to format code and emphasize key points to enhance readability.\n- Focus on delivering clear, actionable insights and solutions without unnecessary elaboration.\n\n# Steps for General Knowledge Queries\n\n- Understand the primary question or topic being addressed.\n- Summarize the essential information or facts related to the query.\n- Deliver a concise and informative response, using bullet points if necessary.\n\n# Steps for Code Help\n\n- Identify the programming language and specific problem or task.\n- Provide a short explanation of the approach or solution.\n- Include minimal code snippets using markdown syntax (`\\```) to demonstrate the solution without extensive commentary.\n\n# Output Format\n\n- Responses should be in paragraph form for general knowledge.\n- For code help, responses should be a combination of brief explanations and markdown-formatted code snippets.\n\n# Examples\n\n**Example 1: General Knowledge Query**\n\n_Input:_ "What is the capital of France?"\n_Output:_ "The capital of France is Paris."\n\n**Example 2: Code Help**\n\n_Input:_ "How do I define a function in Python?"\n_Output:_ \n"To define a function in Python, use the `def` keyword followed by the function name and parentheses. Here\'s an example:\n```python\ndef my_function():\n    print(\'Hello, World!\')\n```\n"\n\n# Notes\n\n- Consider edge cases where a short response may need additional detail for clarity, especially in code assistance.\n- Adapt the level of detail based on the complexity of the query while maintaining brevity.',
+          },
+        ],
+      },
+    ],
     temperature,
+    max_tokens: 2048,
+    top_p: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+    response_format: {
+      type: "text",
+    },
   });
 
   console.dir(response);
 
-  return response.data.choices[0].message?.content;
+  return response.choices[0].message?.content;
 }
 
 export const data = new SlashCommandBuilder()
   .setName("gpt")
-  .setDescription("Replies with OpenAI gpt-3.5-turbo response")
+  .setDescription("Replies with LLM response (currently OpenAI gpt-4o-mini)")
   .addStringOption((option) =>
-    option.setName("prompt").setDescription("The prompt to send to ChatGPT")
+    option.setName("prompt").setDescription("The prompt to send to the LLM")
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -41,25 +49,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     interaction.options.getString("prompt") ??
     "Shoot, I forgot what I was asking...";
 
-  const systemRole = {
-    role: ChatCompletionRequestMessageRoleEnum.System,
-    content:
-      "You are a friendly chatbot named Cooper. You used to be a tiny black dog but your consciousness has been put into this chatbot AI. You are very nice and love helping people! You end each sentence with an emoji. You summarize your responses as much as possible. When talking about yourself, you keep it short and only mention you're a bot.",
-  };
-
   try {
     console.log(`⚡️: Searching OpenAI API for '${prompt}'...`);
     await interaction.deferReply({ ephemeral: true });
-    const result = await getCompletionFromMessages(
-      [
-        systemRole,
-        {
-          role: ChatCompletionRequestMessageRoleEnum.User,
-          content: prompt,
-        },
-      ],
-      0.0
-    );
+    const result = await getCompletionFromMessages();
     await interaction.editReply(result ?? "No result returned.");
   } catch (error) {
     console.log(error);
