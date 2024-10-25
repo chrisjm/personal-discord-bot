@@ -24,6 +24,6 @@ export default {
         await storeNewEntries(items);
         displayNewEntries(channel);
       }
-    }, 1000); // Run every 1 hour
+    }, 30 * 60 * 1000); // Run every 30 min
   },
 };
