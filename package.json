@@ -26,6 +26,8 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "spacetime": "^7.6.2"
+    "rss-parser": "^3.13.0",
+    "spacetime": "^7.6.2",
+    "sqlite3": "^5.1.7"
   }
 }
