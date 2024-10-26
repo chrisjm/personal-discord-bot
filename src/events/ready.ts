@@ -4,6 +4,20 @@ import {
   fetchRSSFeed,
   storeNewEntries,
 } from "../news-minimalist";
+import { formatDate } from "../utils";
+
+async function processRSSFeed(channel: TextChannel) {
+  const items = await fetchRSSFeed(process.env.NEWS_MINIMALIST_RSS_FEED_URL);
+  console.log(
+    `${formatDate(new Date())} Fetched ${items.length} entries from ${
+      process.env.NEWS_MINIMALIST_RSS_FEED_URL
+    }`
+  );
+  if (items.length > 0) {
+    await storeNewEntries(items);
+    displayNewEntries(channel);
+  }
+}
 
 export default {
   name: Events.ClientReady,
@@ -15,15 +29,12 @@ export default {
       process.env.NEWS_MINIMALIST_DISCORD_CHANNEL_ID
     ) as TextChannel;
 
-    // Fetch RSS feed and display new entries every hour
+    // Run once to update on startup
+    processRSSFeed(channel);
+
+    // Run every 10 minutes while running
     setInterval(async () => {
-      const items = await fetchRSSFeed(
-        process.env.NEWS_MINIMALIST_RSS_FEED_URL
-      );
-      if (items.length > 0) {
-        await storeNewEntries(items);
-        displayNewEntries(channel);
-      }
-    }, 30 * 60 * 1000); // Run every 30 min
+      processRSSFeed(channel);
+    }, 10 * 60 * 1000);
   },
 };
