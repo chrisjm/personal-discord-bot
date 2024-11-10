@@ -15,6 +15,7 @@ import {
   StreamType,
   VoiceConnection,
   PlayerSubscription,
+  AudioPlayer,
 } from "@discordjs/voice";
 import { join } from "path";
 import { createReadStream } from "fs";
@@ -42,18 +43,11 @@ export const data = new SlashCommandBuilder()
 
 let connection: VoiceConnection | null = null;
 let subscription: PlayerSubscription;
+let timeoutId: NodeJS.Timeout;
 
-const player = createAudioPlayer();
-
-// Meditation Music
-const audioPath = join(__dirname, "assets", "meditation-opus.ogg");
-const resource = createAudioResource(createReadStream(audioPath), {
-  inputType: StreamType.OggOpus,
-});
-
-export function playMusic() {
-  player.play(resource);
-  return entersState(player, AudioPlayerStatus.Playing, 5_000);
+export async function playResource(audioPlayer: AudioPlayer, resource: any) {
+  audioPlayer.play(resource);
+  return entersState(audioPlayer, AudioPlayerStatus.Playing, 5_000);
 }
 
 async function connectToChannel(channel: VoiceBasedChannel) {
@@ -73,7 +67,6 @@ async function connectToChannel(channel: VoiceBasedChannel) {
 }
 
 function parseDuration(durationString: string | null): number | null {
-  // Example parsing logic: "5min" -> 5 * 60 * 1000 ms
   if (!durationString) return null;
   const match = durationString.match(/^(\d+)(min|m)$/);
   if (!match) return null;
@@ -91,6 +84,15 @@ function parseDuration(durationString: string | null): number | null {
 export async function execute(interaction: ChatInputCommandInteraction) {
   const subcommand = interaction.options.getSubcommand();
 
+  // Check for the specific role
+  if (!member.roles.cache.some((role) => role.name === "Meditation")) {
+    await interaction.reply({
+      content: "You do not have the required role to use this command.",
+      ephemeral: true,
+    });
+    return;
+  }
+
   if (subcommand === "start") {
     await handleStart(interaction);
   } else if (subcommand === "stop") {
@@ -99,6 +101,36 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 }
 
 async function handleStart(interaction: ChatInputCommandInteraction) {
+  let audioPlayer = createAudioPlayer();
+
+  // Meditation Music
+  const musicAudioPath = join(__dirname, "assets", "meditation-opus.ogg");
+  const musicResource = createAudioResource(createReadStream(musicAudioPath), {
+    inputType: StreamType.OggOpus,
+    metadata: {
+      title: "9 Solfeggio Frequencies",
+    },
+  });
+
+  // Starting Meditation Bell
+  const bellAudioPath = join(
+    __dirname,
+    "assets",
+    "tibetan-bell-ding-b-note.mp3"
+  );
+  const startBellResource = createAudioResource(bellAudioPath, {
+    metadata: {
+      title: "Start Meditation Bell",
+    },
+  });
+
+  // Ending Meditation Bell
+  const endBellResource = createAudioResource(bellAudioPath, {
+    metadata: {
+      title: "End Meditation Bell",
+    },
+  });
+
   const durationString = interaction.options.getString("duration");
 
   // Convert duration string to milliseconds
@@ -131,15 +163,28 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   if (channel) {
     try {
       connection = await connectToChannel(channel);
+      subscription = connection.subscribe(audioPlayer);
 
-      subscription = connection.subscribe(player);
       await interaction.reply(
-        `Playing meditation music for ${durationString}.`
+        `Playing meditation music for ${durationString}. 🔊`
       );
 
-      await playMusic();
+      // Play the beginning bell and wait 30s for it to complete
+      console.log("Starting Bell!");
+      await playResource(audioPlayer, startBellResource);
+      await entersState(audioPlayer, AudioPlayerStatus.Idle, 30_000);
+      console.log("Starting Bell Finished!");
 
-      setTimeout(async () => {
+      console.log("Playing music...");
+      await playResource(audioPlayer, musicResource);
+
+      // Play meditation music and then play ending bell and disconnect
+      console.log(`Setting timeout for ${duration}ms`);
+      timeoutId = setTimeout(async () => {
+        console.log("Ending music, playing Ending Bell!");
+        await playResource(audioPlayer, endBellResource);
+        await entersState(audioPlayer, AudioPlayerStatus.Idle, 30_000);
+        console.log("Ending Bell Finished! Stopping...");
         await handleStop(interaction);
       }, duration);
 
@@ -157,11 +202,11 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
     await interaction.reply("Join a voice channel then try again!");
   }
 
-  player.on("error", (error) => {
+  audioPlayer.on("error", (error) => {
     console.error(`Error: ${error.message}`);
   });
 
-  player.on("stateChange", (oldState, newState) => {
+  audioPlayer.on("stateChange", (oldState, newState) => {
     console.log(
       `Audio player transitioned from ${oldState.status} to ${newState.status}`
     );
@@ -170,23 +215,35 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
 
 async function handleStop(interaction: ChatInputCommandInteraction) {
   if (!interaction.isCommand()) return;
+  const channel = interaction.channel as VoiceBasedChannel;
 
+  // Communicate
   try {
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply(
-        "Stopping the meditation session and disconnecting."
+        "Stopping the meditation session and disconnecting. 👋"
+      );
+    } else if (channel) {
+      await channel.send(
+        "Stopping the meditation session and disconnecting. 👋"
       );
     } else {
-      console.log("Interaction has already been replied to or deferred.");
+      console.error("Could not find the channel.");
     }
   } catch (error) {
     console.error("Error handling interaction:", error);
   }
 
+  if (timeoutId) {
+    console.log(`Clearing timeout ${timeoutId}...`);
+    clearTimeout(timeoutId);
+  }
+
   if (subscription) {
-    subscription.unsubscribe();
+    console.log("Unsubscribing and disconnecting...");
+    subscription?.unsubscribe();
     connection?.disconnect();
   } else {
-    await interaction.reply("Bot is not connected to a voice channel.");
+    console.error("Bot is not connected to a voice channel.");
   }
 }

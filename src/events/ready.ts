@@ -5,7 +5,6 @@ import {
   storeNewEntries,
 } from "../news-minimalist";
 import { formatDate } from "../utils";
-import { playMusic } from "../commands/meditate";
 
 function refreshNewsMinimalist(client: Client) {
   const channel = client.channels.cache.get(
@@ -41,9 +40,6 @@ export default {
     console.log(`🟢 Ready! Logged in as ${client.user?.tag}`);
 
     try {
-      await playMusic();
-      console.log("Song is ready to play!");
-
       // NOTE: Nothing more than email newsletter update
       // refreshNewsMinimalist(client);
     } catch (error) {
