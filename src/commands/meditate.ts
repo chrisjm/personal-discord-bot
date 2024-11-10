@@ -85,7 +85,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const subcommand = interaction.options.getSubcommand();
 
   // Check for the specific role
-  if (!member.roles.cache.some((role) => role.name === "Meditation")) {
+  const member = interaction.member as GuildMember;
+  if (!member?.roles?.cache?.some((role) => role.name === "Meditation")) {
     await interaction.reply({
       content: "You do not have the required role to use this command.",
       ephemeral: true,
