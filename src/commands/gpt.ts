@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 async function getCompletionFromMessages(
   prompt: string,
-  temperature = 0.9,
+  temperature = 0.2,
   model = "gpt-4o-mini"
 ) {
   const response = await openai.chat.completions.create({
@@ -33,7 +33,7 @@ async function getCompletionFromMessages(
       },
     ],
     temperature,
-    max_tokens: 2048,
+    max_tokens: 500,
     top_p: 1,
     frequency_penalty: 0,
     presence_penalty: 0,
