@@ -17,6 +17,10 @@ interface NewsArticle {
 // Whitelist of allowed news sources
 const WHITELIST_SOURCES = [
   "bbc-news",
+  "abc-news",
+  "npr",
+  "cbc-news",
+  "fox-news",
   "reuters",
   "associated-press",
   "new-scientist",
@@ -46,6 +50,43 @@ async function getTopNews() {
   }
 }
 
+async function getYesterdayNews() {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const formattedDate = yesterday.toISOString().split('T')[0];
+
+  let articles: string[] = [];
+  let page = 1;
+
+  while (articles.length < 10 && page <= 1) {
+    const response = await axios.get<{
+      status: string;
+      articles: NewsArticle[];
+    }>(
+      `https://newsapi.org/v2/everything?q=general&from=${formattedDate}&to=${formattedDate}&language=en&sortBy=popularity&apiKey=${process.env.NEWS_API_KEY}&pageSize=100&page=${page}`
+    );
+    const { data } = response;
+
+    if (data.status === "ok") {
+      const filteredArticles = data.articles
+        .filter((article) => WHITELIST_SOURCES.includes(article.source.id || ""))
+        .map((article) => `${article.title} - ${article.url}`);
+
+      articles.push(...filteredArticles);
+      if (filteredArticles.length === 0) break; // No more articles from whitelisted sources
+    } else {
+      break; // API error, stop trying
+    }
+
+    page++;
+  }
+
+  articles = articles.slice(0, 10); // Ensure we only return max 10 articles
+  return articles.length > 0
+    ? articles.join("\n\n")
+    : "No news articles found from yesterday.";
+}
+
 export const data = new SlashCommandBuilder()
   .setName("news")
   .setDescription("Retrieve news from NewsAPI")
@@ -54,16 +95,27 @@ export const data = new SlashCommandBuilder()
       .setName("action")
       .setDescription("What would you like to see?")
       .setRequired(true)
-      .addChoices({ name: "top", value: "top" })
+      .addChoices(
+        { name: "top", value: "top" },
+        { name: "yesterday", value: "yesterday" }
+      )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  if (interaction.options.getString("action") === "top") {
-    await interaction.deferReply();
-    const result = await getTopNews();
-    await interaction.editReply({
-      content: result,
-      components: [],
-    });
+  const action = interaction.options.getString("action");
+  await interaction.deferReply();
+
+  let result: string;
+  if (action === "top") {
+    result = await getTopNews();
+  } else if (action === "yesterday") {
+    result = await getYesterdayNews();
+  } else {
+    result = "Invalid action specified";
   }
+
+  await interaction.editReply({
+    content: result,
+    components: [],
+  });
 }

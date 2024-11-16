@@ -1,5 +1,5 @@
 import { Client, Collection } from 'discord.js';
-import { BotCommand } from '../commands/interfaces';
+import { BotCommand } from './interfaces';
 
 /**
  * Extended Discord Client with additional properties for bot functionality
