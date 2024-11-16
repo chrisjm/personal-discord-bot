@@ -2,7 +2,6 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import spacetime from "spacetime";
-import axios from "axios";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -11,16 +10,11 @@ import {
   Interaction,
   SlashCommandBuilder,
 } from "discord.js";
+import { db } from "../utils/database";
 
-const apiUrl = process.env.WATER_TRACKER_API_URL;
 const CODE_START = "```\n";
 const CODE_END = "```\n";
-
-interface WaterTrackerEntry {
-  id: { S: string };
-  entry_datetime: { S: string };
-  milliliters: { N: string };
-}
+const USER_TIMEZONE = "America/Los_Angeles"; // This could be made configurable per user in the future
 
 export const data = new SlashCommandBuilder()
   .setName("track-water")
@@ -54,7 +48,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       .setLabel("Cancel")
       .setStyle(ButtonStyle.Danger);
 
-    const row = new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       addHalfLiter,
       addLiter,
       cancel
@@ -83,54 +77,63 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       } else {
         const milliliters = parseInt(confirmation.customId.split("-")[0]);
 
-        axios
-          .post(`${apiUrl}/add`, {
-            milliliters,
-          })
-          .then(async (apiResponse) => {
-            const { message } = apiResponse.data;
-            await confirmation.update({
-              content: message ?? "No message, but success?",
-              components: [],
-            });
-          })
-          .catch((e) => console.error(e));
+        try {
+          const message = await db.addEntry(milliliters);
+          await confirmation.update({
+            content: message,
+            components: [],
+          });
+        } catch (e) {
+          console.error(e);
+          await confirmation.update({
+            content: `Error adding entry: ${e}`,
+            components: [],
+          });
+        }
       }
     } catch (e) {
       console.error(e);
       await interaction.editReply({
-        content: `Error! {e}`,
+        content: `Error! ${e}`,
         components: [],
       });
     }
   } else if (interaction.options.getString("action") === "today") {
-    const now = spacetime.now("America/Los_Angeles");
+    const now = spacetime.now(USER_TIMEZONE);
     try {
-      const response = await axios.get(
-        `${apiUrl}/range?start=${now.startOf("day").format("iso")}&end=${now
-          .endOf("day")
-          .format("iso")}`
-      );
-      const { data } = response;
-      const items: WaterTrackerEntry[] = data.Items;
-      const entries = items.map((item) => {
-        const datetime = spacetime(new Date(item.entry_datetime.S));
-        return `${datetime.goto("America/Los_Angeles").format("nice")} - ${
-          item.milliliters.N
-        }mL`;
+      // Convert local day boundaries to UTC for database query
+      const startOfDay = now.startOf('day');
+      const endOfDay = now.endOf('day');
+      const startDate = startOfDay.goto('UTC').format('iso');
+      const endDate = endOfDay.goto('UTC').format('iso');
+      
+      const entries = await db.getEntriesInRange(startDate, endDate);
+
+      if (!entries || entries.length === 0) {
+        await interaction.reply({
+          content: "No water entries found for today.",
+        });
+        return;
+      }
+
+      const formattedEntries = entries.map((entry) => {
+        // Convert UTC database time to user's timezone for display
+        const datetime = spacetime(entry.entry_datetime).goto(USER_TIMEZONE);
+        return `${datetime.format("nice")} - ${entry.milliliters}mL`;
       });
-      const totalMl = items.reduce((acc, curr) => acc + +curr.milliliters.N, 0);
+
+      const totalMl = entries.reduce((acc, curr) => acc + curr.milliliters, 0);
       await interaction.reply({
-        content: `${CODE_START}${entries.join(
+        content: `${CODE_START}${formattedEntries.join(
           "\n"
         )}\nToday's total water intake: ${totalMl}mL\n${CODE_END}`,
       });
     } catch (e) {
       console.error(e);
-      await interaction.editReply({ content: `Error! ${e}` });
+      await interaction.reply({ content: `Error! ${e}` });
     }
   } else if (interaction.options.getString("action") === "range") {
-    const now = spacetime.now("America/Los_Angeles");
+    const now = spacetime.now(USER_TIMEZONE);
 
     const yesterday = new ButtonBuilder()
       .setCustomId("minus-1")
@@ -157,7 +160,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       .setLabel("Cancel")
       .setStyle(ButtonStyle.Danger);
 
-    const row = new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       yesterday,
       minusTwoDays,
       minusThreeDays,
@@ -188,29 +191,44 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       } else {
         const days = parseInt(confirmation.customId.split("-")[1]);
         const rangeDate = now.subtract(days, "day");
-        const response = await axios.get(
-          `${apiUrl}/range?start=${rangeDate
-            .startOf("day")
-            .format("iso")}&end=${rangeDate.endOf("day").format("iso")}`
-        );
-        const { data } = response;
-        const items: WaterTrackerEntry[] = data.Items;
-        const entries = items.map((item) => {
-          const datetime = spacetime(new Date(item.entry_datetime.S));
-          return `${datetime.goto("America/Los_Angeles").format("nice")} - ${
-            item.milliliters.N
-          }mL`;
-        });
-        const totalMl = items.reduce(
-          (acc, curr) => acc + +curr.milliliters.N,
-          0
-        );
-        await confirmation.update({
-          content: `${CODE_START}${entries.join(
-            "\n"
-          )}\nTotal water intake: ${totalMl}mL\n${CODE_END}`,
-          components: [],
-        });
+        
+        try {
+          // Convert local day boundaries to UTC for database query
+          const startOfDay = rangeDate.startOf('day');
+          const endOfDay = rangeDate.endOf('day');
+          const startDate = startOfDay.goto('UTC').format('iso');
+          const endDate = endOfDay.goto('UTC').format('iso');
+
+          const entries = await db.getEntriesInRange(startDate, endDate);
+
+          if (!entries || entries.length === 0) {
+            await confirmation.update({
+              content: `No water entries found for ${days} day${days > 1 ? 's' : ''} ago.`,
+              components: [],
+            });
+            return;
+          }
+
+          const formattedEntries = entries.map((entry) => {
+            // Convert UTC database time to user's timezone for display
+            const datetime = spacetime(entry.entry_datetime).goto(USER_TIMEZONE);
+            return `${datetime.format("nice")} - ${entry.milliliters}mL`;
+          });
+
+          const totalMl = entries.reduce((acc, curr) => acc + curr.milliliters, 0);
+          await confirmation.update({
+            content: `${CODE_START}${formattedEntries.join(
+              "\n"
+            )}\nTotal water intake: ${totalMl}mL\n${CODE_END}`,
+            components: [],
+          });
+        } catch (e) {
+          console.error(e);
+          await confirmation.update({
+            content: `Error fetching entries: ${e}`,
+            components: [],
+          });
+        }
       }
     } catch (e) {
       console.error(e);
