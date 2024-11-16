@@ -4,19 +4,45 @@ dotenv.config();
 import axios from "axios";
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 
+// Type definition for NewsAPI article
+interface NewsArticle {
+  source: {
+    id: string | null;
+    name: string;
+  };
+  title: string;
+  url: string;
+}
+
+// Whitelist of allowed news sources
+const WHITELIST_SOURCES = [
+  "bbc-news",
+  "reuters",
+  "associated-press",
+  "new-scientist",
+  "the-wall-street-journal",
+];
+
 async function getTopNews() {
-  const response = await axios.get(
-    `https://newsapi.org/v2/top-headlines?country=us&pageSize=5&category=general&apiKey=${process.env.NEWS_API_KEY}`
+  const response = await axios.get<{
+    status: string;
+    articles: NewsArticle[];
+  }>(
+    `https://newsapi.org/v2/top-headlines?country=us&category=general&apiKey=${process.env.NEWS_API_KEY}`
   );
   const { data } = response;
-  let articles = [];
+  let articles: string[] = [];
   if (data.status === "ok") {
-    articles = data.articles.map((article) => {
-      return `* [${article.title}](${article.url})`;
-    });
-    return articles.join("\n");
+    articles = data.articles
+      .filter(article => WHITELIST_SOURCES.includes(article.source.id?.toLowerCase() || ''))
+      .map((article) => {
+        return `* [${article.title}](${article.url}) - ${article.source.name}`;
+      });
+    return articles.length > 0
+      ? articles.join("\n")
+      : "No articles found from whitelisted sources.";
   } else {
-    return "There was an error";
+    return "There was an error retrieving news";
   }
 }
 
