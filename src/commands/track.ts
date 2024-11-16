@@ -106,7 +106,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const endOfDay = now.endOf('day');
       const startDate = startOfDay.goto('UTC').format('iso');
       const endDate = endOfDay.goto('UTC').format('iso');
-      
+
       const entries = await db.getEntriesInRange(startDate, endDate);
 
       if (!entries || entries.length === 0) {
@@ -191,7 +191,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       } else {
         const days = parseInt(confirmation.customId.split("-")[1]);
         const rangeDate = now.subtract(days, "day");
-        
+
         try {
           // Convert local day boundaries to UTC for database query
           const startOfDay = rangeDate.startOf('day');
