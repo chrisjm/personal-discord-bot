@@ -330,18 +330,24 @@ async function loadHistoricalData() {
     );
 
     // Fetch crypto historical data
-    const [cryptoData, ethData] = await Promise.all([
-      coinGeckoClient.coins.fetchMarketChartRange('bitcoin', {
-        from: thirtyDaysAgo.getTime() / 1000,
-        to: now.getTime() / 1000,
-        vs_currency: 'usd'
-      }),
-      coinGeckoClient.coins.fetchMarketChartRange('ethereum', {
-        from: thirtyDaysAgo.getTime() / 1000,
-        to: now.getTime() / 1000,
-        vs_currency: 'usd'
-      })
-    ]);
+    let cryptoData, ethData;
+    try {
+      [cryptoData, ethData] = await Promise.all([
+        coinGeckoClient.coins.fetchMarketChartRange('bitcoin', {
+          from: Math.floor(thirtyDaysAgo.getTime() / 1000),
+          to: Math.floor(now.getTime() / 1000),
+          vs_currency: 'usd'
+        }),
+        coinGeckoClient.coins.fetchMarketChartRange('ethereum', {
+          from: Math.floor(thirtyDaysAgo.getTime() / 1000),
+          to: Math.floor(now.getTime() / 1000),
+          vs_currency: 'usd'
+        })
+      ]);
+    } catch (error) {
+      console.error('Error fetching crypto historical data:', error);
+      return;
+    }
 
     // Create maps for crypto data
     const btcDataMap = new Map();
@@ -354,22 +360,45 @@ async function loadHistoricalData() {
       return;
     }
 
+    // Validate array lengths match for each crypto
+    if (cryptoData.data.prices.length !== cryptoData.data.total_volumes.length || 
+        cryptoData.data.prices.length !== cryptoData.data.market_caps.length) {
+      console.error('Mismatched BTC data array lengths from CoinGecko');
+      return;
+    }
+
+    if (ethData.data.prices.length !== ethData.data.total_volumes.length || 
+        ethData.data.prices.length !== ethData.data.market_caps.length) {
+      console.error('Mismatched ETH data array lengths from CoinGecko');
+      return;
+    }
+
     // Process BTC data
     const btcPrices = cryptoData.data.prices;
     const btcVolumes = cryptoData.data.total_volumes;
     const btcMarketCaps = cryptoData.data.market_caps;
 
     for (let i = 0; i < btcPrices.length; i++) {
-      const [timestamp, price] = btcPrices[i];
-      const volume = btcVolumes[i]?.[1] || 0;
-      const marketCap = btcMarketCaps[i]?.[1] || 0;
-      const date = new Date(timestamp).toISOString().split('T')[0];
+      try {
+        const [timestamp, price] = btcPrices[i];
+        const volume = btcVolumes[i][1];
+        const marketCap = btcMarketCaps[i][1];
+        
+        if (!price || !volume || !marketCap) {
+          console.warn(`Invalid BTC data point at index ${i}, skipping`);
+          continue;
+        }
 
-      btcDataMap.set(date, {
-        price,
-        volume,
-        marketCap
-      });
+        const date = new Date(timestamp).toISOString().split('T')[0];
+        btcDataMap.set(date, {
+          price,
+          volume,
+          marketCap
+        });
+      } catch (error) {
+        console.error(`Error processing BTC data point at index ${i}:`, error);
+        continue;
+      }
     }
 
     // Process ETH data
@@ -378,16 +407,26 @@ async function loadHistoricalData() {
     const ethMarketCaps = ethData.data.market_caps;
 
     for (let i = 0; i < ethPrices.length; i++) {
-      const [timestamp, price] = ethPrices[i];
-      const volume = ethVolumes[i]?.[1] || 0;
-      const marketCap = ethMarketCaps[i]?.[1] || 0;
-      const date = new Date(timestamp).toISOString().split('T')[0];
+      try {
+        const [timestamp, price] = ethPrices[i];
+        const volume = ethVolumes[i][1];
+        const marketCap = ethMarketCaps[i][1];
+        
+        if (!price || !volume || !marketCap) {
+          console.warn(`Invalid ETH data point at index ${i}, skipping`);
+          continue;
+        }
 
-      ethDataMap.set(date, {
-        price,
-        volume,
-        marketCap
-      });
+        const date = new Date(timestamp).toISOString().split('T')[0];
+        ethDataMap.set(date, {
+          price,
+          volume,
+          marketCap
+        });
+      } catch (error) {
+        console.error(`Error processing ETH data point at index ${i}:`, error);
+        continue;
+      }
     }
 
     // Process and store each day's data
@@ -446,7 +485,8 @@ async function getCryptoMarketInfo() {
     ]);
 
     // Validate API responses
-    if (!global?.data?.data?.total_market_cap?.usd) {
+    if (!global?.data?.data?.total_market_cap?.usd || !global?.data?.data?.market_cap_change_percentage_24h_usd) {
+      console.warn('Invalid global market structure:', global);
       throw new Error('Invalid global market data from CoinGecko');
     }
 
@@ -456,9 +496,11 @@ async function getCryptoMarketInfo() {
 
     const btcData = prices.data.bitcoin;
     const ethData = prices.data.ethereum;
+    const globalData = global.data.data;
 
     return {
-      marketCap: global.data.data.total_market_cap.usd,
+      marketCap: globalData.total_market_cap.usd,
+      marketCapChange: globalData.market_cap_change_percentage_24h_usd,
       btcPrice: btcData.usd,
       ethPrice: ethData.usd,
       btcChange: btcData.usd_24h_change || 0,
@@ -473,6 +515,7 @@ async function getCryptoMarketInfo() {
     // Return default values instead of throwing
     return {
       marketCap: 0,
+      marketCapChange: 0,
       btcPrice: 0,
       ethPrice: 0,
       btcChange: 0,
@@ -521,6 +564,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       return `${arrows} ${sign} ${Math.abs(change).toFixed(2)}%`;
     }
 
+    function formatYieldChange(change: number): string {
+      const sign = change >= 0 ? '▲' : '▼';
+      return `${sign} ${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+    }
+
     function getEmbedColor(change: number): number {
       if (change >= 2) return 0x00FF00; // Strong green for >2% gain
       if (change > 0) return 0x90EE90;  // Light green for 0-2% gain
@@ -535,6 +583,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Calculate SPY daily change if we have history data
     const spyDailyChange = displayHistoryData.length > 0
       ? ((marketStatus.spyPrice - displayHistoryData[0].spy_close) / displayHistoryData[0].spy_close) * 100
+      : 0;
+
+    const yieldDailyChange = displayHistoryData.length > 0
+      ? marketStatus.tenYearYield - displayHistoryData[0].ten_year_yield_close
+      : 0;
+
+    const marketCapChange = displayHistoryData.length > 0
+      ? ((cryptoInfo.marketCap - displayHistoryData[0].btc_market_cap - displayHistoryData[0].eth_market_cap) / 
+         (displayHistoryData[0].btc_market_cap + displayHistoryData[0].eth_market_cap)) * 100
       : 0;
 
     const embed = new EmbedBuilder()
@@ -557,7 +614,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       },
       {
         name: '📊 10Y Treasury Yield',
-        value: `${marketStatus.tenYearYield.toFixed(2)}%`,
+        value: `${marketStatus.tenYearYield.toFixed(2)}% ${yieldDailyChange !== 0 ? formatYieldChange(yieldDailyChange) : ''}`,
         inline: true
       },
       { name: '\u200B', value: '\u200B', inline: true } // Empty field for alignment
@@ -567,17 +624,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     embed.addFields(
       {
         name: '🌐 Cryptocurrency Markets',
-        value: `Market Cap: ${formatMarketCap(cryptoInfo.marketCap)}`,
+        value: `Market Cap: ${formatMarketCap(cryptoInfo.marketCap)} ${formatChange(cryptoInfo.marketCapChange)}`,
         inline: false
       },
       {
         name: '₿ Bitcoin (BTC)',
-        value: `$${formatPrice(cryptoInfo.btcPrice)}\n${formatChange(cryptoInfo.btcChange)}`,
+        value: `$${formatPrice(cryptoInfo.btcPrice)} ${formatChange(cryptoInfo.btcChange)}`,
         inline: true
       },
       {
         name: 'Ξ Ethereum (ETH)',
-        value: `$${formatPrice(cryptoInfo.ethPrice)}\n${formatChange(cryptoInfo.ethChange)}`,
+        value: `$${formatPrice(cryptoInfo.ethPrice)} ${formatChange(cryptoInfo.ethChange)}`,
         inline: true
       },
       { name: '\u200B', value: '\u200B', inline: true } // Empty field for alignment
@@ -591,43 +648,22 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       // Calculate changes
       const spyChange = ((marketStatus.spyPrice - oldestData.spy_close) / oldestData.spy_close) * 100;
       const yieldChange = marketStatus.tenYearYield - oldestData.ten_year_yield_close;
-      const btcChange = ((cryptoInfo.btcPrice - oldestData.btc_price) / oldestData.btc_price) * 100;
-      const ethChange = ((cryptoInfo.ethPrice - oldestData.eth_price) / oldestData.eth_price) * 100;
 
       // Find highest and lowest points
       const spyHighest = Math.max(...displayHistoryData.map(d => d.spy_high));
       const spyLowest = Math.min(...displayHistoryData.map(d => d.spy_low));
-      const yieldHighest = Math.max(...displayHistoryData.map(d => d.ten_year_yield_close));
-      const yieldLowest = Math.min(...displayHistoryData.map(d => d.ten_year_yield_close));
-      const btcHighest = Math.max(...displayHistoryData.map(d => d.btc_price));
-      const btcLowest = Math.min(...displayHistoryData.map(d => d.btc_price));
-      const ethHighest = Math.max(...displayHistoryData.map(d => d.eth_price));
-      const ethLowest = Math.min(...displayHistoryData.map(d => d.eth_price));
 
-      const marketHistoryText = `**${displayHistoryData.length}-Day US Market Summary** (since ${oldestData.date})
-SPY: $${formatPrice(oldestData.spy_close || 0)} → $${formatPrice(marketStatus.spyPrice)} ${formatChange(spyChange)}
-• Range: $${formatPrice(spyLowest)} - $${formatPrice(spyHighest)}
-10Y: ${(oldestData.ten_year_yield_close || 0).toFixed(2)}% → ${marketStatus.tenYearYield.toFixed(2)}% (${yieldChange >= 0 ? '+' : ''}${yieldChange.toFixed(2)})
-• Range: ${yieldLowest.toFixed(2)}% - ${yieldHighest.toFixed(2)}%`;
-
-      const cryptoHistoryText = `**${displayHistoryData.length}-Day Crypto Summary** (since ${oldestData.date})
-BTC: $${formatPrice(oldestData.btc_price || 0)} → $${formatPrice(cryptoInfo.btcPrice)} ${formatChange(btcChange)}
-• Range: $${formatPrice(btcLowest)} - $${formatPrice(btcHighest)}
-ETH: $${formatPrice(oldestData.eth_price || 0)} → $${formatPrice(cryptoInfo.ethPrice)} ${formatChange(ethChange)}
-• Range: $${formatPrice(ethLowest)} - $${formatPrice(ethHighest)}`;
-
-      embed.addFields(
-        {
-          name: '📅 Historical Market Performance',
-          value: marketHistoryText,
+      if (historyDays > 0) {
+        embed.addFields({
+          name: `📊 ${historyDays} Day Summary`,
+          value: [
+            `**SPY Range:** $${formatPrice(spyLowest)} - $${formatPrice(spyHighest)}`,
+            `**SPY Change:** ${formatChange(spyChange)}`,
+            `**10Y Yield Change:** ${yieldChange > 0 ? '+' : ''}${yieldChange.toFixed(2)}%`,
+          ].join('\n'),
           inline: false
-        },
-        {
-          name: '📅 Historical Crypto Performance',
-          value: cryptoHistoryText,
-          inline: false
-        }
-      );
+        });
+      }
     }
 
     await interaction.editReply({ embeds: [embed] });
