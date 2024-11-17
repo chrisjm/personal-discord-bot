@@ -14,6 +14,7 @@
   "license": "MIT",
   "prettier": {},
   "devDependencies": {
+    "@types/coingecko-api": "^1.0.13",
     "@types/node": "^22.7.9",
     "@types/ws": "^8.5.12",
     "axios": "^1.7.7",
@@ -28,9 +29,13 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
+    "@types/node-fetch": "^2.6.12",
+    "coingecko-api": "^1.0.10",
     "libsodium-wrappers": "^0.7.15",
+    "node-fetch": "^3.3.2",
     "rss-parser": "^3.13.0",
     "spacetime": "^7.6.2",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "yahoo-finance2": "^2.13.2"
   }
 }

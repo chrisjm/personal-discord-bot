@@ -10,7 +10,7 @@ import {
   Interaction,
   SlashCommandBuilder,
 } from "discord.js";
-import { db } from "../utils/database";
+import { waterDb } from "../utils/database";
 
 const CODE_START = "```\n";
 const CODE_END = "```\n";
@@ -78,7 +78,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const milliliters = parseInt(confirmation.customId.split("-")[0]);
 
         try {
-          const message = await db.addEntry(milliliters);
+          const message = await waterDb.addEntry(milliliters);
           await confirmation.update({
             content: message,
             components: [],
@@ -107,7 +107,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const startDate = startOfDay.goto('UTC').format('iso');
       const endDate = endOfDay.goto('UTC').format('iso');
 
-      const entries = await db.getEntriesInRange(startDate, endDate);
+      const entries = await waterDb.getEntriesInRange(startDate, endDate);
 
       if (!entries || entries.length === 0) {
         await interaction.reply({
@@ -199,7 +199,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           const startDate = startOfDay.goto('UTC').format('iso');
           const endDate = endOfDay.goto('UTC').format('iso');
 
-          const entries = await db.getEntriesInRange(startDate, endDate);
+          const entries = await waterDb.getEntriesInRange(startDate, endDate);
 
           if (!entries || entries.length === 0) {
             await confirmation.update({
