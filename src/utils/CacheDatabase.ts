@@ -11,6 +11,16 @@ export interface MarketStatusCache {
     valid_until: number;
 }
 
+export interface CryptoMarketCache {
+    status: string;
+    btc_price: number;
+    btc_change_24h: number;
+    eth_price: number;
+    eth_change_24h: number;
+    timestamp: number;
+    valid_until: number;
+}
+
 class CacheDatabaseManager {
     private static instance: CacheDatabaseManager;
     private db: Database;
@@ -52,6 +62,20 @@ class CacheDatabaseManager {
                 valid_until INTEGER NOT NULL
             )
         `);
+
+        // Create crypto market cache table
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS crypto_market_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                status TEXT NOT NULL,
+                btc_price REAL NOT NULL,
+                btc_change_24h REAL NOT NULL,
+                eth_price REAL NOT NULL,
+                eth_change_24h REAL NOT NULL,
+                timestamp INTEGER NOT NULL,
+                valid_until INTEGER NOT NULL
+            )
+        `);
     }
 
     async getMarketStatusCache(): Promise<MarketStatusCache | null> {
@@ -79,6 +103,49 @@ class CacheDatabaseManager {
                 (err) => {
                     if (err) {
                         console.error('Error updating market status cache:', err);
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
+
+    async getCryptoMarketCache(): Promise<CryptoMarketCache | null> {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT * FROM crypto_market_cache ORDER BY timestamp DESC LIMIT 1',
+                (err, row) => {
+                    if (err) {
+                        console.error('Error getting crypto market cache:', err);
+                        reject(err);
+                    } else {
+                        resolve(row as CryptoMarketCache | null);
+                    }
+                }
+            );
+        });
+    }
+
+    async updateCryptoMarketCache(cache: CryptoMarketCache): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                `INSERT INTO crypto_market_cache (
+                    status, btc_price, btc_change_24h, eth_price, eth_change_24h, timestamp, valid_until
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    cache.status,
+                    cache.btc_price,
+                    cache.btc_change_24h,
+                    cache.eth_price,
+                    cache.eth_change_24h,
+                    cache.timestamp,
+                    cache.valid_until
+                ],
+                (err) => {
+                    if (err) {
+                        console.error('Error updating crypto market cache:', err);
                         reject(err);
                     } else {
                         resolve();

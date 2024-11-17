@@ -30,7 +30,7 @@
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
     "@types/node-fetch": "^2.6.12",
-    "coingecko-api": "^1.0.10",
+    "coingecko-api-v3": "^0.0.29",
     "libsodium-wrappers": "^0.7.15",
     "node-fetch": "^3.3.2",
     "rss-parser": "^3.13.0",

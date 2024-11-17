@@ -3,7 +3,7 @@ import sqlite3 from "sqlite3";
 import RSSParser from "rss-parser";
 
 const rssParser = new RSSParser();
-const db = new sqlite3.Database("news_minimalist_rss_feed.db");
+const db = new sqlite3.Database("data/sqlite/news_minimalist_rss_feed.db");
 
 // Create the SQLite table if it doesn't already exist
 db.serialize(() => {
