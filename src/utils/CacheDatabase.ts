@@ -76,6 +76,25 @@ class CacheDatabaseManager {
                 valid_until INTEGER NOT NULL
             )
         `);
+
+        // Create generic key-value cache table
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS generic_cache (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                timestamp INTEGER NOT NULL
+            )
+        `);
+
+        // Create world markets cache table
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS world_markets_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                status TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                valid_until INTEGER NOT NULL
+            )
+        `);
     }
 
     async getMarketStatusCache(): Promise<MarketStatusCache | null> {
@@ -146,6 +165,48 @@ class CacheDatabaseManager {
                 (err) => {
                     if (err) {
                         console.error('Error updating crypto market cache:', err);
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
+
+    async get(key: string): Promise<any | null> {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT value, timestamp FROM generic_cache WHERE key = ?',
+                [key],
+                (err, row) => {
+                    if (err) {
+                        console.error('Error getting from cache:', err);
+                        reject(err);
+                    } else if (!row) {
+                        resolve(null);
+                    } else {
+                        try {
+                            resolve(JSON.parse(row.value));
+                        } catch (e) {
+                            console.error('Error parsing cached value:', e);
+                            resolve(null);
+                        }
+                    }
+                }
+            );
+        });
+    }
+
+    async set(key: string, value: any): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const timestamp = Date.now();
+            this.db.run(
+                'INSERT OR REPLACE INTO generic_cache (key, value, timestamp) VALUES (?, ?, ?)',
+                [key, JSON.stringify(value), timestamp],
+                (err) => {
+                    if (err) {
+                        console.error('Error setting cache:', err);
                         reject(err);
                     } else {
                         resolve();
