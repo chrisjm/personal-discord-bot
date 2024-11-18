@@ -8,7 +8,7 @@ class USMarketHistoryDatabase {
 
   constructor() {
     // Use absolute path in sqlite directory
-    const dbPath = path.join(process.cwd(), 'data', 'sqlite', 'us_market_history.db');
+    const dbPath = path.join(process.cwd(), 'data', 'sqlite', 'market_history.db');
     this.db = new Database(dbPath);
     this.init().catch(console.error);
   }
@@ -34,7 +34,7 @@ class USMarketHistoryDatabase {
         else {
           // Create index on date for faster queries
           this.db.run(`
-            CREATE INDEX IF NOT EXISTS idx_us_market_history_date 
+            CREATE INDEX IF NOT EXISTS idx_us_market_history_date
             ON us_market_history(date)
           `, (err) => {
             if (err) reject(err);
@@ -53,7 +53,7 @@ class USMarketHistoryDatabase {
 
     return new Promise((resolve, reject) => {
       this.db.run(
-        `INSERT OR REPLACE INTO us_market_history 
+        `INSERT OR REPLACE INTO us_market_history
         (date, spy_open, spy_close, spy_high, spy_low, ten_year_yield_open, ten_year_yield_close, volume, timestamp)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -84,8 +84,8 @@ class USMarketHistoryDatabase {
 
     return new Promise((resolve, reject) => {
       this.db.all(
-        `SELECT * FROM us_market_history 
-         ORDER BY date DESC 
+        `SELECT * FROM us_market_history
+         ORDER BY date DESC
          LIMIT ?`,
         [days],
         (err, rows) => {

@@ -8,7 +8,7 @@ class CryptoMarketHistoryDatabase {
 
   constructor() {
     // Use absolute path in sqlite directory
-    const dbPath = path.join(process.cwd(), 'data', 'sqlite', 'crypto_market_history.db');
+    const dbPath = path.join(process.cwd(), 'data', 'sqlite', 'market_history.db');
     this.db = new Database(dbPath);
     this.init().catch(console.error);
   }
@@ -33,7 +33,7 @@ class CryptoMarketHistoryDatabase {
         else {
           // Create index on date for faster queries
           this.db.run(`
-            CREATE INDEX IF NOT EXISTS idx_crypto_market_history_date 
+            CREATE INDEX IF NOT EXISTS idx_crypto_market_history_date
             ON crypto_market_history(date)
           `, (err) => {
             if (err) reject(err);
@@ -52,7 +52,7 @@ class CryptoMarketHistoryDatabase {
 
     return new Promise((resolve, reject) => {
       this.db.run(
-        `INSERT OR REPLACE INTO crypto_market_history 
+        `INSERT OR REPLACE INTO crypto_market_history
         (date, btc_price, btc_volume, btc_market_cap, eth_price, eth_volume, eth_market_cap, timestamp)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -82,8 +82,8 @@ class CryptoMarketHistoryDatabase {
 
     return new Promise((resolve, reject) => {
       this.db.all(
-        `SELECT * FROM crypto_market_history 
-         ORDER BY date DESC 
+        `SELECT * FROM crypto_market_history
+         ORDER BY date DESC
          LIMIT ?`,
         [days],
         (err, rows) => {
