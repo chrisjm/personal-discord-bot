@@ -55,21 +55,16 @@ export async function getUSMarketData(): Promise<USMarketData> {
   const est = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   const day = est.getDay();
   const hour = est.getHours() + est.getMinutes() / 60;
-  const cache = await cacheDb.getMarketStatusCache() as MarketStatusCache | null;
+  
+  const cacheKey = 'us_markets_data';
+  const cachedData = await cacheDb.get(cacheKey);
+
+  if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION) {
+    return cachedData;
+  }
 
   // Weekend check
   if (day === 0 || day === 6) {
-    if (cache && now < cache.valid_until) {
-      return {
-        status: "US Markets are closed (Weekend)",
-        spyPrice: cache.spy_price,
-        spyPreviousClose: cache.spy_price,
-        spyChange: 0,
-        tenYearYield: cache.ten_year_yield,
-        timestamp: now
-      };
-    }
-
     try {
       const [spyQuote, tnxQuote] = await Promise.all([
         yahooFinance.quote('SPY'),
@@ -83,7 +78,7 @@ export async function getUSMarketData(): Promise<USMarketData> {
       // Update historical data
       await updateHistoricalData(spyQuote, tnxQuote, est);
 
-      const data = {
+      const data: USMarketData = {
         status: "US Markets are closed (Weekend)",
         spyPrice: spyQuote.regularMarketPrice,
         spyPreviousClose: spyQuote.regularMarketPreviousClose,
@@ -92,37 +87,22 @@ export async function getUSMarketData(): Promise<USMarketData> {
         timestamp: now
       };
 
-      await cacheDb.updateMarketStatusCache({
-        status: data.status,
-        spy_price: data.spyPrice,
-        ten_year_yield: data.tenYearYield,
-        timestamp: now,
-        valid_until: now + CACHE_DURATION * 12 // Cache for longer on weekends
-      });
-
+      await cacheDb.set(cacheKey, data);
       return data;
     } catch (error) {
       console.error('Error fetching weekend market data:', error);
+      if (cachedData) {
+        return cachedData;
+      }
       return {
         status: "US Markets are closed (Weekend)",
-        spyPrice: cache?.spy_price ?? 0,
-        spyPreviousClose: cache?.spy_price ?? 0,
+        spyPrice: 0,
+        spyPreviousClose: 0,
         spyChange: 0,
-        tenYearYield: cache?.ten_year_yield ?? 0,
+        tenYearYield: 0,
         timestamp: now
       };
     }
-  }
-
-  if (cache && now < cache.valid_until) {
-    return {
-      status: cache.status,
-      spyPrice: cache.spy_price,
-      spyPreviousClose: cache.spy_price,
-      spyChange: 0,
-      tenYearYield: cache.ten_year_yield,
-      timestamp: cache.timestamp
-    };
   }
 
   try {
@@ -138,7 +118,7 @@ export async function getUSMarketData(): Promise<USMarketData> {
     // Update historical data
     await updateHistoricalData(spyQuote, tnxQuote, est);
 
-    const data = {
+    const data: USMarketData = {
       status: spyQuote.marketState === 'REGULAR' ? "Regular trading session" : getTimeBasedStatus(hour),
       spyPrice: spyQuote.regularMarketPrice,
       spyPreviousClose: spyQuote.regularMarketPreviousClose,
@@ -147,23 +127,19 @@ export async function getUSMarketData(): Promise<USMarketData> {
       timestamp: now
     };
 
-    await cacheDb.updateMarketStatusCache({
-      status: data.status,
-      spy_price: data.spyPrice,
-      ten_year_yield: data.tenYearYield,
-      timestamp: now,
-      valid_until: now + CACHE_DURATION
-    });
-
+    await cacheDb.set(cacheKey, data);
     return data;
   } catch (error) {
     console.error('Error fetching market data:', error);
+    if (cachedData) {
+      return cachedData;
+    }
     return {
       status: getTimeBasedStatus(hour),
-      spyPrice: cache?.spy_price ?? 0,
-      spyPreviousClose: cache?.spy_price ?? 0,
+      spyPrice: 0,
+      spyPreviousClose: 0,
       spyChange: 0,
-      tenYearYield: cache?.ten_year_yield ?? 0,
+      tenYearYield: 0,
       timestamp: now
     };
   }

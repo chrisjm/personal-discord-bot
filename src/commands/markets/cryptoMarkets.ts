@@ -65,18 +65,11 @@ async function validateCoinGeckoResponse<T>(response: any): Promise<ValidatedRes
 export async function getCryptoMarketData(): Promise<CryptoMarketData> {
   try {
     const now = Date.now();
-    const cache = await cacheDb.getCryptoMarketCache();
+    const cacheKey = 'crypto_markets_data';
+    const cachedData = await cacheDb.get(cacheKey);
 
-    // Check cache first
-    if (cache && now < cache.valid_until) {
-      return {
-        status: cache.status,
-        btcPrice: cache.btc_price,
-        btcChange24h: cache.btc_change_24h,
-        ethPrice: cache.eth_price,
-        ethChange24h: cache.eth_change_24h,
-        timestamp: cache.timestamp
-      };
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION) {
+      return cachedData;
     }
 
     // Get simple price data for quick updates
@@ -104,7 +97,7 @@ export async function getCryptoMarketData(): Promise<CryptoMarketData> {
       lastHistoryUpdate = now;
     }
 
-    const marketData = {
+    const marketData: CryptoMarketData = {
       status: "Crypto markets are open 24/7",
       btcPrice: btcData.usd,
       btcChange24h: btcData.usd_24h_change,
@@ -113,33 +106,10 @@ export async function getCryptoMarketData(): Promise<CryptoMarketData> {
       timestamp: now
     };
 
-    // Update cache
-    await cacheDb.updateCryptoMarketCache({
-      status: marketData.status,
-      btc_price: marketData.btcPrice,
-      btc_change_24h: marketData.btcChange24h,
-      eth_price: marketData.ethPrice,
-      eth_change_24h: marketData.ethChange24h,
-      timestamp: now,
-      valid_until: now + CACHE_DURATION
-    });
-
+    await cacheDb.set(cacheKey, marketData);
     return marketData;
   } catch (error) {
     console.error('Error fetching crypto market data:', error);
-
-    // Try to use cached data even if expired
-    const cache = await cacheDb.getCryptoMarketCache();
-    if (cache) {
-      return {
-        status: "Error fetching crypto market data (using cached data)",
-        btcPrice: cache.btc_price,
-        btcChange24h: cache.btc_change_24h,
-        ethPrice: cache.eth_price,
-        ethChange24h: cache.eth_change_24h,
-        timestamp: cache.timestamp
-      };
-    }
 
     // If no cache available, return zeros
     return {
