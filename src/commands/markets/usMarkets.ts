@@ -70,7 +70,7 @@ function getTimeBasedStatus(hour: number): string {
 
 export async function getUSMarketData(): Promise<USMarketData> {
   try {
-    const cachedData = await cacheDb.get('us_market_status');
+    const cachedData = await cacheDb.get('us_markets_data');
     if (cachedData) {
       const cache = JSON.parse(cachedData) as MarketStatusCache;
       if (Date.now() < cache.valid_until) {
