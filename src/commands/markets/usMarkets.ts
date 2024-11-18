@@ -35,6 +35,8 @@ export interface USMarketData {
   spyPreviousClose: number;
   spyChange: number;
   tenYearYield: number;
+  tenYearYieldPreviousClose: number;
+  tenYearYieldChange: number;
   timestamp: number;
 }
 
@@ -84,6 +86,9 @@ export async function getUSMarketData(): Promise<USMarketData> {
         spyPreviousClose: spyQuote.regularMarketPreviousClose,
         spyChange: ((spyQuote.regularMarketPrice - spyQuote.regularMarketPreviousClose) / spyQuote.regularMarketPreviousClose) * 100,
         tenYearYield: tnxQuote.regularMarketPrice,
+        tenYearYieldPreviousClose: tnxQuote.regularMarketPreviousClose || 0,
+        tenYearYieldChange: tnxQuote.regularMarketPreviousClose ? 
+          tnxQuote.regularMarketPrice - tnxQuote.regularMarketPreviousClose : 0,
         timestamp: now
       };
 
@@ -100,6 +105,8 @@ export async function getUSMarketData(): Promise<USMarketData> {
         spyPreviousClose: 0,
         spyChange: 0,
         tenYearYield: 0,
+        tenYearYieldPreviousClose: 0,
+        tenYearYieldChange: 0,
         timestamp: now
       };
     }
@@ -124,6 +131,9 @@ export async function getUSMarketData(): Promise<USMarketData> {
       spyPreviousClose: spyQuote.regularMarketPreviousClose,
       spyChange: ((spyQuote.regularMarketPrice - spyQuote.regularMarketPreviousClose) / spyQuote.regularMarketPreviousClose) * 100,
       tenYearYield: tnxQuote.regularMarketPrice,
+      tenYearYieldPreviousClose: tnxQuote.regularMarketPreviousClose || 0,
+      tenYearYieldChange: tnxQuote.regularMarketPreviousClose ? 
+        tnxQuote.regularMarketPrice - tnxQuote.regularMarketPreviousClose : 0,
       timestamp: now
     };
 
@@ -140,6 +150,8 @@ export async function getUSMarketData(): Promise<USMarketData> {
       spyPreviousClose: 0,
       spyChange: 0,
       tenYearYield: 0,
+      tenYearYieldPreviousClose: 0,
+      tenYearYieldChange: 0,
       timestamp: now
     };
   }

@@ -24,8 +24,8 @@ interface HistoricalDataResult {
 
 function getChangeEmoji(change: number): string {
   if (change > 1.5) return '🚀';
-  if (change > 0) return '📈';
-  if (change < -1.5) return '📉';
+  if (change > 0) return '🟢';
+  if (change < -1.5) return '🔴';
   if (change < 0) return '🔻';
   return '➡️';
 }
@@ -62,10 +62,11 @@ async function formatMarketEmbed(
   // US Markets Section
   const spyChange = usMarkets.spyChange;
   const spyEmoji = getChangeEmoji(spyChange);
+  const yieldEmoji = getChangeEmoji(usMarkets.tenYearYieldChange);
   leftColumn += '🏛️ __**US Markets**__\n';
   leftColumn += `**Status:** ${usMarkets.status}\n`;
   leftColumn += `${spyEmoji} **S&P 500:** $${formatPrice(usMarkets.spyPrice)} (${formatChange(spyChange)})\n`;
-  leftColumn += `📊 **10Y Treasury:** ${usMarkets.tenYearYield.toFixed(2)}%\n`;
+  leftColumn += `${yieldEmoji} **10Y Treasury:** ${usMarkets.tenYearYield.toFixed(2)}% (${usMarkets.tenYearYieldChange > 0 ? '+' : ''}${usMarkets.tenYearYieldChange.toFixed(2)})\n`;
 
   if (historyDays > 0 && usHistoryData.length > 0) {
     const oldestData = usHistoryData[usHistoryData.length - 1];
@@ -86,7 +87,7 @@ async function formatMarketEmbed(
   // Right Column: World Markets
   let rightColumn = '🌐 __**World Markets**__\n';
   rightColumn += `**Status:** ${worldMarkets.status}\n\n`;
-  
+
   // European Markets
   const { dax, ftse100, cac40 } = worldMarkets.markets.europe;
   rightColumn += "🇪🇺 __European Indices:__\n";
@@ -157,10 +158,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     // Fetch market data concurrently
     const [
-      usMarkets, 
-      cryptoMarkets, 
-      worldMarkets, 
-      usHistoryData, 
+      usMarkets,
+      cryptoMarkets,
+      worldMarkets,
+      usHistoryData,
       cryptoHistoryData
     ] = await Promise.all([
       getUSMarketData(),
@@ -172,11 +173,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     // Create and send embed
     const embed = await formatMarketEmbed(
-      usMarkets, 
-      cryptoMarkets, 
-      worldMarkets, 
-      historyDays, 
-      usHistoryData, 
+      usMarkets,
+      cryptoMarkets,
+      worldMarkets,
+      historyDays,
+      usHistoryData,
       cryptoHistoryData
     );
 
