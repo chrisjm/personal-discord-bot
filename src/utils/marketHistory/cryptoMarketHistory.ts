@@ -9,14 +9,22 @@ class CryptoMarketHistoryDatabase {
   constructor() {
     // Use absolute path in sqlite directory
     const dbPath = path.join(process.cwd(), 'data', 'sqlite', 'market_history.db');
+    console.log(`Initializing crypto market history database at ${dbPath}`);
     this.db = new Database(dbPath);
-    this.init().catch(console.error);
+    this.init().catch(err => {
+      console.error('Failed to initialize crypto market history database:', err);
+    });
+    console.log('Successfully connected to crypto market history database');
   }
 
   private async init() {
-    if (this.initialized) return;
+    if (this.initialized) {
+      console.log('Crypto market history database already initialized');
+      return;
+    }
 
     return new Promise<void>((resolve, reject) => {
+      console.log('Creating crypto market history table if not exists...');
       this.db.run(`
         CREATE TABLE IF NOT EXISTS crypto_market_history (
           date TEXT PRIMARY KEY,
@@ -32,13 +40,17 @@ class CryptoMarketHistoryDatabase {
         if (err) reject(err);
         else {
           // Create index on date for faster queries
+          console.log('Creating index on crypto market history table...');
           this.db.run(`
             CREATE INDEX IF NOT EXISTS idx_crypto_market_history_date
             ON crypto_market_history(date)
           `, (err) => {
-            if (err) reject(err);
-            else {
+            if (err) {
+              console.error('Failed to create index on crypto market history table:', err);
+              reject(err);
+            } else {
               this.initialized = true;
+              console.log('Successfully initialized crypto market history database and created index');
               resolve();
             }
           });
@@ -49,6 +61,10 @@ class CryptoMarketHistoryDatabase {
 
   async addMarketHistory(entry: CryptoMarketHistoryEntry): Promise<void> {
     await this.init(); // Ensure initialization
+
+    if (!this.initialized) {
+      console.warn('Attempting to add entry before database initialization');
+    }
 
     return new Promise((resolve, reject) => {
       this.db.run(
@@ -67,9 +83,10 @@ class CryptoMarketHistoryDatabase {
         ],
         (err) => {
           if (err) {
-            console.error('Error adding crypto market history:', err);
+            console.error('Failed to insert crypto market history entry:', err, '\nEntry:', entry);
             reject(err);
           } else {
+            console.log(`Successfully inserted crypto market data for date: ${entry.date}`);
             resolve();
           }
         }

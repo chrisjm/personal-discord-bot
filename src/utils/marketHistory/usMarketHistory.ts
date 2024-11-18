@@ -9,14 +9,22 @@ class USMarketHistoryDatabase {
   constructor() {
     // Use absolute path in sqlite directory
     const dbPath = path.join(process.cwd(), 'data', 'sqlite', 'market_history.db');
+    console.log(`Initializing US market history database at ${dbPath}`);
     this.db = new Database(dbPath);
-    this.init().catch(console.error);
+    this.init().catch(err => {
+      console.error('Failed to initialize US market history database:', err);
+    });
+    console.log('Successfully connected to US market history database');
   }
 
   private async init() {
-    if (this.initialized) return;
+    if (this.initialized) {
+      console.log('US market history database already initialized');
+      return;
+    }
 
     return new Promise<void>((resolve, reject) => {
+      console.log('Creating US market history table if not exists...');
       this.db.run(`
         CREATE TABLE IF NOT EXISTS us_market_history (
           date TEXT PRIMARY KEY,
@@ -30,16 +38,21 @@ class USMarketHistoryDatabase {
           timestamp INTEGER
         )
       `, (err) => {
-        if (err) reject(err);
-        else {
+        if (err) {
+          console.error('Failed to create US market history table:', err);
+          reject(err);
+        } else {
           // Create index on date for faster queries
           this.db.run(`
             CREATE INDEX IF NOT EXISTS idx_us_market_history_date
             ON us_market_history(date)
           `, (err) => {
-            if (err) reject(err);
-            else {
+            if (err) {
+              console.error('Failed to create index on US market history table:', err);
+              reject(err);
+            } else {
               this.initialized = true;
+              console.log('Successfully initialized US market history database and created index');
               resolve();
             }
           });
@@ -50,6 +63,9 @@ class USMarketHistoryDatabase {
 
   async addMarketHistory(entry: USMarketHistoryEntry): Promise<void> {
     await this.init(); // Ensure initialization
+    if (!this.initialized) {
+      console.warn('Attempting to add entry before database initialization');
+    }
 
     return new Promise((resolve, reject) => {
       this.db.run(
@@ -69,9 +85,10 @@ class USMarketHistoryDatabase {
         ],
         (err) => {
           if (err) {
-            console.error('Error adding US market history:', err);
+            console.error('Failed to insert US market history entry:', err, '\nEntry:', entry);
             reject(err);
           } else {
+            console.log(`Successfully inserted US market data for date: ${entry.date}`);
             resolve();
           }
         }

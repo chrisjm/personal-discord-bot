@@ -1,5 +1,6 @@
 import yahooFinance from 'yahoo-finance2';
 import { cacheDb } from "../../utils/database";
+import { worldMarketHistoryDb } from "../../utils/marketHistory/worldMarketHistory";
 
 const CACHE_DURATION = 60 * 1000; // 1 minute cache
 
@@ -100,6 +101,14 @@ export async function getWorldMarketData(): Promise<WorldMarketData> {
 
     // Cache the result
     await cacheDb.set(cacheKey, worldMarketData);
+
+    // Store in market history database
+    try {
+      await worldMarketHistoryDb.addMarketHistory(worldMarketData);
+    } catch (error) {
+      console.error('Failed to store market history:', error);
+      // Don't throw the error as this is a non-critical operation
+    }
 
     return worldMarketData;
   } catch (error) {
