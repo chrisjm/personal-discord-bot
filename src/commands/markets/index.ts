@@ -61,11 +61,17 @@ async function formatMarketEmbed(
 
   // US Markets Section
   const spyChange = usMarkets.spyChange;
+  const qqqChange = usMarkets.qqqChange;
+  const diaChange = usMarkets.diaChange;
   const spyEmoji = getChangeEmoji(spyChange);
+  const qqqEmoji = getChangeEmoji(qqqChange);
+  const diaEmoji = getChangeEmoji(diaChange);
   const yieldEmoji = getChangeEmoji(usMarkets.tenYearYieldChange);
   leftColumn += '🏛️ __**US Markets**__\n';
   leftColumn += `**Status:** ${usMarkets.status}\n`;
   leftColumn += `${spyEmoji} **S&P 500:** $${formatPrice(usMarkets.spyPrice)} (${formatChange(spyChange)})\n`;
+  leftColumn += `${qqqEmoji} **NASDAQ:** $${formatPrice(usMarkets.qqqPrice)} (${formatChange(qqqChange)})\n`;
+  leftColumn += `${diaEmoji} **Dow Jones:** $${formatPrice(usMarkets.diaPrice)} (${formatChange(diaChange)})\n`;
   leftColumn += `${yieldEmoji} **10Y Treasury:** ${usMarkets.tenYearYield.toFixed(2)}% (${usMarkets.tenYearYieldChange > 0 ? '+' : ''}${usMarkets.tenYearYieldChange.toFixed(2)})\n`;
 
   if (historyDays > 0 && usHistoryData.length > 0) {
@@ -78,7 +84,6 @@ async function formatMarketEmbed(
 
   // Crypto Markets Section
   leftColumn += '\n🔗 __**Crypto Markets**__\n';
-  leftColumn += `**Status:** ${cryptoMarkets.status}\n`;
   const btcEmoji = getChangeEmoji(cryptoMarkets.btcChange24h);
   const ethEmoji = getChangeEmoji(cryptoMarkets.ethChange24h);
   leftColumn += `${btcEmoji} **BTC:** $${formatPrice(cryptoMarkets.btcPrice)} (${formatChange(cryptoMarkets.btcChange24h)})\n`;
@@ -86,7 +91,6 @@ async function formatMarketEmbed(
 
   // Right Column: World Markets
   let rightColumn = '🌐 __**World Markets**__\n';
-  rightColumn += `**Status:** ${worldMarkets.status}\n\n`;
 
   // European Markets
   const { dax, ftse100, cac40 } = worldMarkets.markets.europe;

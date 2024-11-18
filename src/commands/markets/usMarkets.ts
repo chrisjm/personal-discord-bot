@@ -14,7 +14,17 @@ const CACHE_DURATION = 60 * 1000; // 1 minute cache
 interface MarketStatusCache {
   status: string;
   spy_price: number;
+  spy_previous_close: number;
+  spy_change: number;
+  qqq_price: number;
+  qqq_previous_close: number;
+  qqq_change: number;
+  dia_price: number;
+  dia_previous_close: number;
+  dia_change: number;
   ten_year_yield: number;
+  ten_year_yield_previous_close: number;
+  ten_year_yield_change: number;
   timestamp: number;
   valid_until: number;
 }
@@ -34,6 +44,12 @@ export interface USMarketData {
   spyPrice: number;
   spyPreviousClose: number;
   spyChange: number;
+  qqqPrice: number;
+  qqqPreviousClose: number;
+  qqqChange: number;
+  diaPrice: number;
+  diaPreviousClose: number;
+  diaChange: number;
   tenYearYield: number;
   tenYearYieldPreviousClose: number;
   tenYearYieldChange: number;
@@ -53,107 +69,120 @@ function getTimeBasedStatus(hour: number): string {
 }
 
 export async function getUSMarketData(): Promise<USMarketData> {
-  const now = Date.now();
-  const est = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const day = est.getDay();
-  const hour = est.getHours() + est.getMinutes() / 60;
-  
-  const cacheKey = 'us_markets_data';
-  const cachedData = await cacheDb.get(cacheKey);
-
-  if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION) {
-    return cachedData;
-  }
-
-  // Weekend check
-  if (day === 0 || day === 6) {
-    try {
-      const [spyQuote, tnxQuote] = await Promise.all([
-        yahooFinance.quote('SPY'),
-        yahooFinance.quote('^TNX')
-      ]) as [YahooQuote, YahooQuote];
-
-      if (!spyQuote.regularMarketPrice || !spyQuote.regularMarketPreviousClose || !tnxQuote.regularMarketPrice) {
-        throw new Error('Missing required market data');
+  try {
+    const cachedData = await cacheDb.get('us_market_status');
+    if (cachedData) {
+      const cache = JSON.parse(cachedData) as MarketStatusCache;
+      if (Date.now() < cache.valid_until) {
+        return {
+          status: cache.status,
+          spyPrice: cache.spy_price,
+          spyPreviousClose: cache.spy_previous_close,
+          spyChange: cache.spy_change,
+          qqqPrice: cache.qqq_price,
+          qqqPreviousClose: cache.qqq_previous_close,
+          qqqChange: cache.qqq_change,
+          diaPrice: cache.dia_price,
+          diaPreviousClose: cache.dia_previous_close,
+          diaChange: cache.dia_change,
+          tenYearYield: cache.ten_year_yield,
+          tenYearYieldPreviousClose: cache.ten_year_yield_previous_close,
+          tenYearYieldChange: cache.ten_year_yield_change,
+          timestamp: cache.timestamp,
+        };
       }
+    }
 
-      // Update historical data
-      await updateHistoricalData(spyQuote, tnxQuote, est);
+    const est = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const hour = est.getHours() + est.getMinutes() / 60;
+    const status = getTimeBasedStatus(hour);
 
-      const data: USMarketData = {
-        status: "US Markets are closed (Weekend)",
-        spyPrice: spyQuote.regularMarketPrice,
-        spyPreviousClose: spyQuote.regularMarketPreviousClose,
-        spyChange: ((spyQuote.regularMarketPrice - spyQuote.regularMarketPreviousClose) / spyQuote.regularMarketPreviousClose) * 100,
-        tenYearYield: tnxQuote.regularMarketPrice,
-        tenYearYieldPreviousClose: tnxQuote.regularMarketPreviousClose || 0,
-        tenYearYieldChange: tnxQuote.regularMarketPreviousClose ? 
-          tnxQuote.regularMarketPrice - tnxQuote.regularMarketPreviousClose : 0,
-        timestamp: now
-      };
+    const [spyQuote, qqqQuote, diaQuote, tnxQuote] = await Promise.all([
+      yahooFinance.quote('SPY'),
+      yahooFinance.quote('QQQ'),
+      yahooFinance.quote('DIA'),
+      yahooFinance.quote('^TNX'),
+    ]);
 
-      await cacheDb.set(cacheKey, data);
-      return data;
-    } catch (error) {
-      console.error('Error fetching weekend market data:', error);
-      if (cachedData) {
-        return cachedData;
+    // Validate all required data is present
+    if (!spyQuote || !qqqQuote || !diaQuote || !tnxQuote) {
+      throw new Error('Failed to fetch one or more market symbols');
+    }
+
+    const validateQuote = (quote: YahooQuote, symbol: string) => {
+      if (quote.regularMarketPrice === undefined || quote.regularMarketPreviousClose === undefined) {
+        throw new Error(`Missing required price data for ${symbol}`);
       }
       return {
-        status: "US Markets are closed (Weekend)",
-        spyPrice: 0,
-        spyPreviousClose: 0,
-        spyChange: 0,
-        tenYearYield: 0,
-        tenYearYieldPreviousClose: 0,
-        tenYearYieldChange: 0,
-        timestamp: now
+        price: quote.regularMarketPrice,
+        previousClose: quote.regularMarketPreviousClose
       };
-    }
-  }
+    };
 
-  try {
-    const [spyQuote, tnxQuote] = await Promise.all([
-      yahooFinance.quote('SPY'),
-      yahooFinance.quote('^TNX')
-    ]) as [YahooQuote, YahooQuote];
-
-    if (!spyQuote.regularMarketPrice || !spyQuote.regularMarketPreviousClose || !tnxQuote.regularMarketPrice) {
-      throw new Error('Missing required market data');
-    }
+    // Validate and extract data for each symbol
+    const spy = validateQuote(spyQuote, 'SPY');
+    const qqq = validateQuote(qqqQuote, 'QQQ');
+    const dia = validateQuote(diaQuote, 'DIA');
+    const tnx = validateQuote(tnxQuote, '^TNX');
 
     // Update historical data
     await updateHistoricalData(spyQuote, tnxQuote, est);
 
-    const data: USMarketData = {
-      status: spyQuote.marketState === 'REGULAR' ? "Regular trading session" : getTimeBasedStatus(hour),
-      spyPrice: spyQuote.regularMarketPrice,
-      spyPreviousClose: spyQuote.regularMarketPreviousClose,
-      spyChange: ((spyQuote.regularMarketPrice - spyQuote.regularMarketPreviousClose) / spyQuote.regularMarketPreviousClose) * 100,
-      tenYearYield: tnxQuote.regularMarketPrice,
-      tenYearYieldPreviousClose: tnxQuote.regularMarketPreviousClose || 0,
-      tenYearYieldChange: tnxQuote.regularMarketPreviousClose ? 
-        tnxQuote.regularMarketPrice - tnxQuote.regularMarketPreviousClose : 0,
-      timestamp: now
-    };
+    const spyPrice = spy.price;
+    const spyPreviousClose = spy.previousClose;
+    const spyChange = ((spyPrice - spyPreviousClose) / spyPreviousClose) * 100;
 
-    await cacheDb.set(cacheKey, data);
-    return data;
-  } catch (error) {
-    console.error('Error fetching market data:', error);
-    if (cachedData) {
-      return cachedData;
-    }
-    return {
-      status: getTimeBasedStatus(hour),
-      spyPrice: 0,
-      spyPreviousClose: 0,
-      spyChange: 0,
-      tenYearYield: 0,
-      tenYearYieldPreviousClose: 0,
-      tenYearYieldChange: 0,
-      timestamp: now
+    const qqqPrice = qqq.price;
+    const qqqPreviousClose = qqq.previousClose;
+    const qqqChange = ((qqqPrice - qqqPreviousClose) / qqqPreviousClose) * 100;
+
+    const diaPrice = dia.price;
+    const diaPreviousClose = dia.previousClose;
+    const diaChange = ((diaPrice - diaPreviousClose) / diaPreviousClose) * 100;
+
+    const tenYearYield = tnx.price;
+    const tenYearYieldPreviousClose = tnx.previousClose;
+    const tenYearYieldChange = tenYearYield - tenYearYieldPreviousClose;
+
+    // Cache all market data
+    const cacheData: MarketStatusCache = {
+      status,
+      spy_price: spyPrice,
+      spy_previous_close: spyPreviousClose,
+      spy_change: spyChange,
+      qqq_price: qqqPrice,
+      qqq_previous_close: qqqPreviousClose,
+      qqq_change: qqqChange,
+      dia_price: diaPrice,
+      dia_previous_close: diaPreviousClose,
+      dia_change: diaChange,
+      ten_year_yield: tenYearYield,
+      ten_year_yield_previous_close: tenYearYieldPreviousClose,
+      ten_year_yield_change: tenYearYieldChange,
+      timestamp: Date.now(),
+      valid_until: Date.now() + CACHE_DURATION,
     };
+    await cacheDb.set('us_market_status', JSON.stringify(cacheData));
+
+    return {
+      status,
+      spyPrice,
+      spyPreviousClose,
+      spyChange,
+      qqqPrice,
+      qqqPreviousClose,
+      qqqChange,
+      diaPrice,
+      diaPreviousClose,
+      diaChange,
+      tenYearYield,
+      tenYearYieldPreviousClose,
+      tenYearYieldChange,
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    console.error('Error fetching US market data:', error);
+    throw error;
   }
 }
 
