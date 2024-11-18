@@ -4,7 +4,6 @@ import { cacheDb } from "../../utils/database";
 const CACHE_DURATION = 60 * 1000; // 1 minute cache
 
 export interface WorldMarketData {
-  status: string;
   markets: {
     europe: {
       dax: MarketIndex;
@@ -48,7 +47,6 @@ export async function getWorldMarketData(): Promise<WorldMarketData> {
     const shanghaiQuote = await yahooFinance.quote('000001.SS');
 
     const worldMarketData: WorldMarketData = {
-      status: 'World Markets Data Fetched',
       markets: {
         europe: {
           dax: {
@@ -107,7 +105,6 @@ export async function getWorldMarketData(): Promise<WorldMarketData> {
   } catch (error) {
     console.error('Error fetching world market data:', error);
     return {
-      status: 'Error fetching world market data',
       markets: {
         europe: {
           dax: { symbol: 'DAX', price: 0, change: 0, percentChange: 0, previousClose: 0 },

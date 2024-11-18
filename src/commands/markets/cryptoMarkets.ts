@@ -13,7 +13,6 @@ const RETRY_DELAY = 5000; // 5 seconds
 let lastHistoryUpdate = 0;
 
 export interface CryptoMarketData {
-  status: string;
   btcPrice: number;
   btcChange24h: number;
   ethPrice: number;
@@ -98,7 +97,6 @@ export async function getCryptoMarketData(): Promise<CryptoMarketData> {
     }
 
     const marketData: CryptoMarketData = {
-      status: "Crypto markets are open 24/7",
       btcPrice: btcData.usd,
       btcChange24h: btcData.usd_24h_change,
       ethPrice: ethData.usd,
@@ -113,7 +111,6 @@ export async function getCryptoMarketData(): Promise<CryptoMarketData> {
 
     // If no cache available, return zeros
     return {
-      status: "Error fetching crypto market data",
       btcPrice: 0,
       btcChange24h: 0,
       ethPrice: 0,
