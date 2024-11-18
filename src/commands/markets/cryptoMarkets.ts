@@ -157,11 +157,11 @@ async function updateHistoricalData(): Promise<void> {
     await cryptoMarketHistoryDb.addMarketHistory({
       date: today,
       btc_price: btcData.current_price,
-      btc_volume: btcData.total_volume,
-      btc_market_cap: btcData.market_cap,
+      btc_volume: Number(btcData.total_volume) || 0,
+      btc_market_cap: Number(btcData.market_cap) || 0,
       eth_price: ethData.current_price,
-      eth_volume: ethData.total_volume,
-      eth_market_cap: ethData.market_cap,
+      eth_volume: Number(ethData.total_volume) || 0,
+      eth_market_cap: Number(ethData.market_cap) || 0,
       timestamp: Date.now()
     });
   } catch (error) {
@@ -217,11 +217,11 @@ export async function loadCryptoHistoricalData() {
       await cryptoMarketHistoryDb.addMarketHistory({
         date: dateStr,
         btc_price: btcPrices[i][1] || 0,
-        btc_volume: response.btcData.data.total_volumes[i] || 0,
-        btc_market_cap: response.btcData.data.market_caps[i] || 0,
+        btc_volume: response.btcData.data.total_volumes[i]?.[1] || 0,
+        btc_market_cap: response.btcData.data.market_caps[i]?.[1] || 0,
         eth_price: ethPrices[i][1] || 0,
-        eth_volume: response.ethData.data.total_volumes[i] || 0,
-        eth_market_cap: response.ethData.data.market_caps[i] || 0,
+        eth_volume: response.ethData.data.total_volumes[i]?.[1] || 0,
+        eth_market_cap: response.ethData.data.market_caps[i]?.[1] || 0,
         timestamp: date.getTime()
       });
     }
