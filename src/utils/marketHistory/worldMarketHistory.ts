@@ -1,6 +1,6 @@
 import { Database } from 'sqlite3';
 import path from 'path';
-import { WorldMarketData } from '../../commands/markets/worldMarkets';
+import { HistoricalWorldMarketData } from '../../commands/markets/worldMarkets';
 
 export interface WorldMarketHistoryEntry {
   date: string;
@@ -108,7 +108,7 @@ class WorldMarketHistoryDatabase {
     });
   }
 
-  async addMarketHistory(data: WorldMarketData): Promise<void> {
+  async addMarketHistory(data: HistoricalWorldMarketData): Promise<void> {
     if (!this.initialized) {
       console.warn('Attempting to add entry before database initialization');
     }
@@ -158,13 +158,32 @@ class WorldMarketHistoryDatabase {
           shanghai_price, shanghai_change, shanghai_percent_change, shanghai_previous_close
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          entry.date, entry.timestamp,
-          entry.dax_price, entry.dax_change, entry.dax_percent_change, entry.dax_previous_close,
-          entry.ftse100_price, entry.ftse100_change, entry.ftse100_percent_change, entry.ftse100_previous_close,
-          entry.cac40_price, entry.cac40_change, entry.cac40_percent_change, entry.cac40_previous_close,
-          entry.nikkei_price, entry.nikkei_change, entry.nikkei_percent_change, entry.nikkei_previous_close,
-          entry.hang_seng_price, entry.hang_seng_change, entry.hang_seng_percent_change, entry.hang_seng_previous_close,
-          entry.shanghai_price, entry.shanghai_change, entry.shanghai_percent_change, entry.shanghai_previous_close
+          entry.date,
+          entry.timestamp,
+          entry.dax_price,
+          entry.dax_change,
+          entry.dax_percent_change,
+          entry.dax_previous_close,
+          entry.ftse100_price,
+          entry.ftse100_change,
+          entry.ftse100_percent_change,
+          entry.ftse100_previous_close,
+          entry.cac40_price,
+          entry.cac40_change,
+          entry.cac40_percent_change,
+          entry.cac40_previous_close,
+          entry.nikkei_price,
+          entry.nikkei_change,
+          entry.nikkei_percent_change,
+          entry.nikkei_previous_close,
+          entry.hang_seng_price,
+          entry.hang_seng_change,
+          entry.hang_seng_percent_change,
+          entry.hang_seng_previous_close,
+          entry.shanghai_price,
+          entry.shanghai_change,
+          entry.shanghai_percent_change,
+          entry.shanghai_previous_close
         ],
         (err) => {
           if (err) {

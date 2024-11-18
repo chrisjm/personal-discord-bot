@@ -277,8 +277,6 @@ export async function loadUSHistoricalData() {
         timestamp: spyDay.date.getTime()
       });
     }
-
-    console.log('US Market historical data load completed');
   } catch (error) {
     console.error('Error loading US Market historical data:', error);
   }
