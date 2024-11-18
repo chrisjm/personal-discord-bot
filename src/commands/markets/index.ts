@@ -22,6 +22,15 @@ interface HistoricalDataResult {
   [key: string]: any;
 }
 
+interface MarketEntry {
+  name: string;
+  price: number;
+  percentChange: number;
+  previousClose?: number;
+  isOpen?: boolean;
+  extraInfo?: string;
+}
+
 function getChangeEmoji(change: number): string {
   if (change > 1.5) return '🚀';
   if (change > 0) return '🟢';
@@ -43,6 +52,20 @@ function getChangeColor(change: number): number {
   return change >= 0 ? 0x00ff00 : 0xff0000;  // Green for positive, red for negative
 }
 
+function formatMarketEntry(entry: MarketEntry): string {
+  const emoji = getChangeEmoji(entry.percentChange);
+  const priceInfo = `${formatPrice(entry.price)} (${formatChange(entry.percentChange)})`;
+  const status = entry.isOpen !== undefined 
+    ? (entry.isOpen ? '🟢 Open' : '🔴 Closed')
+    : '';
+  const statusText = status ? ` (${status})` : '';
+  const prevClose = (entry.previousClose && !entry.isOpen) 
+    ? `\nPrev Close: ${formatPrice(entry.previousClose)}` : '';
+  const extra = entry.extraInfo 
+    ? `\n${entry.extraInfo}` : '';
+  return `${emoji} **${entry.name}**${statusText}\n→ ${priceInfo}${prevClose}${extra}`;
+}
+
 async function formatMarketEmbed(
   usMarkets: any,
   cryptoMarkets: any,
@@ -60,34 +83,63 @@ async function formatMarketEmbed(
   let leftColumn = '';
 
   // US Markets Section
-  const spyChange = usMarkets.spyChange;
-  const qqqChange = usMarkets.qqqChange;
-  const diaChange = usMarkets.diaChange;
-  const spyEmoji = getChangeEmoji(spyChange);
-  const qqqEmoji = getChangeEmoji(qqqChange);
-  const diaEmoji = getChangeEmoji(diaChange);
-  const yieldEmoji = getChangeEmoji(usMarkets.tenYearYieldChange);
   leftColumn += '🏛️ __**US Markets**__\n';
-  leftColumn += `**Status:** ${usMarkets.status}\n`;
-  leftColumn += `${spyEmoji} **S&P 500:** $${formatPrice(usMarkets.spyPrice)} (${formatChange(spyChange)})\n`;
-  leftColumn += `${qqqEmoji} **NASDAQ:** $${formatPrice(usMarkets.qqqPrice)} (${formatChange(qqqChange)})\n`;
-  leftColumn += `${diaEmoji} **Dow Jones:** $${formatPrice(usMarkets.diaPrice)} (${formatChange(diaChange)})\n`;
-  leftColumn += `${yieldEmoji} **10Y Treasury:** ${usMarkets.tenYearYield.toFixed(2)}% (${usMarkets.tenYearYieldChange > 0 ? '+' : ''}${usMarkets.tenYearYieldChange.toFixed(2)})\n`;
+  leftColumn += [
+    formatMarketEntry({
+      name: 'S&P 500',
+      price: usMarkets.spyPrice,
+      percentChange: usMarkets.spyChange,
+      previousClose: usMarkets.spyPreviousClose,
+      isOpen: usMarkets.status === 'Market Open',
+    }),
+    formatMarketEntry({
+      name: 'NASDAQ',
+      price: usMarkets.qqqPrice,
+      percentChange: usMarkets.qqqChange,
+      previousClose: usMarkets.qqqPreviousClose,
+      isOpen: usMarkets.status === 'Market Open',
+    }),
+    formatMarketEntry({
+      name: 'Dow Jones',
+      price: usMarkets.diaPrice,
+      percentChange: usMarkets.diaChange,
+      previousClose: usMarkets.diaPreviousClose,
+      isOpen: usMarkets.status === 'Market Open',
+    }),
+    formatMarketEntry({
+      name: '10Y Treasury',
+      price: usMarkets.tenYearYield,
+      percentChange: usMarkets.tenYearYieldChange,
+      previousClose: usMarkets.tenYearYieldPreviousClose,
+      isOpen: usMarkets.status === 'Market Open',
+      extraInfo: `Yield: ${usMarkets.tenYearYield.toFixed(2)}%`
+    })
+  ].join('\n\n');
 
   if (historyDays > 0 && usHistoryData.length > 0) {
     const oldestData = usHistoryData[usHistoryData.length - 1];
     const spyChange = ((usMarkets.spyPrice - oldestData.spy_close) / oldestData.spy_close) * 100;
     const yieldChange = usMarkets.tenYearYield - oldestData.ten_year_yield_close;
-    leftColumn += `📅 **${historyDays}d Change:**\n`;
-    leftColumn += `SPY: ${formatChange(spyChange)} | Yield: ${yieldChange > 0 ? '+' : ''}${yieldChange.toFixed(2)}%\n`;
+    leftColumn += `\n\n📅 __**${historyDays}d Change:**__\n`;
+    leftColumn += `→ SPY: ${formatChange(spyChange)}\n→ Yield: ${yieldChange > 0 ? '+' : ''}${yieldChange.toFixed(2)}%`;
   }
 
   // Crypto Markets Section
-  leftColumn += '\n🔗 __**Crypto Markets**__\n';
-  const btcEmoji = getChangeEmoji(cryptoMarkets.btcChange24h);
-  const ethEmoji = getChangeEmoji(cryptoMarkets.ethChange24h);
-  leftColumn += `${btcEmoji} **BTC:** $${formatPrice(cryptoMarkets.btcPrice)} (${formatChange(cryptoMarkets.btcChange24h)})\n`;
-  leftColumn += `${ethEmoji} **ETH:** $${formatPrice(cryptoMarkets.ethPrice)} (${formatChange(cryptoMarkets.ethChange24h)})`;
+  leftColumn += '\n\n🔗 __**Crypto Markets**__\n';
+  leftColumn += [
+    formatMarketEntry({
+      name: 'Bitcoin',
+      price: cryptoMarkets.btcPrice,
+      percentChange: cryptoMarkets.btcChange24h,
+      extraInfo: '24h Change'
+    }),
+    formatMarketEntry({
+      name: 'Ethereum',
+      price: cryptoMarkets.ethPrice,
+      percentChange: cryptoMarkets.ethChange24h,
+      extraInfo: '24h Change'
+    })
+  ].join('\n\n');
 
   // Right Column: World Markets
   let rightColumn = '🌐 __**World Markets**__\n';
@@ -96,19 +148,55 @@ async function formatMarketEmbed(
   const { dax, ftse100, cac40 } = worldMarkets.markets.europe;
   rightColumn += "🇪🇺 __European Indices:__\n";
   rightColumn += [
-    `${getChangeEmoji(dax.percentChange)} **DAX:** ${formatPrice(dax.price)} (${formatChange(dax.percentChange)})`,
-    `${getChangeEmoji(ftse100.percentChange)} **FTSE:** ${formatPrice(ftse100.price)} (${formatChange(ftse100.percentChange)})`,
-    `${getChangeEmoji(cac40.percentChange)} **CAC40:** ${formatPrice(cac40.price)} (${formatChange(cac40.percentChange)})`
-  ].join('\n');
+    formatMarketEntry({
+      name: 'DAX',
+      price: dax.price,
+      percentChange: dax.percentChange,
+      previousClose: dax.previousClose,
+      isOpen: dax.isOpen
+    }),
+    formatMarketEntry({
+      name: 'FTSE',
+      price: ftse100.price,
+      percentChange: ftse100.percentChange,
+      previousClose: ftse100.previousClose,
+      isOpen: ftse100.isOpen
+    }),
+    formatMarketEntry({
+      name: 'CAC40',
+      price: cac40.price,
+      percentChange: cac40.percentChange,
+      previousClose: cac40.previousClose,
+      isOpen: cac40.isOpen
+    })
+  ].join('\n\n');
 
   // Asian Markets
   const { nikkei, hang_seng, shanghai } = worldMarkets.markets.asia;
   rightColumn += "\n\n🌏 __Asian Indices:__\n";
   rightColumn += [
-    `${getChangeEmoji(nikkei.percentChange)} **Nikkei:** ${formatPrice(nikkei.price)} (${formatChange(nikkei.percentChange)})`,
-    `${getChangeEmoji(hang_seng.percentChange)} **HSI:** ${formatPrice(hang_seng.price)} (${formatChange(hang_seng.percentChange)})`,
-    `${getChangeEmoji(shanghai.percentChange)} **SSEC:** ${formatPrice(shanghai.price)} (${formatChange(shanghai.percentChange)})`
-  ].join('\n');
+    formatMarketEntry({
+      name: 'Nikkei',
+      price: nikkei.price,
+      percentChange: nikkei.percentChange,
+      previousClose: nikkei.previousClose,
+      isOpen: nikkei.isOpen
+    }),
+    formatMarketEntry({
+      name: 'Hang Seng',
+      price: hang_seng.price,
+      percentChange: hang_seng.percentChange,
+      previousClose: hang_seng.previousClose,
+      isOpen: hang_seng.isOpen
+    }),
+    formatMarketEntry({
+      name: 'Shanghai',
+      price: shanghai.price,
+      percentChange: shanghai.percentChange,
+      previousClose: shanghai.previousClose,
+      isOpen: shanghai.isOpen
+    })
+  ].join('\n\n');
 
   // Add fields to embed
   embed.addFields(
