@@ -2,14 +2,7 @@ import sqlite3 from 'sqlite3';
 import { Database } from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
-
-export interface WaterReminderPreferences {
-    user_id: string;
-    enabled: boolean;
-    start_time: string; // HH:mm format
-    end_time: string; // HH:mm format
-    timezone: string;
-}
+import { WaterReminderDatabaseRow, WaterReminderPreferences } from '../types/water-reminder';
 
 class WaterReminderDatabaseManager {
     private static instance: WaterReminderDatabaseManager;
@@ -18,7 +11,7 @@ class WaterReminderDatabaseManager {
     private constructor() {
         const dbDir = path.join(__dirname, '../../data/sqlite');
         const dbPath = path.join(dbDir, 'water_reminder.db');
-        
+
         if (!fs.existsSync(dbDir)) {
             fs.mkdirSync(dbDir, { recursive: true });
         }
@@ -55,7 +48,7 @@ class WaterReminderDatabaseManager {
     public async setPreferences(prefs: WaterReminderPreferences): Promise<void> {
         return new Promise((resolve, reject) => {
             this.db.run(
-                `INSERT OR REPLACE INTO water_reminder_preferences 
+                `INSERT OR REPLACE INTO water_reminder_preferences
                 (user_id, enabled, start_time, end_time, timezone)
                 VALUES (?, ?, ?, ?, ?)`,
                 [prefs.user_id, prefs.enabled ? 1 : 0, prefs.start_time, prefs.end_time, prefs.timezone],
@@ -71,12 +64,12 @@ class WaterReminderDatabaseManager {
         });
     }
 
-    public async getPreferences(userId: string): Promise<WaterReminderPreferences | null> {
+    public getPreferences(userId: string): Promise<WaterReminderPreferences | null> {
         return new Promise((resolve, reject) => {
             this.db.get(
                 'SELECT * FROM water_reminder_preferences WHERE user_id = ?',
                 [userId],
-                (err, row) => {
+                (err, row: WaterReminderDatabaseRow | undefined) => {
                     if (err) {
                         console.error('Database error in getPreferences:', err);
                         reject(err);
@@ -101,7 +94,7 @@ class WaterReminderDatabaseManager {
             this.db.all(
                 'SELECT * FROM water_reminder_preferences WHERE enabled = 1',
                 [],
-                (err, rows) => {
+                (err, rows: WaterReminderDatabaseRow[]) => {
                     if (err) {
                         console.error('Database error in getAllActiveUsers:', err);
                         reject(err);

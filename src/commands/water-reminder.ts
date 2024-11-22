@@ -80,7 +80,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     enabled: false
                 });
             }
-            
+
             waterReminderScheduler.stopReminders(userId);
 
             await interaction.reply({
