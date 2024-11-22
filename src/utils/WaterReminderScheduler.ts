@@ -53,10 +53,16 @@ class WaterReminderScheduler {
             }
 
             const now = spacetime.now(prefs.timezone);
-            const currentTime = now.format('HH:mm');
+            
+            // Convert start and end times to spacetime objects for proper comparison
+            const [startHour, startMinute] = prefs.start_time.split(':').map(Number);
+            const [endHour, endMinute] = prefs.end_time.split(':').map(Number);
+            
+            const startTime = now.clone().hour(startHour).minute(startMinute);
+            const endTime = now.clone().hour(endHour).minute(endMinute);
             
             // Check if current time is within the reminder window
-            if (currentTime >= prefs.start_time && currentTime <= prefs.end_time) {
+            if (now.isBetween(startTime, endTime)) {
                 await user.send(this.getRandomMessage());
             }
 
