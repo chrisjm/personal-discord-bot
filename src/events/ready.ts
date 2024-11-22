@@ -5,6 +5,7 @@ import {
   storeNewEntries,
 } from "../news-minimalist";
 import { formatDate } from "../utils";
+import { waterReminderScheduler } from "../utils/WaterReminderScheduler";
 
 function refreshNewsMinimalist(client: Client) {
   const channel = client.channels.cache.get(
@@ -40,7 +41,12 @@ export default {
     console.log(`🟢 Ready! Logged in as ${client.user?.tag}`);
 
     try {
-      // NOTE: Nothing more than email newsletter update
+      // Initialize water reminder scheduler
+      waterReminderScheduler.setClient(client);
+      await waterReminderScheduler.initializeReminders();
+      console.log("🚰 Water reminder scheduler initialized");
+
+      // NOTE: Currently disabled since it's redundant
       // refreshNewsMinimalist(client);
     } catch (error) {
       console.error(error);
