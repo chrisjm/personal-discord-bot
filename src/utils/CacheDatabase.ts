@@ -84,6 +84,23 @@ class CacheDatabaseManager {
             );
         });
     }
+
+    async delete(key: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'DELETE FROM generic_cache WHERE key = ?',
+                [key],
+                (err) => {
+                    if (err) {
+                        console.error('Error deleting from cache:', err);
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
 }
 
 export const cacheDb = CacheDatabaseManager.getInstance();

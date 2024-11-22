@@ -203,13 +203,32 @@ class WorldMarketHistoryDatabase {
 
     return new Promise((resolve, reject) => {
       this.db.all(
-        `SELECT * FROM world_market_history
-         WHERE date BETWEEN ? AND ?
-         ORDER BY date ASC`,
+        `SELECT * FROM world_market_history WHERE date BETWEEN ? AND ? ORDER BY date ASC`,
         [startDate, endDate],
         (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows as WorldMarketHistoryEntry[]);
+          if (err) {
+            console.error('Failed to get world market history:', err);
+            reject(err);
+          } else {
+            resolve(rows as WorldMarketHistoryEntry[]);
+          }
+        }
+      );
+    });
+  }
+
+  async getLatestMarketHistory(days: number): Promise<{ date: string }[]> {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT date FROM world_market_history ORDER BY date DESC LIMIT ?`,
+        [days],
+        (err, rows) => {
+          if (err) {
+            console.error('Failed to get latest world market history:', err);
+            reject(err);
+          } else {
+            resolve(rows as { date: string }[]);
+          }
         }
       );
     });
@@ -220,9 +239,7 @@ class WorldMarketHistoryDatabase {
 
     return new Promise((resolve, reject) => {
       this.db.get(
-        `SELECT * FROM world_market_history
-         ORDER BY date DESC
-         LIMIT 1`,
+        `SELECT * FROM world_market_history ORDER BY date DESC LIMIT 1`,
         (err, row) => {
           if (err) reject(err);
           else resolve(row as WorldMarketHistoryEntry || null);
