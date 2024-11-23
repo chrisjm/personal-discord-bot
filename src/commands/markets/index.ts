@@ -88,12 +88,39 @@ function getChangeColor(change: number): number {
   return redShades[index];
 }
 
+// Currency symbol mapping
+const CURRENCY_SYMBOLS: { [key: string]: string } = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  CNY: '¥',
+  KRW: '₩',
+  INR: '₹',
+  RUB: '₽',
+  TRY: '₺',
+  AUD: 'A$',
+  CAD: 'C$',
+  CHF: 'CHF',  // Swiss Franc doesn't have a widely used symbol
+  HKD: 'HK$',
+  SGD: 'S$',
+  // Add more currencies as needed
+};
+
+function getCurrencySymbol(currency: string): string {
+  return CURRENCY_SYMBOLS[currency] || currency;
+}
+
 function formatMarketEntry(asset: BaseAsset): string {
   const emoji = getChangeEmoji(asset.percentChange);
-  const formattedPrice = formatPrice(asset.price);
-  const formattedChange = formatChange(asset.percentChange);
+  const priceStr = formatPrice(asset.price);
+  const changeStr = formatChange(asset.percentChange);
+  const symbol = getCurrencySymbol(asset.currency || 'USD');
+  const currencyStr = asset.currency && asset.currency !== 'USD' ?
+    ` ${symbol} (${getCurrencySymbol('USD')}${formatPrice(asset.priceUSD || asset.price)})` :
+    ` ${symbol}`;
 
-  return `${emoji} **${asset.name}**: $${formattedPrice} (${formattedChange})`;
+  return `${emoji} **${asset.name}**: ${symbol}${priceStr} (${changeStr})`;
 }
 
 function getAverageChangeColor(changes: number[]): number {

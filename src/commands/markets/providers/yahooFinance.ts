@@ -16,6 +16,35 @@ const DEFAULT_CONFIG: ProviderConfig = {
 };
 
 const CACHE_TTL = 30000; // 30 seconds
+const EXCHANGE_RATE_CACHE_TTL = 3600000; // 1 hour
+
+async function getExchangeRate(currency: string): Promise<number> {
+  if (!currency || currency === 'USD') return 1;
+
+  const cache = MarketCache.getInstance();
+  const cacheKey = `yahoo:exchange:${currency}USD`;
+  
+  const cachedRate = await cache.get<number>({ key: cacheKey, duration: EXCHANGE_RATE_CACHE_TTL });
+  if (cachedRate) {
+    return cachedRate;
+  }
+
+  try {
+    // Use Yahoo Finance to get exchange rate by querying the currency pair
+    const quote = await yahooFinance.quote(`${currency}USD=X`);
+    if (!quote || !quote.regularMarketPrice) {
+      console.warn(`Failed to fetch exchange rate for ${currency}, using 1.0`);
+      return 1;
+    }
+
+    const rate = quote.regularMarketPrice;
+    cache.set({ key: cacheKey, duration: EXCHANGE_RATE_CACHE_TTL }, rate);
+    return rate;
+  } catch (error) {
+    console.warn(`Error fetching exchange rate for ${currency}:`, error);
+    return 1;
+  }
+}
 
 export async function getQuote(
   symbol: string,
@@ -62,7 +91,15 @@ export async function getQuote(
       previousClose,
       isOpen,
       lastTradeTime: lastTradeTime.getTime(),
+      currency: quote.currency || 'USD',
+      exchangeRate: quote.currency && quote.currency !== 'USD' ? 
+        await getExchangeRate(quote.currency) : 1,
     };
+
+    // Add USD price if not in USD
+    if (asset.currency !== 'USD' && asset.exchangeRate) {
+      asset.priceUSD = asset.price * asset.exchangeRate;
+    }
 
     cache.set({ key: cacheKey, duration: CACHE_TTL }, asset);
     return asset;

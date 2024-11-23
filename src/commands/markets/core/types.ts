@@ -17,6 +17,9 @@ export interface BaseAsset {
   previousClose: number;
   isOpen: boolean;
   lastTradeTime: number;
+  currency?: string;           // The currency of the asset (e.g., USD, EUR)
+  exchangeRate?: number;       // Exchange rate to USD if not in USD
+  priceUSD?: number;          // Price in USD for easy comparison
 }
 
 export interface CacheConfig {
