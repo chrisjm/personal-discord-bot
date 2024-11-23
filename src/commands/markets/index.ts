@@ -55,7 +55,7 @@ function getChangeColor(change: number): number {
   return redShades[index];
 }
 
-function formatMarketEntry({ name, price, percentChange, isOpen, extraInfo }: {
+function formatMarketEntry({ name, price, percentChange, extraInfo }: {
   name: string;
   price: number;
   percentChange: number;
@@ -65,16 +65,14 @@ function formatMarketEntry({ name, price, percentChange, isOpen, extraInfo }: {
   const emoji = getChangeEmoji(percentChange);
   const formattedPrice = formatPrice(price);
   const formattedChange = formatChange(percentChange);
-  const status = isOpen === false ? " (CLOSED)" : "";
   const extra = extraInfo ? ` | ${extraInfo}` : "";
 
-  return `${emoji} **${name}**: $${formattedPrice} (${formattedChange})${status}${extra}`;
+  return `${emoji} **${name}**: $${formattedPrice} (${formattedChange})${extra}`;
 }
 
 function getAverageChangeColor(changes: number[]): number {
   const sum = changes.reduce((acc, cur) => acc + cur, 0);
   const average = sum / changes.length;
-  console.log(changes, average);
   return getChangeColor(average);
 }
 
@@ -102,13 +100,27 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
     .setTimestamp()
     .addFields(
       {
-        name: "🇺🇸 US Markets",
+        name: `🇺🇸 US Markets ${stockData.us.sp500.isOpen ? "" : "(CLOSED)"}`,
         value: [
           formatMarketEntry({ name: "S&P 500", ...stockData.us.sp500 }),
           formatMarketEntry({ name: "Dow Jones", ...stockData.us.dow }),
           formatMarketEntry({ name: "NASDAQ", ...stockData.us.nasdaq }),
         ].join("\n"),
-        inline: false,
+        inline: true,
+      },
+      {
+        name: `🇪🇺 European Markets ${stockData.europe.dax.isOpen ? "" : "(CLOSED)"}`,
+        value: [
+          formatMarketEntry({ name: "DAX", ...stockData.europe.dax }),
+          formatMarketEntry({ name: "FTSE 100", ...stockData.europe.ftse100 }),
+          formatMarketEntry({ name: "CAC 40", ...stockData.europe.cac40 }),
+        ].join("\n"),
+        inline: true,
+      },
+      {
+        name: "\u200B",
+        value: "\u200B",
+        inline: true,
       },
       {
         name: "💰 Crypto",
@@ -116,25 +128,21 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
           formatMarketEntry({ name: "Bitcoin", ...cryptoData.btc }),
           formatMarketEntry({ name: "Ethereum", ...cryptoData.eth }),
         ].join("\n"),
-        inline: false,
+        inline: true,
       },
       {
-        name: "🇪🇺 European Markets",
-        value: [
-          formatMarketEntry({ name: "DAX", ...stockData.europe.dax }),
-          formatMarketEntry({ name: "FTSE 100", ...stockData.europe.ftse100 }),
-          formatMarketEntry({ name: "CAC 40", ...stockData.europe.cac40 }),
-        ].join("\n"),
-        inline: false,
-      },
-      {
-        name: "🌏 Asian Markets",
+        name: `🌏 Asian Markets ${stockData.asia.nikkei.isOpen ? "" : "(CLOSED)"}`,
         value: [
           formatMarketEntry({ name: "Nikkei 225", ...stockData.asia.nikkei }),
           formatMarketEntry({ name: "Hang Seng", ...stockData.asia.hang_seng }),
           formatMarketEntry({ name: "Shanghai", ...stockData.asia.shanghai }),
         ].join("\n"),
-        inline: false,
+        inline: true,
+      },
+      {
+        name: "\u200B",
+        value: "\u200B",
+        inline: true,
       }
     );
 
