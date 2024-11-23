@@ -89,7 +89,7 @@ function getChangeColor(change: number): number {
 }
 
 // Currency symbol mapping
-const CURRENCY_SYMBOLS: { [key: string]: string } = {
+export const CURRENCY_SYMBOLS: { [key: string]: string } = {
   USD: '$',
   EUR: '€',
   GBP: '£',
@@ -104,6 +104,9 @@ const CURRENCY_SYMBOLS: { [key: string]: string } = {
   CHF: 'CHF',  // Swiss Franc doesn't have a widely used symbol
   HKD: 'HK$',
   SGD: 'S$',
+  // Cryptocurrencies
+  BTC: '₿',
+  ETH: 'Ξ',
   // Add more currencies as needed
 };
 
@@ -116,9 +119,6 @@ function formatMarketEntry(asset: BaseAsset): string {
   const priceStr = formatPrice(asset.price);
   const changeStr = formatChange(asset.percentChange);
   const symbol = getCurrencySymbol(asset.currency || 'USD');
-  const currencyStr = asset.currency && asset.currency !== 'USD' ?
-    ` ${symbol} (${getCurrencySymbol('USD')}${formatPrice(asset.priceUSD || asset.price)})` :
-    ` ${symbol}`;
 
   return `${emoji} **${asset.name}**: ${symbol}${priceStr} (${changeStr})`;
 }

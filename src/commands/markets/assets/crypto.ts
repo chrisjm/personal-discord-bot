@@ -1,5 +1,6 @@
 import { getQuote } from '../providers/coinGecko';
 import { BaseAsset } from '../core/types';
+import { CURRENCY_SYMBOLS } from '..';
 
 export interface CryptoMarketData {
   data: BaseAsset[];
@@ -18,6 +19,10 @@ export async function getMarketData(): Promise<CryptoMarketData> {
   ]);
 
   const timestamp = Date.now();
+
+  // Override the names with their symbols
+  btc.name = CURRENCY_SYMBOLS.BTC;
+  eth.name = CURRENCY_SYMBOLS.ETH;
 
   return {
     data: [btc, eth],
