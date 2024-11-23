@@ -1,6 +1,13 @@
 import yahooFinance from 'yahoo-finance2';
-import { BaseAsset, HistoricalDataPoint, ProviderConfig } from '../core/types';
+import { BaseAsset, ProviderConfig } from '../core/types';
 import { MarketCache } from '../core/cache';
+
+class YahooFinanceError extends Error {
+  constructor(message: string, public cause?: Error) {
+    super(message);
+    this.name = 'YahooFinanceError';
+  }
+}
 
 const DEFAULT_CONFIG: ProviderConfig = {
   retryAttempts: 3,
@@ -11,6 +18,7 @@ const DEFAULT_CONFIG: ProviderConfig = {
 export class YahooFinanceProvider {
   private cache: MarketCache;
   private config: ProviderConfig;
+  private static CACHE_TTL = 30000; // 30 seconds
 
   constructor(config: Partial<ProviderConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -18,74 +26,80 @@ export class YahooFinanceProvider {
   }
 
   private async retryWithDelay<T>(
-    operation: () => Promise<T>
+    operation: () => Promise<T>,
+    context: string
   ): Promise<T> {
     let lastError: Error | null = null;
-    
+
     for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error as Error;
+        console.warn(
+          `Yahoo Finance ${context} - Attempt ${attempt}/${this.config.retryAttempts} failed:`,
+          error instanceof Error ? error.message : error
+        );
         if (attempt < this.config.retryAttempts) {
           await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
         }
       }
     }
-    
-    throw lastError;
+
+    throw new YahooFinanceError(
+      `Failed after ${this.config.retryAttempts} attempts: ${context}`,
+      lastError || undefined
+    );
   }
 
   async getQuote(symbol: string): Promise<BaseAsset> {
-    const quote = await this.retryWithDelay(() => 
-      yahooFinance.quote(symbol, {}, { timeout: this.config.timeout })
-    );
-
-    if (!quote) {
-      throw new Error(`Failed to fetch quote for symbol: ${symbol}`);
+    if (!symbol || typeof symbol !== 'string') {
+      throw new YahooFinanceError(`Invalid symbol: ${symbol}`);
     }
 
-    // Extract values with fallbacks for missing data
-    const price = quote.regularMarketPrice || quote.price || quote.ask || quote.bid || 0;
-    const previousClose = quote.regularMarketPreviousClose || quote.previousClose || price;
-    const change = quote.regularMarketChange || (price - previousClose);
-    const percentChange = quote.regularMarketChangePercent || ((change / previousClose) * 100);
-    const lastTradeTime = (quote.regularMarketTime || Math.floor(Date.now() / 1000)) * 1000;
-    const isOpen = quote.marketState === 'REGULAR' || quote.marketState === 'OPEN';
-
-    // Log warning if we had to use fallback values
-    if (!quote.regularMarketPrice) {
-      console.warn(`Warning: Using fallback values for symbol ${symbol}. Original quote:`, quote);
+    const cacheKey = `yahoo:${symbol.toUpperCase()}`;
+    const cachedData = await this.cache.get<BaseAsset>({ key: cacheKey, duration: YahooFinanceProvider.CACHE_TTL });
+    if (cachedData) {
+      return cachedData;
     }
 
-    return {
-      symbol: quote.symbol || symbol,
-      price,
-      change,
-      percentChange,
-      previousClose,
-      isOpen,
-      lastTradeTime,
-    };
-  }
+    try {
+      const quote = await yahooFinance.quote(symbol);
 
-  async getHistoricalData(
-    symbol: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<HistoricalDataPoint[]> {
-    const history = await this.retryWithDelay(() =>
-      yahooFinance.historical(symbol, {
-        period1: startDate,
-        period2: endDate,
-      }, { timeout: this.config.timeout })
-    );
+      if (!quote) {
+        throw new YahooFinanceError(`Failed to fetch quote for symbol: ${symbol}`);
+      }
 
-    return history.map(day => ({
-      timestamp: new Date(day.date).getTime(),
-      price: day.close,
-      change: day.close - day.open,
-      percentChange: ((day.close - day.open) / day.open) * 100,
-    }));
+      // Extract values with fallbacks for missing data
+      const price = quote.regularMarketPrice || 0;
+      const previousClose = quote.regularMarketPreviousClose || 0;
+      const change = quote.regularMarketChange || (price - previousClose);
+      const percentChange = quote.regularMarketChangePercent || ((change / previousClose) * 100);
+      const isOpen = quote.marketState === 'REGULAR';
+      const lastTradeTime = quote.regularMarketTime || new Date();
+
+      // Log warning if we had to use fallback values
+      if (!quote.regularMarketPrice) {
+        console.warn(`Warning: Using fallback values for symbol ${symbol}. Original quote:`, quote);
+      }
+
+      const asset: BaseAsset = {
+        symbol: quote.symbol || symbol.toUpperCase(),
+        price,
+        change,
+        percentChange,
+        previousClose,
+        isOpen,
+        lastTradeTime: lastTradeTime.getTime(),
+      };
+
+      this.cache.set({ key: cacheKey, duration: YahooFinanceProvider.CACHE_TTL }, asset);
+      return asset;
+    } catch (error) {
+      throw new YahooFinanceError(
+        `Failed to fetch quote for ${symbol}`,
+        error instanceof Error ? error : undefined
+      );
+    }
   }
 }

@@ -2,18 +2,9 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "
 import { StockMarkets } from "./assets/stocks";
 import { CryptoMarkets } from "./assets/crypto";
 
-// Maximum number of days for historical data
-const MAX_HISTORY_DAYS = 30;
-
 export const data = new SlashCommandBuilder()
   .setName("markets")
   .setDescription("Get a summary of global markets including US, Crypto, and World markets")
-  .addIntegerOption(option =>
-    option.setName('history')
-      .setDescription(`Number of days of historical data to show (max ${MAX_HISTORY_DAYS})`)
-      .setRequired(false)
-      .setMinValue(1)
-      .setMaxValue(MAX_HISTORY_DAYS));
 
 const stockMarkets = new StockMarkets();
 const cryptoMarkets = new CryptoMarkets();
@@ -49,7 +40,7 @@ function formatMarketEntry({ name, price, percentChange, isOpen, extraInfo }: {
   const formattedChange = formatChange(percentChange);
   const status = isOpen === false ? " (CLOSED)" : "";
   const extra = extraInfo ? ` | ${extraInfo}` : "";
-  
+
   return `${emoji} **${name}**: $${formattedPrice} (${formattedChange})${status}${extra}`;
 }
 

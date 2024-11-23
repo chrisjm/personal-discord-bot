@@ -45,7 +45,7 @@ const rest = new REST().setToken(process?.env?.DISCORD_TOKEN ?? "");
     );
 
     console.log(
-      `Successfully reloaded ${data?.length} application (/) commands.`
+      `Successfully reloaded ${Array.isArray(data) ? data.length : 0} application (/) commands.`
     );
   } catch (error) {
     console.error(error);
