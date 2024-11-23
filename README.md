@@ -1,14 +1,17 @@
 # personal-discord-bot
 
-A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot includes various capabilities such as GPT integration, meditation sessions, news tracking, and more.
+A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot includes various capabilities such as GPT integration, meditation sessions, news tracking, financial tools, time management, and more.
 
 ## Features
 
 - **GPT Integration**: Interact with GPT models for intelligent conversations
 - **Meditation**: Start meditation sessions with timer and ambient sounds
 - **News Tracking**: Follow and get updates from RSS feeds
-- **Music**: Track and manage music playback
+- **Financial Tools**: Track cryptocurrency prices and stock market data
+- **Time Management**: Handle timezone conversions and scheduling
 - **Server & User Info**: Get information about servers and users
+- **Database Integration**: Persistent storage using SQLite
+- **Voice Channel Support**: High-quality voice features using Discord Voice API
 
 ## Prerequisites
 
@@ -16,6 +19,18 @@ A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot in
 - npm
 - Discord Bot Token
 - OpenAI API Key (for GPT features)
+- SQLite (for data persistence)
+
+## Tech Stack
+
+- TypeScript
+- Discord.js v14
+- OpenAI API
+- SQLite3
+- Various APIs:
+  - CoinGecko (cryptocurrency data)
+  - Yahoo Finance (stock market data)
+  - RSS Parser (news feeds)
 
 ## Getting Started
 
@@ -31,6 +46,10 @@ These are initial steps to get things running:
 3. Create environment file:
    ```bash
    echo "DISCORD_TOKEN=\nOPENAI_API_KEY=" >> .env
+   ```
+4. Build the TypeScript code:
+   ```bash
+   npm run build
    ```
 
 ### 2. Create a Discord Bot
@@ -60,25 +79,51 @@ These are initial steps to get things running:
 
 2. Start the bot:
    ```bash
+   # For production
    npm start
+
+   # For development with watch mode
+   npm run dev
    ```
 
 ## Available Commands
 
-- `/gpt [prompt]` - Interact with GPT model
-- `/meditate start [duration]` - Start a meditation session (from a Voice Channel)
-- `/meditate stop` - Stop a meditation session (from a Voice Channel)
-- `/news top` - Get top news from NewsAPI
+### General
 - `/ping` - Check bot's connection
 - `/server` - Get server information
 - `/user` - Get user information
 
+### AI & Chat
+- `/gpt [prompt]` - Interact with GPT model
+
+### Wellness
+- `/meditate start [duration]` - Start a meditation session
+- `/meditate stop` - Stop the current meditation session
+
+### Information
+- `/news top` - Get top news from RSS feeds
+- `/crypto [symbol]` - Get cryptocurrency price information
+- `/stock [symbol]` - Get stock market information
+- `/time [timezone]` - Get time in different timezone
+
 ## Development
 
-To start development mode:
+The project uses TypeScript for better type safety and developer experience. Key development commands:
+
 ```bash
+# Build the project
+npm run build
+
+# Start in development mode with auto-reload
 npm run dev
+
+# Deploy slash commands
+npm run deploy-commands
 ```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
