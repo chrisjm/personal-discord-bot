@@ -59,14 +59,13 @@ export async function getQuote(
     }
 
     const price = coinData.usd;
-    const volume = coinData.usd_24h_vol || 0;
     const percentChange = coinData.usd_24h_change || 0;
-    const marketCap = coinData.usd_market_cap || 0;
     const change = (price * percentChange) / 100;
     const previousClose = price - change;
     const lastTradeTime = (coinData.last_updated_at || Math.floor(Date.now() / 1000)) * 1000;
 
     const asset: BaseAsset = {
+      name: coinId,
       symbol: coinId.toUpperCase(),
       price,
       change,

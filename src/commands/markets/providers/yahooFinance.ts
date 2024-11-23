@@ -21,7 +21,6 @@ export async function getQuote(
   symbol: string,
   config: Partial<ProviderConfig> = {}
 ): Promise<BaseAsset> {
-  const finalConfig = { ...DEFAULT_CONFIG, ...config };
   const cache = MarketCache.getInstance();
 
   if (!symbol || typeof symbol !== 'string') {
@@ -55,6 +54,7 @@ export async function getQuote(
     }
 
     const asset: BaseAsset = {
+      name: quote.shortName || symbol.toUpperCase(),
       symbol: quote.symbol || symbol.toUpperCase(),
       price,
       change,

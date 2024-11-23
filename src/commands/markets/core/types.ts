@@ -9,6 +9,7 @@ export interface MarketState {
 }
 
 export interface BaseAsset {
+  name: string;
   symbol: string;
   price: number;
   change: number;

@@ -2,8 +2,7 @@ import { getQuote } from '../providers/coinGecko';
 import { BaseAsset } from '../core/types';
 
 export interface CryptoMarketData {
-  btc: BaseAsset;
-  eth: BaseAsset;
+  data: BaseAsset[];
   timestamp: number;
 }
 
@@ -21,8 +20,7 @@ export async function getMarketData(): Promise<CryptoMarketData> {
   const timestamp = Date.now();
 
   return {
-    btc,
-    eth,
+    data: [btc, eth],
     timestamp,
   };
 }

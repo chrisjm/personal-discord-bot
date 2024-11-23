@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { getMarketData as getStockMarketData } from "./assets/stocks";
+import { getMarketData as getTraditionalMarketData } from "./assets/traditional";
 import { getMarketData as getCryptoMarketData } from "./assets/crypto";
+import { BaseAsset } from "./core/types";
 
 export const data = new SlashCommandBuilder()
   .setName("markets")
@@ -55,19 +56,12 @@ function getChangeColor(change: number): number {
   return redShades[index];
 }
 
-function formatMarketEntry({ name, price, percentChange, extraInfo }: {
-  name: string;
-  price: number;
-  percentChange: number;
-  isOpen?: boolean;
-  extraInfo?: string;
-}): string {
-  const emoji = getChangeEmoji(percentChange);
-  const formattedPrice = formatPrice(price);
-  const formattedChange = formatChange(percentChange);
-  const extra = extraInfo ? ` | ${extraInfo}` : "";
+function formatMarketEntry(asset: BaseAsset): string {
+  const emoji = getChangeEmoji(asset.percentChange);
+  const formattedPrice = formatPrice(asset.price);
+  const formattedChange = formatChange(asset.percentChange);
 
-  return `${emoji} **${name}**: $${formattedPrice} (${formattedChange})${extra}`;
+  return `${emoji} **${asset.name}**: $${formattedPrice} (${formattedChange})`;
 }
 
 function getAverageChangeColor(changes: number[]): number {
@@ -77,76 +71,51 @@ function getAverageChangeColor(changes: number[]): number {
 }
 
 async function formatMarketEmbed(): Promise<EmbedBuilder> {
-  const [stockData, cryptoData] = await Promise.all([
-    getStockMarketData(),
-    getCryptoMarketData(),
-  ]);
+  try {
+    const [traditional, crypto] = await Promise.all([
+      getTraditionalMarketData(),
+      getCryptoMarketData(),
+    ]);
 
-  const changes = [
-    stockData.us.sp500.percentChange,
-    stockData.us.dow.percentChange,
-    stockData.us.nasdaq.percentChange,
-    stockData.europe.dax.percentChange,
-    stockData.europe.ftse100.percentChange,
-    stockData.europe.cac40.percentChange,
-    stockData.asia.nikkei.percentChange,
-    stockData.asia.hang_seng.percentChange,
-    stockData.asia.shanghai.percentChange,
-  ];
+    // Format each market category
+    const formatCategory = (category: { name: string; data: BaseAsset[] }) => ({
+      name: category.name,
+      value: category.data.map((asset) => formatMarketEntry(asset)).join("\n"),
+      inline: category.name.includes("Markets"), // Stock markets are inline, others are full width
+    });
 
-  const embed = new EmbedBuilder()
-    .setTitle("🌎 Global Market Summary")
-    .setColor(getAverageChangeColor(changes))
-    .setTimestamp()
-    .addFields(
-      {
-        name: `🇺🇸 US Markets ${stockData.us.sp500.isOpen ? "" : "(CLOSED)"}`,
-        value: [
-          formatMarketEntry({ name: "S&P 500", ...stockData.us.sp500 }),
-          formatMarketEntry({ name: "Dow Jones", ...stockData.us.dow }),
-          formatMarketEntry({ name: "NASDAQ", ...stockData.us.nasdaq }),
-        ].join("\n"),
-        inline: true,
-      },
-      {
-        name: `🇪🇺 European Markets ${stockData.europe.dax.isOpen ? "" : "(CLOSED)"}`,
-        value: [
-          formatMarketEntry({ name: "DAX", ...stockData.europe.dax }),
-          formatMarketEntry({ name: "FTSE 100", ...stockData.europe.ftse100 }),
-          formatMarketEntry({ name: "CAC 40", ...stockData.europe.cac40 }),
-        ].join("\n"),
-        inline: true,
-      },
-      {
-        name: "\u200B",
-        value: "\u200B",
-        inline: true,
-      },
-      {
-        name: "💰 Crypto",
-        value: [
-          formatMarketEntry({ name: "Bitcoin", ...cryptoData.btc }),
-          formatMarketEntry({ name: "Ethereum", ...cryptoData.eth }),
-        ].join("\n"),
-        inline: true,
-      },
-      {
-        name: `🌏 Asian Markets ${stockData.asia.nikkei.isOpen ? "" : "(CLOSED)"}`,
-        value: [
-          formatMarketEntry({ name: "Nikkei 225", ...stockData.asia.nikkei }),
-          formatMarketEntry({ name: "Hang Seng", ...stockData.asia.hang_seng }),
-          formatMarketEntry({ name: "Shanghai", ...stockData.asia.shanghai }),
-        ].join("\n"),
-        inline: true,
-      },
-      {
-        name: "\u200B",
-        value: "\u200B",
-        inline: true,
-      }
-    );
+    // Get all asset changes for color calculation
+    const allChanges = [
+      ...traditional.stocks.us.data,
+      ...traditional.stocks.europe.data,
+      ...traditional.stocks.asia.data,
+      ...traditional.forex.data,
+      ...traditional.bonds.data,
+      ...crypto.data,
+    ].map((asset) => asset.percentChange);
 
-  return embed;
+    const embed = new EmbedBuilder()
+      .setTitle("📊 Global Markets Overview")
+      .setColor(getAverageChangeColor(allChanges))
+      .setTimestamp()
+      .addFields(
+        formatCategory(traditional.stocks.us),
+        formatCategory(traditional.stocks.europe),
+        formatCategory(traditional.stocks.asia),
+        formatCategory(traditional.forex),
+        formatCategory(traditional.bonds),
+        {
+          name: "₿ Crypto",
+          value: crypto.data.map((asset) => formatMarketEntry(asset)).join("\n"),
+          inline: false,
+        }
+      );
+
+    return embed;
+  } catch (error) {
+    console.error("Error formatting market embed:", error);
+    throw error;
+  }
 }
 
 export async function execute(interaction: ChatInputCommandInteraction) {
