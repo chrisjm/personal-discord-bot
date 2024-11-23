@@ -1,4 +1,4 @@
-import { YahooFinanceProvider } from '../providers/yahooFinance';
+import { getQuote } from '../providers/yahooFinance';
 import { BaseAsset } from '../core/types';
 
 interface MarketGroup {
@@ -40,41 +40,33 @@ const MARKET_SYMBOLS = {
     hang_seng: '^HSI',
     shanghai: '000001.SS',
   },
-};
+} as const;
 
-export class StockMarkets {
-  private provider: YahooFinanceProvider;
+async function getMarketGroup(
+  symbols: { [key: string]: string }
+): Promise<MarketGroup> {
+  const results: MarketGroup = {};
+  await Promise.all(
+    Object.entries(symbols).map(async ([key, symbol]) => {
+      results[key] = await getQuote(symbol);
+    })
+  );
+  return results;
+}
 
-  constructor() {
-    this.provider = new YahooFinanceProvider();
-  }
+export async function getMarketData(): Promise<StockMarketData> {
+  const [us, europe, asia] = await Promise.all([
+    getMarketGroup(MARKET_SYMBOLS.us),
+    getMarketGroup(MARKET_SYMBOLS.europe),
+    getMarketGroup(MARKET_SYMBOLS.asia),
+  ]);
 
-  private async getMarketGroup(
-    symbols: { [key: string]: string }
-  ): Promise<MarketGroup> {
-    const results: MarketGroup = {};
-    await Promise.all(
-      Object.entries(symbols).map(async ([key, symbol]) => {
-        results[key] = await this.provider.getQuote(symbol);
-      })
-    );
-    return results;
-  }
+  const timestamp = Date.now();
 
-  async getMarketData(): Promise<StockMarketData> {
-    const [us, europe, asia] = await Promise.all([
-      this.getMarketGroup(MARKET_SYMBOLS.us),
-      this.getMarketGroup(MARKET_SYMBOLS.europe),
-      this.getMarketGroup(MARKET_SYMBOLS.asia),
-    ]);
-
-    const timestamp = Date.now();
-
-    return {
-      us: us as StockMarketData['us'],
-      europe: europe as StockMarketData['europe'],
-      asia: asia as StockMarketData['asia'],
-      timestamp,
-    };
-  }
+  return {
+    us: us as StockMarketData['us'],
+    europe: europe as StockMarketData['europe'],
+    asia: asia as StockMarketData['asia'],
+    timestamp,
+  };
 }

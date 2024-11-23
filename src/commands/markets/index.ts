@@ -1,13 +1,10 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { StockMarkets } from "./assets/stocks";
-import { CryptoMarkets } from "./assets/crypto";
+import { getMarketData as getStockMarketData } from "./assets/stocks";
+import { getMarketData as getCryptoMarketData } from "./assets/crypto";
 
 export const data = new SlashCommandBuilder()
   .setName("markets")
   .setDescription("Get a summary of global markets including US, Crypto, and World markets")
-
-const stockMarkets = new StockMarkets();
-const cryptoMarkets = new CryptoMarkets();
 
 function getChangeEmoji(change: number): string {
   if (change > 0) return "🟢";
@@ -25,7 +22,37 @@ function formatChange(change: number): string {
 }
 
 function getChangeColor(change: number): number {
-  return change >= 0 ? 0x00ff00 : 0xff0000;
+  const roundedChange = Math.round(change * 100) / 100;
+
+  const greenShades = [
+    0xccffcc, // Very light green
+    0x99ff99, // Light green
+    0x66cc66, // Medium light green
+    0x339933, // Medium green
+    0x006600  // Dark green
+  ];
+
+  const redShades = [
+    0xffcccc, // Very light red
+    0xff9999, // Light red
+    0xff6666, // Medium light red
+    0xff3333, // Medium red
+    0xcc0000  // Dark red
+  ];
+
+  if (roundedChange === 0) {
+    return 0xffffff; // White
+  }
+
+  if (roundedChange > 0) {
+    // Changes 0-10% mapped to 5 green shades
+    const index = Math.min(Math.floor(roundedChange / 2), 4);
+    return greenShades[index];
+  }
+
+  // Changes 0-10% mapped to 5 red shades
+  const index = Math.min(Math.floor(Math.abs(roundedChange) / 2), 4);
+  return redShades[index];
 }
 
 function formatMarketEntry({ name, price, percentChange, isOpen, extraInfo }: {
@@ -44,15 +71,34 @@ function formatMarketEntry({ name, price, percentChange, isOpen, extraInfo }: {
   return `${emoji} **${name}**: $${formattedPrice} (${formattedChange})${status}${extra}`;
 }
 
-async function formatMarketEmbed(historyDays: number): Promise<EmbedBuilder> {
+function getAverageChangeColor(changes: number[]): number {
+  const sum = changes.reduce((acc, cur) => acc + cur, 0);
+  const average = sum / changes.length;
+  console.log(changes, average);
+  return getChangeColor(average);
+}
+
+async function formatMarketEmbed(): Promise<EmbedBuilder> {
   const [stockData, cryptoData] = await Promise.all([
-    stockMarkets.getMarketData(),
-    cryptoMarkets.getMarketData(),
+    getStockMarketData(),
+    getCryptoMarketData(),
   ]);
+
+  const changes = [
+    stockData.us.sp500.percentChange,
+    stockData.us.dow.percentChange,
+    stockData.us.nasdaq.percentChange,
+    stockData.europe.dax.percentChange,
+    stockData.europe.ftse100.percentChange,
+    stockData.europe.cac40.percentChange,
+    stockData.asia.nikkei.percentChange,
+    stockData.asia.hang_seng.percentChange,
+    stockData.asia.shanghai.percentChange,
+  ];
 
   const embed = new EmbedBuilder()
     .setTitle("🌎 Global Market Summary")
-    .setColor(getChangeColor(stockData.us.sp500.percentChange))
+    .setColor(getAverageChangeColor(changes))
     .setTimestamp()
     .addFields(
       {
@@ -99,11 +145,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
 
   try {
-    const historyDays = interaction.options.getInteger('history') || 0;
-    const embed = await formatMarketEmbed(historyDays);
+    const embed = await formatMarketEmbed();
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    console.error('Error in markets command:', error);
-    await interaction.editReply('Sorry, there was an error fetching market data. Please try again later.');
+    console.error('Error fetching market data:', error);
+    await interaction.editReply('Failed to fetch market data. Please try again later.');
   }
 }

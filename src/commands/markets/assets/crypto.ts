@@ -1,4 +1,4 @@
-import { CoinGeckoProvider } from '../providers/coinGecko';
+import { getQuote } from '../providers/coinGecko';
 import { BaseAsset } from '../core/types';
 
 export interface CryptoMarketData {
@@ -10,31 +10,19 @@ export interface CryptoMarketData {
 const CRYPTO_IDS = {
   btc: 'bitcoin',
   eth: 'ethereum',
-};
+} as const;
 
-export class CryptoMarkets {
-  private provider: CoinGeckoProvider;
+export async function getMarketData(): Promise<CryptoMarketData> {
+  const [btc, eth] = await Promise.all([
+    getQuote(CRYPTO_IDS.btc),
+    getQuote(CRYPTO_IDS.eth),
+  ]);
 
-  constructor() {
-    this.provider = new CoinGeckoProvider();
-  }
+  const timestamp = Date.now();
 
-  async getAssetData(coinId: string): Promise<BaseAsset> {
-    return await this.provider.getQuote(coinId);
-  }
-
-  async getMarketData(): Promise<CryptoMarketData> {
-    const [btc, eth] = await Promise.all([
-      this.getAssetData('bitcoin'),
-      this.getAssetData('ethereum'),
-    ]);
-
-    const timestamp = Date.now();
-
-    return {
-      btc,
-      eth,
-      timestamp,
-    };
-  }
+  return {
+    btc,
+    eth,
+    timestamp,
+  };
 }
