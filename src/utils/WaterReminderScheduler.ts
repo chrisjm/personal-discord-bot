@@ -85,25 +85,16 @@ class WaterReminderScheduler {
             if (now.isBetween(startTime, endTime)) {
                 console.log(`[DEBUG] Sending water reminder to user ${userId}`);
                 const message = await user.send(this.getRandomMessage());
-                console.log(`[DEBUG] Message sent with ID: ${message.id}`);
 
                 try {
                     // Add the reaction options to the message first
                     await message.react('👍');
                     await message.react('👎');
-                    console.log('[DEBUG] Added initial reactions to message');
 
                     const filter = (reaction: any, reactUser: any) => {
-                        console.log(`[DEBUG] Checking reaction:`, {
-                            emoji: reaction.emoji.name,
-                            reactUserId: reactUser.id,
-                            expectedUserId: userId,
-                            isValid: reactUser.id === userId && ['👍', '👎'].includes(reaction.emoji.name)
-                        });
                         return reactUser.id === userId && ['👍', '👎'].includes(reaction.emoji.name);
                     };
 
-                    console.log('[DEBUG] Awaiting reactions...');
                     const collected = await message.awaitReactions({
                         filter,
                         max: 1,
@@ -121,12 +112,10 @@ class WaterReminderScheduler {
 
                         const congratsMessage = CONGRATULATORY_MESSAGES[Math.floor(Math.random() * CONGRATULATORY_MESSAGES.length)];
                         await user.send(congratsMessage);
-                        console.log('[DEBUG] Sent congratulatory message');
                     } else if (reaction?.emoji.name === '👎') {
                         // Send encouragement message
                         const encourageMessage = ENCOURAGEMENT_MESSAGES[Math.floor(Math.random() * ENCOURAGEMENT_MESSAGES.length)];
                         await user.send(encourageMessage);
-                        console.log('[DEBUG] Sent encouragement message');
                     }
 
                 } catch (error) {
