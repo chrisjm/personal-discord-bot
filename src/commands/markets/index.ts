@@ -138,7 +138,6 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
       ...traditional.stocks.asia.data,
       ...traditional.forex.data,
       ...traditional.bonds.data,
-      ...crypto.data,
     ].map((asset) => asset.percentChange);
 
     const embed = new EmbedBuilder()
