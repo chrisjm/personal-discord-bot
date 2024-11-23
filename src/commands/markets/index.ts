@@ -124,6 +124,10 @@ function formatCategory(category: { name: string; data: BaseAsset[] }) {
   };
 }
 
+function getDataCredits(): string {
+  return "Data provided by Yahoo Finance and CoinGecko";
+}
+
 async function formatMarketEmbed(): Promise<EmbedBuilder> {
   try {
     const [traditional, crypto] = await Promise.all([
@@ -144,6 +148,7 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
       .setTitle("📊 Global Markets Overview")
       .setColor(getAverageChangeColor(allChanges))
       .setTimestamp()
+      .setFooter({ text: getDataCredits() })
       .addFields(
         // Left column
         { ...formatCategory({ ...traditional.stocks.us, name: "🇺🇸 US Markets" }), inline: true },
