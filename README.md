@@ -89,22 +89,37 @@ These are initial steps to get things running:
 ## Available Commands
 
 ### General
-- `/ping` - Check bot's connection
-- `/server` - Get server information
+- `/ping` - Check bot's latency, API latency, and uptime
+- `/server` - Get detailed server information including member count and boost tier
 - `/user` - Get user information
 
 ### AI & Chat
-- `/gpt [prompt]` - Interact with GPT model
+- `/gpt [prompt]` - Interact with GPT-4 model for intelligent conversations
 
-### Wellness
-- `/meditate start [duration]` - Start a meditation session
+### Wellness & Health
+- `/meditate start [duration]` - Start a meditation session with ambient sounds (requires Meditation role)
+  - Duration format: e.g., "5min"
 - `/meditate stop` - Stop the current meditation session
+- `/track-water [action]` - Track your daily water intake
+  - Actions: add, today, range
+- `/water-reminder [action]` - Set up automated water drinking reminders
+  - `/water-reminder start [start_time] [end_time] [timezone]` - Start receiving reminders
+  - `/water-reminder stop` - Stop receiving reminders
 
-### Information
-- `/news top` - Get top news from RSS feeds
-- `/crypto [symbol]` - Get cryptocurrency price information
-- `/stock [symbol]` - Get stock market information
-- `/time [timezone]` - Get time in different timezone
+### Markets & Finance
+- `/markets` - Get a comprehensive overview of global markets including:
+  - US Markets (S&P 500, Dow Jones, NASDAQ)
+  - European Markets (DAX, FTSE 100, CAC 40)
+  - Asian Markets (Nikkei 225, Hang Seng, Shanghai)
+  - Exchange Rates
+  - Treasury Notes
+  - Cryptocurrency prices
+
+### News & Information
+- `/news [action]` - Get news updates from trusted sources
+  - Actions: 
+    - `top` - Get top headlines
+    - `yesterday` - Get popular news from yesterday
 
 ## Development
 
