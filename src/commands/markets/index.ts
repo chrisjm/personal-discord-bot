@@ -13,6 +13,38 @@ function getChangeEmoji(change: number): string {
   return "⚪";
 }
 
+function isMarketOpen(marketType: 'US' | 'Europe' | 'Asia'): { isOpen: boolean; emoji: string } {
+  const now = new Date();
+  const hour = now.getUTCHours();
+  const day = now.getUTCDay();
+
+  // Weekend check (Saturday = 6, Sunday = 0)
+  if (day === 0 || day === 6) {
+    return { isOpen: false, emoji: "🔴" };
+  }
+
+  switch (marketType) {
+    case 'US':
+      // US Market hours: 9:30 AM - 4:00 PM ET (13:30 - 20:00 UTC)
+      return {
+        isOpen: hour >= 13 && hour < 20,
+        emoji: hour >= 13 && hour < 20 ? "🟢" : "🔴"
+      };
+    case 'Europe':
+      // European Market hours: 8:00 AM - 4:30 PM CET (7:00 - 15:30 UTC)
+      return {
+        isOpen: hour >= 7 && hour < 16,
+        emoji: hour >= 7 && hour < 16 ? "🟢" : "🔴"
+      };
+    case 'Asia':
+      // Asian Market hours: 9:00 AM - 3:00 PM JST (0:00 - 6:00 UTC)
+      return {
+        isOpen: hour >= 0 && hour < 6,
+        emoji: hour >= 0 && hour < 6 ? "🟢" : "🔴"
+      };
+  }
+}
+
 function formatPrice(price: number): string {
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -70,19 +102,34 @@ function getAverageChangeColor(changes: number[]): number {
   return getChangeColor(average);
 }
 
+function formatCategory(category: { name: string; data: BaseAsset[] }) {
+  let headerName = category.name;
+  let statusEmoji = "";
+
+  if (category.name === "🇺🇸 US Markets") {
+    const status = isMarketOpen('US');
+    statusEmoji = ` ${status.emoji}`;
+  } else if (category.name === "🇪🇺 European Markets") {
+    const status = isMarketOpen('Europe');
+    statusEmoji = ` ${status.emoji}`;
+  } else if (category.name === "🌏 Asian Markets") {
+    const status = isMarketOpen('Asia');
+    statusEmoji = ` ${status.emoji}`;
+  }
+
+  return {
+    name: headerName + statusEmoji,
+    value: category.data.map((asset) => formatMarketEntry(asset)).join("\n"),
+    inline: true,
+  };
+}
+
 async function formatMarketEmbed(): Promise<EmbedBuilder> {
   try {
     const [traditional, crypto] = await Promise.all([
       getTraditionalMarketData(),
       getCryptoMarketData(),
     ]);
-
-    // Format each market category
-    const formatCategory = (category: { name: string; data: BaseAsset[] }) => ({
-      name: category.name,
-      value: category.data.map((asset) => formatMarketEntry(asset)).join("\n"),
-      inline: category.name.includes("Markets"), // Stock markets are inline, others are full width
-    });
 
     // Get all asset changes for color calculation
     const allChanges = [
@@ -99,16 +146,28 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
       .setColor(getAverageChangeColor(allChanges))
       .setTimestamp()
       .addFields(
-        formatCategory(traditional.stocks.us),
-        formatCategory(traditional.stocks.europe),
-        formatCategory(traditional.stocks.asia),
-        formatCategory(traditional.forex),
-        formatCategory(traditional.bonds),
+        // Left column
+        { ...formatCategory({ ...traditional.stocks.us, name: "🇺🇸 US Markets" }), inline: true },
+        // Right column
+        { ...formatCategory({ ...traditional.stocks.europe, name: "🇪🇺 European Markets" }), inline: true },
+        // Spacer for new row
+        { name: '\u200B', value: '\u200B', inline: true },
+        // Left column
+        { ...formatCategory({ ...traditional.forex, name: "💱 Exchange Rates" }), inline: true },
+        // Right column
+        { ...formatCategory({ ...traditional.stocks.asia, name: "🌏 Asian Markets" }), inline: true },
+        // Spacer for new row
+        { name: '\u200B', value: '\u200B', inline: true },
+        // Left column
+        { ...formatCategory({ ...traditional.bonds, name: "📈 Treasury Notes" }), inline: true },
+        // Right column
         {
           name: "₿ Crypto",
           value: crypto.data.map((asset) => formatMarketEntry(asset)).join("\n"),
-          inline: false,
-        }
+          inline: true,
+        },
+        // Spacer for new row
+        { name: '\u200B', value: '\u200B', inline: true }
       );
 
     return embed;
