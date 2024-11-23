@@ -1,5 +1,7 @@
-import { Client } from 'discord.js';
-import { waterReminderDb, WaterReminderPreferences } from './WaterReminderDatabase';
+import { Client, Message } from 'discord.js';
+import { waterReminderDb } from './WaterReminderDatabase';
+import { WaterReminderPreferences } from '../types/water-reminder';
+import { waterDb } from './WaterDatabase';
 import spacetime from 'spacetime';
 
 const REMINDER_MESSAGES = [
@@ -12,6 +14,24 @@ const REMINDER_MESSAGES = [
     "💦 Water break time! Your future self will thank you.",
     "🌊 Stay awesome, stay hydrated! Time for some H2O!"
 ];
+
+const CONGRATULATORY_MESSAGES = [
+    "🎉 Great job staying hydrated!",
+    "💪 Your body thanks you for that water!",
+    "⭐ Keep up the great hydration habits!",
+    "🌟 Awesome! Your future self will thank you for staying hydrated!",
+    "🎊 That's the spirit! Stay hydrated, stay healthy!"
+];
+
+const ENCOURAGEMENT_MESSAGES = [
+    "💭 No worries! Remember, staying hydrated helps you feel more energetic!",
+    "🌱 Maybe next time! Water is your body's best friend.",
+    "💪 You've got this! Try to get some water when you can.",
+    "🌟 That's okay! Just remember to drink water when you get the chance.",
+    "💧 Take care of yourself! Even small sips throughout the day help."
+];
+
+const WATER_AMOUNT_ML = 250; // Assuming one glass of water is about 250ml
 
 class WaterReminderScheduler {
     private static instance: WaterReminderScheduler;
@@ -46,24 +66,76 @@ class WaterReminderScheduler {
         try {
             const user = await this.client.users.fetch(userId);
             const prefs = await waterReminderDb.getPreferences(userId);
-            
+
             if (!prefs || !prefs.enabled) {
                 this.stopReminders(userId);
                 return;
             }
 
             const now = spacetime.now(prefs.timezone);
-            
+
             // Convert start and end times to spacetime objects for proper comparison
             const [startHour, startMinute] = prefs.start_time.split(':').map(Number);
             const [endHour, endMinute] = prefs.end_time.split(':').map(Number);
-            
+
             const startTime = now.clone().hour(startHour).minute(startMinute);
             const endTime = now.clone().hour(endHour).minute(endMinute);
-            
+
             // Check if current time is within the reminder window
             if (now.isBetween(startTime, endTime)) {
-                await user.send(this.getRandomMessage());
+                console.log(`[DEBUG] Sending water reminder to user ${userId}`);
+                const message = await user.send(this.getRandomMessage());
+                console.log(`[DEBUG] Message sent with ID: ${message.id}`);
+
+                try {
+                    // Add the reaction options to the message first
+                    await message.react('👍');
+                    await message.react('👎');
+                    console.log('[DEBUG] Added initial reactions to message');
+
+                    const filter = (reaction: any, reactUser: any) => {
+                        console.log(`[DEBUG] Checking reaction:`, {
+                            emoji: reaction.emoji.name,
+                            reactUserId: reactUser.id,
+                            expectedUserId: userId,
+                            isValid: reactUser.id === userId && ['👍', '👎'].includes(reaction.emoji.name)
+                        });
+                        return reactUser.id === userId && ['👍', '👎'].includes(reaction.emoji.name);
+                    };
+
+                    console.log('[DEBUG] Awaiting reactions...');
+                    const collected = await message.awaitReactions({
+                        filter,
+                        max: 1,
+                        time: 3600000,
+                        errors: ['time']
+                    });
+
+                    const reaction = collected.first();
+                    console.log('[DEBUG] Reaction collected:', reaction?.emoji.name);
+
+                    if (reaction?.emoji.name === '👍') {
+                        // Add water entry and send congratulatory message
+                        await waterDb.addEntry(WATER_AMOUNT_ML);
+                        console.log(`[DEBUG] Water entry added: ${WATER_AMOUNT_ML}mL`);
+
+                        const congratsMessage = CONGRATULATORY_MESSAGES[Math.floor(Math.random() * CONGRATULATORY_MESSAGES.length)];
+                        await user.send(congratsMessage);
+                        console.log('[DEBUG] Sent congratulatory message');
+                    } else if (reaction?.emoji.name === '👎') {
+                        // Send encouragement message
+                        const encourageMessage = ENCOURAGEMENT_MESSAGES[Math.floor(Math.random() * ENCOURAGEMENT_MESSAGES.length)];
+                        await user.send(encourageMessage);
+                        console.log('[DEBUG] Sent encouragement message');
+                    }
+
+                } catch (error) {
+                    if (error instanceof Error) {
+                        console.error('[DEBUG] Error in reaction handling:', error.message);
+                    } else {
+                        console.error('[DEBUG] Unknown error in reaction handling');
+                    }
+                }
             }
 
             // Schedule next reminder
@@ -76,12 +148,12 @@ class WaterReminderScheduler {
     private scheduleNextReminder(userId: string, prefs: WaterReminderPreferences): void {
         const interval = this.getRandomInterval();
         const timer = setTimeout(() => this.sendReminder(userId), interval);
-        
+
         // Clear any existing timer before setting a new one
         if (this.userTimers.has(userId)) {
             clearTimeout(this.userTimers.get(userId));
         }
-        
+
         this.userTimers.set(userId, timer);
     }
 
