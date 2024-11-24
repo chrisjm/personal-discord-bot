@@ -1,7 +1,6 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import spacetime from "spacetime";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -10,8 +9,9 @@ import {
   Interaction,
   SlashCommandBuilder,
 } from "discord.js";
-import { waterDb } from "../utils/database";
+import * as waterDb from "../utils/waterTrackerDatabase";
 
+const spacetimeImport = import("spacetime");
 const CODE_START = "```\n";
 const CODE_END = "```\n";
 const USER_TIMEZONE = "America/Los_Angeles"; // This could be made configurable per user in the future
@@ -27,8 +27,8 @@ export const data = new SlashCommandBuilder()
       .addChoices(
         { name: "add", value: "add" },
         { name: "today", value: "today" },
-        { name: "range", value: "range" }
-      )
+        { name: "range", value: "range" },
+      ),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -51,7 +51,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       addHalfLiter,
       addLiter,
-      cancel
+      cancel,
     );
 
     const response = await interaction.reply({
@@ -99,13 +99,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       });
     }
   } else if (interaction.options.getString("action") === "today") {
+    const spacetime = (await spacetimeImport).default;
     const now = spacetime.now(USER_TIMEZONE);
     try {
       // Convert local day boundaries to UTC for database query
-      const startOfDay = now.startOf('day');
-      const endOfDay = now.endOf('day');
-      const startDate = startOfDay.goto('UTC').format('iso');
-      const endDate = endOfDay.goto('UTC').format('iso');
+      const startOfDay = now.startOf("day");
+      const endOfDay = now.endOf("day");
+      const startDate = startOfDay.goto("UTC").format("iso");
+      const endDate = endOfDay.goto("UTC").format("iso");
 
       const entries = await waterDb.getEntriesInRange(startDate, endDate);
 
@@ -125,7 +126,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const totalMl = entries.reduce((acc, curr) => acc + curr.milliliters, 0);
       await interaction.reply({
         content: `${CODE_START}${formattedEntries.join(
-          "\n"
+          "\n",
         )}\nToday's total water intake: ${totalMl}mL\n${CODE_END}`,
       });
     } catch (e) {
@@ -133,6 +134,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       await interaction.reply({ content: `Error! ${e}` });
     }
   } else if (interaction.options.getString("action") === "range") {
+    const spacetime = (await spacetimeImport).default;
     const now = spacetime.now(USER_TIMEZONE);
 
     const yesterday = new ButtonBuilder()
@@ -165,7 +167,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       minusTwoDays,
       minusThreeDays,
       minusFourDays,
-      cancel
+      cancel,
     );
 
     const response = await interaction.reply({
@@ -194,16 +196,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         try {
           // Convert local day boundaries to UTC for database query
-          const startOfDay = rangeDate.startOf('day');
-          const endOfDay = rangeDate.endOf('day');
-          const startDate = startOfDay.goto('UTC').format('iso');
-          const endDate = endOfDay.goto('UTC').format('iso');
+          const startOfDay = rangeDate.startOf("day");
+          const endOfDay = rangeDate.endOf("day");
+          const startDate = startOfDay.goto("UTC").format("iso");
+          const endDate = endOfDay.goto("UTC").format("iso");
 
           const entries = await waterDb.getEntriesInRange(startDate, endDate);
 
           if (!entries || entries.length === 0) {
             await confirmation.update({
-              content: `No water entries found for ${days} day${days > 1 ? 's' : ''} ago.`,
+              content: `No water entries found for ${days} day${days > 1 ? "s" : ""} ago.`,
               components: [],
             });
             return;
@@ -211,14 +213,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
           const formattedEntries = entries.map((entry) => {
             // Convert UTC database time to user's timezone for display
-            const datetime = spacetime(entry.entry_datetime).goto(USER_TIMEZONE);
+            const datetime = spacetime(entry.entry_datetime).goto(
+              USER_TIMEZONE,
+            );
             return `${datetime.format("nice")} - ${entry.milliliters}mL`;
           });
 
-          const totalMl = entries.reduce((acc, curr) => acc + curr.milliliters, 0);
+          const totalMl = entries.reduce(
+            (acc, curr) => acc + curr.milliliters,
+            0,
+          );
           await confirmation.update({
             content: `${CODE_START}${formattedEntries.join(
-              "\n"
+              "\n",
             )}\nTotal water intake: ${totalMl}mL\n${CODE_END}`,
             components: [],
           });

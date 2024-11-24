@@ -1,15 +1,15 @@
-import { getQuote } from '../providers/coinGecko';
-import { BaseAsset } from '../core/types';
-import { CURRENCY_SYMBOLS } from '..';
+import { getQuote } from "../providers/coinGecko";
+import { BaseAsset } from "../../../types/markets";
+import { CURRENCY_SYMBOLS } from "..";
 
 export interface CryptoMarketData {
   data: BaseAsset[];
   timestamp: number;
 }
 
-const CRYPTO_IDS = {
-  btc: 'bitcoin',
-  eth: 'ethereum',
+export const CRYPTO_IDS = {
+  btc: "bitcoin",
+  eth: "ethereum",
 } as const;
 
 export async function getMarketData(): Promise<CryptoMarketData> {

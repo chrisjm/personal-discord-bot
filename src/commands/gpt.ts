@@ -8,7 +8,7 @@ const openai = new OpenAI({
 async function getCompletionFromMessages(
   prompt: string,
   temperature = 0.2,
-  model = "gpt-4o-mini"
+  model = "gpt-4o-mini",
 ) {
   const response = await openai.chat.completions.create({
     model,
@@ -51,7 +51,7 @@ export const data = new SlashCommandBuilder()
   .setName("gpt")
   .setDescription("Replies with LLM response (currently OpenAI gpt-4o-mini)")
   .addStringOption((option) =>
-    option.setName("prompt").setDescription("The prompt to send to the LLM")
+    option.setName("prompt").setDescription("The prompt to send to the LLM"),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {

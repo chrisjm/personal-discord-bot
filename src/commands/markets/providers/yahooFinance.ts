@@ -1,30 +1,23 @@
-import yahooFinance from 'yahoo-finance2';
-import { BaseAsset, ProviderConfig } from '../core/types';
-import { MarketCache } from '../core/cache';
+import yahooFinance from "yahoo-finance2";
+import { BaseAsset } from "../../../types/markets";
+import * as cache from "../../../utils/cacheDatabase";
 
 class YahooFinanceError extends Error {
-  constructor(message: string, public cause?: Error) {
+  constructor(
+    message: string,
+    public cause?: Error,
+  ) {
     super(message);
-    this.name = 'YahooFinanceError';
+    this.name = "YahooFinanceError";
   }
 }
 
-const DEFAULT_CONFIG: ProviderConfig = {
-  retryAttempts: 3,
-  retryDelay: 5000,
-  timeout: 10000,
-};
-
-const CACHE_TTL = 30000; // 30 seconds
-const EXCHANGE_RATE_CACHE_TTL = 3600000; // 1 hour
-
 async function getExchangeRate(currency: string): Promise<number> {
-  if (!currency || currency === 'USD') return 1;
+  if (!currency || currency === "USD") return 1;
 
-  const cache = MarketCache.getInstance();
   const cacheKey = `yahoo:exchange:${currency}USD`;
-  
-  const cachedRate = await cache.get<number>({ key: cacheKey, duration: EXCHANGE_RATE_CACHE_TTL });
+
+  const cachedRate = await cache.get(cacheKey);
   if (cachedRate) {
     return cachedRate;
   }
@@ -38,7 +31,7 @@ async function getExchangeRate(currency: string): Promise<number> {
     }
 
     const rate = quote.regularMarketPrice;
-    cache.set({ key: cacheKey, duration: EXCHANGE_RATE_CACHE_TTL }, rate);
+    cache.set(cacheKey, rate);
     return rate;
   } catch (error) {
     console.warn(`Error fetching exchange rate for ${currency}:`, error);
@@ -46,18 +39,13 @@ async function getExchangeRate(currency: string): Promise<number> {
   }
 }
 
-export async function getQuote(
-  symbol: string,
-  config: Partial<ProviderConfig> = {}
-): Promise<BaseAsset> {
-  const cache = MarketCache.getInstance();
-
-  if (!symbol || typeof symbol !== 'string') {
+export async function getQuote(symbol: string): Promise<BaseAsset> {
+  if (!symbol || typeof symbol !== "string") {
     throw new YahooFinanceError(`Invalid symbol: ${symbol}`);
   }
 
   const cacheKey = `yahoo:${symbol.toUpperCase()}`;
-  const cachedData = await cache.get<BaseAsset>({ key: cacheKey, duration: CACHE_TTL });
+  const cachedData = await cache.get(cacheKey);
   if (cachedData) {
     return cachedData;
   }
@@ -66,20 +54,26 @@ export async function getQuote(
     const quote = await yahooFinance.quote(symbol);
 
     if (!quote) {
-      throw new YahooFinanceError(`Failed to fetch quote for symbol: ${symbol}`);
+      throw new YahooFinanceError(
+        `Failed to fetch quote for symbol: ${symbol}`,
+      );
     }
 
     // Extract values with fallbacks for missing data
     const price = quote.regularMarketPrice || 0;
     const previousClose = quote.regularMarketPreviousClose || 0;
-    const change = quote.regularMarketChange || (price - previousClose);
-    const percentChange = quote.regularMarketChangePercent || ((change / previousClose) * 100);
-    const isOpen = quote.marketState === 'REGULAR';
+    const change = quote.regularMarketChange || price - previousClose;
+    const percentChange =
+      quote.regularMarketChangePercent || (change / previousClose) * 100;
+    const isOpen = quote.marketState === "REGULAR";
     const lastTradeTime = quote.regularMarketTime || new Date();
 
     // Log warning if we had to use fallback values
     if (!quote.regularMarketPrice) {
-      console.warn(`Warning: Using fallback values for symbol ${symbol}. Original quote:`, quote);
+      console.warn(
+        `Warning: Using fallback values for symbol ${symbol}. Original quote:`,
+        quote,
+      );
     }
 
     const asset: BaseAsset = {
@@ -91,22 +85,24 @@ export async function getQuote(
       previousClose,
       isOpen,
       lastTradeTime: lastTradeTime.getTime(),
-      currency: quote.currency || 'USD',
-      exchangeRate: quote.currency && quote.currency !== 'USD' ? 
-        await getExchangeRate(quote.currency) : 1,
+      currency: quote.currency || "USD",
+      exchangeRate:
+        quote.currency && quote.currency !== "USD"
+          ? await getExchangeRate(quote.currency)
+          : 1,
     };
 
     // Add USD price if not in USD
-    if (asset.currency !== 'USD' && asset.exchangeRate) {
+    if (asset.currency !== "USD" && asset.exchangeRate) {
       asset.priceUSD = asset.price * asset.exchangeRate;
     }
 
-    cache.set({ key: cacheKey, duration: CACHE_TTL }, asset);
+    cache.set(cacheKey, asset);
     return asset;
   } catch (error) {
     throw new YahooFinanceError(
       `Failed to fetch quote for ${symbol}`,
-      error instanceof Error ? error : undefined
+      error instanceof Error ? error : undefined,
     );
   }
 }

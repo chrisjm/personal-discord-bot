@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from "./logger";
 
 /**
  * Validation utility class for input and data validation
@@ -34,7 +34,7 @@ export class Validator {
     if (!input) return null;
 
     // Trim whitespace and remove potentially harmful characters
-    const sanitized = input.trim().replace(/[<>]/g, '');
+    const sanitized = input.trim().replace(/[<>]/g, "");
 
     if (sanitized.length > maxLength) {
       logger.warn(`Input exceeds maximum length of ${maxLength}`);
@@ -76,6 +76,6 @@ export class Validator {
 export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'ValidationError';
+    this.name = "ValidationError";
   }
 }

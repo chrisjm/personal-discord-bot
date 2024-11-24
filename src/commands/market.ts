@@ -1,1 +1,1 @@
-export { data, execute } from './markets';
+export { data, execute } from "./markets";

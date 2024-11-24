@@ -32,13 +32,15 @@ async function getTopNews() {
     status: string;
     articles: NewsArticle[];
   }>(
-    `https://newsapi.org/v2/top-headlines?country=us&category=general&apiKey=${process.env.NEWS_API_KEY}`
+    `https://newsapi.org/v2/top-headlines?country=us&category=general&apiKey=${process.env.NEWS_API_KEY}`,
   );
   const { data } = response;
   let articles: string[] = [];
   if (data.status === "ok") {
     articles = data.articles
-      .filter(article => WHITELIST_SOURCES.includes(article.source.id?.toLowerCase() || ''))
+      .filter((article) =>
+        WHITELIST_SOURCES.includes(article.source.id?.toLowerCase() || ""),
+      )
       .map((article) => {
         return `* [${article.title}](${article.url}) - ${article.source.name}`;
       });
@@ -53,7 +55,7 @@ async function getTopNews() {
 async function getYesterdayNews() {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const formattedDate = yesterday.toISOString().split('T')[0];
+  const formattedDate = yesterday.toISOString().split("T")[0];
 
   let articles: string[] = [];
   let page = 1;
@@ -63,13 +65,15 @@ async function getYesterdayNews() {
       status: string;
       articles: NewsArticle[];
     }>(
-      `https://newsapi.org/v2/everything?q=general&from=${formattedDate}&to=${formattedDate}&language=en&sortBy=popularity&apiKey=${process.env.NEWS_API_KEY}&pageSize=100&page=${page}`
+      `https://newsapi.org/v2/everything?q=general&from=${formattedDate}&to=${formattedDate}&language=en&sortBy=popularity&apiKey=${process.env.NEWS_API_KEY}&pageSize=100&page=${page}`,
     );
     const { data } = response;
 
     if (data.status === "ok") {
       const filteredArticles = data.articles
-        .filter((article) => WHITELIST_SOURCES.includes(article.source.id || ""))
+        .filter((article) =>
+          WHITELIST_SOURCES.includes(article.source.id || ""),
+        )
         .map((article) => `${article.title} - ${article.url}`);
 
       articles.push(...filteredArticles);
@@ -97,8 +101,8 @@ export const data = new SlashCommandBuilder()
       .setRequired(true)
       .addChoices(
         { name: "top", value: "top" },
-        { name: "yesterday", value: "yesterday" }
-      )
+        { name: "yesterday", value: "yesterday" },
+      ),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {

@@ -1,11 +1,17 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} from "discord.js";
 import { getMarketData as getTraditionalMarketData } from "./assets/traditional";
 import { getMarketData as getCryptoMarketData } from "./assets/crypto";
-import { BaseAsset } from "./core/types";
+import { BaseAsset } from "../../types/markets";
 
 export const data = new SlashCommandBuilder()
   .setName("markets")
-  .setDescription("Get a summary of global markets including US, Crypto, and World markets")
+  .setDescription(
+    "Get a summary of global markets including US, Crypto, and World markets",
+  );
 
 function getChangeEmoji(change: number): string {
   if (change > 0) return "🟢";
@@ -13,7 +19,10 @@ function getChangeEmoji(change: number): string {
   return "⚪";
 }
 
-function isMarketOpen(marketType: 'US' | 'Europe' | 'Asia'): { isOpen: boolean; emoji: string } {
+function isMarketOpen(marketType: "US" | "Europe" | "Asia"): {
+  isOpen: boolean;
+  emoji: string;
+} {
   const now = new Date();
   const hour = now.getUTCHours();
   const day = now.getUTCDay();
@@ -24,29 +33,32 @@ function isMarketOpen(marketType: 'US' | 'Europe' | 'Asia'): { isOpen: boolean; 
   }
 
   switch (marketType) {
-    case 'US':
+    case "US":
       // US Market hours: 9:30 AM - 4:00 PM ET (13:30 - 20:00 UTC)
       return {
         isOpen: hour >= 13 && hour < 20,
-        emoji: hour >= 13 && hour < 20 ? "🟢" : "🔴"
+        emoji: hour >= 13 && hour < 20 ? "🟢" : "🔴",
       };
-    case 'Europe':
+    case "Europe":
       // European Market hours: 8:00 AM - 4:30 PM CET (7:00 - 15:30 UTC)
       return {
         isOpen: hour >= 7 && hour < 16,
-        emoji: hour >= 7 && hour < 16 ? "🟢" : "🔴"
+        emoji: hour >= 7 && hour < 16 ? "🟢" : "🔴",
       };
-    case 'Asia':
+    case "Asia":
       // Asian Market hours: 9:00 AM - 3:00 PM JST (0:00 - 6:00 UTC)
       return {
         isOpen: hour >= 0 && hour < 6,
-        emoji: hour >= 0 && hour < 6 ? "🟢" : "🔴"
+        emoji: hour >= 0 && hour < 6 ? "🟢" : "🔴",
       };
   }
 }
 
 function formatPrice(price: number): string {
-  return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return price.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatChange(change: number): string {
@@ -62,7 +74,7 @@ function getChangeColor(change: number): number {
     0x99ff99, // Light green
     0x66cc66, // Medium light green
     0x339933, // Medium green
-    0x006600  // Dark green
+    0x006600, // Dark green
   ];
 
   const redShades = [
@@ -70,7 +82,7 @@ function getChangeColor(change: number): number {
     0xff9999, // Light red
     0xff6666, // Medium light red
     0xff3333, // Medium red
-    0xcc0000  // Dark red
+    0xcc0000, // Dark red
   ];
 
   if (roundedChange === 0) {
@@ -90,23 +102,23 @@ function getChangeColor(change: number): number {
 
 // Currency symbol mapping
 export const CURRENCY_SYMBOLS: { [key: string]: string } = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  JPY: '¥',
-  CNY: '¥',
-  KRW: '₩',
-  INR: '₹',
-  RUB: '₽',
-  TRY: '₺',
-  AUD: 'A$',
-  CAD: 'C$',
-  CHF: 'CHF',  // Swiss Franc doesn't have a widely used symbol
-  HKD: 'HK$',
-  SGD: 'S$',
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  CNY: "¥",
+  KRW: "₩",
+  INR: "₹",
+  RUB: "₽",
+  TRY: "₺",
+  AUD: "A$",
+  CAD: "C$",
+  CHF: "CHF", // Swiss Franc doesn't have a widely used symbol
+  HKD: "HK$",
+  SGD: "S$",
   // Cryptocurrencies
-  BTC: '₿',
-  ETH: 'Ξ',
+  BTC: "₿",
+  ETH: "Ξ",
   // Add more currencies as needed
 };
 
@@ -118,7 +130,7 @@ function formatMarketEntry(asset: BaseAsset): string {
   const emoji = getChangeEmoji(asset.percentChange);
   const priceStr = formatPrice(asset.price);
   const changeStr = formatChange(asset.percentChange);
-  const symbol = getCurrencySymbol(asset.currency || 'USD');
+  const symbol = getCurrencySymbol(asset.currency || "USD");
 
   return `${emoji} **${asset.name}**: ${symbol}${priceStr} (${changeStr})`;
 }
@@ -134,13 +146,13 @@ function formatCategory(category: { name: string; data: BaseAsset[] }) {
   let statusEmoji = "";
 
   if (category.name === "🇺🇸 US Markets") {
-    const status = isMarketOpen('US');
+    const status = isMarketOpen("US");
     statusEmoji = ` ${status.emoji}`;
   } else if (category.name === "🇪🇺 European Markets") {
-    const status = isMarketOpen('Europe');
+    const status = isMarketOpen("Europe");
     statusEmoji = ` ${status.emoji}`;
   } else if (category.name === "🌏 Asian Markets") {
-    const status = isMarketOpen('Asia');
+    const status = isMarketOpen("Asia");
     statusEmoji = ` ${status.emoji}`;
   }
 
@@ -178,27 +190,59 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
       .setFooter({ text: getDataCredits() })
       .addFields(
         // Left column
-        { ...formatCategory({ ...traditional.stocks.us, name: "🇺🇸 US Markets" }), inline: true },
-        // Right column
-        { ...formatCategory({ ...traditional.stocks.europe, name: "🇪🇺 European Markets" }), inline: true },
-        // Spacer for new row
-        { name: '\u200B', value: '\u200B', inline: true },
-        // Left column
-        { ...formatCategory({ ...traditional.forex, name: "💱 Exchange Rates" }), inline: true },
-        // Right column
-        { ...formatCategory({ ...traditional.stocks.asia, name: "🌏 Asian Markets" }), inline: true },
-        // Spacer for new row
-        { name: '\u200B', value: '\u200B', inline: true },
-        // Left column
-        { ...formatCategory({ ...traditional.bonds, name: "📈 Treasury Notes" }), inline: true },
+        {
+          ...formatCategory({
+            ...traditional.stocks.us,
+            name: "🇺🇸 US Markets",
+          }),
+          inline: true,
+        },
         // Right column
         {
-          name: "₿ Crypto",
-          value: crypto.data.map((asset) => formatMarketEntry(asset)).join("\n"),
+          ...formatCategory({
+            ...traditional.stocks.europe,
+            name: "🇪🇺 European Markets",
+          }),
           inline: true,
         },
         // Spacer for new row
-        { name: '\u200B', value: '\u200B', inline: true }
+        { name: "\u200B", value: "\u200B", inline: true },
+        // Left column
+        {
+          ...formatCategory({
+            ...traditional.forex,
+            name: "💱 Exchange Rates",
+          }),
+          inline: true,
+        },
+        // Right column
+        {
+          ...formatCategory({
+            ...traditional.stocks.asia,
+            name: "🌏 Asian Markets",
+          }),
+          inline: true,
+        },
+        // Spacer for new row
+        { name: "\u200B", value: "\u200B", inline: true },
+        // Left column
+        {
+          ...formatCategory({
+            ...traditional.bonds,
+            name: "📈 Treasury Notes",
+          }),
+          inline: true,
+        },
+        // Right column
+        {
+          name: "₿ Crypto",
+          value: crypto.data
+            .map((asset) => formatMarketEntry(asset))
+            .join("\n"),
+          inline: true,
+        },
+        // Spacer for new row
+        { name: "\u200B", value: "\u200B", inline: true },
       );
 
     return embed;
@@ -215,7 +259,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const embed = await formatMarketEmbed();
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    console.error('Error fetching market data:', error);
-    await interaction.editReply('Failed to fetch market data. Please try again later.');
+    console.error("Error fetching market data:", error);
+    await interaction.editReply(
+      "Failed to fetch market data. Please try again later.",
+    );
   }
 }

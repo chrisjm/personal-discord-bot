@@ -32,13 +32,13 @@ export const data = new SlashCommandBuilder()
         option
           .setName("duration")
           .setDescription("Duration for the meditation session, e.g., 5min")
-          .setRequired(true)
-      )
+          .setRequired(true),
+      ),
   )
   .addSubcommand((subcommand) =>
     subcommand
       .setName("stop")
-      .setDescription("Stop the meditation session and disconnect the bot.")
+      .setDescription("Stop the meditation session and disconnect the bot."),
   );
 
 let connection: VoiceConnection | null = null;
@@ -117,7 +117,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   const bellAudioPath = join(
     __dirname,
     "assets",
-    "tibetan-bell-ding-b-note.mp3"
+    "tibetan-bell-ding-b-note.mp3",
   );
   const startBellResource = createAudioResource(bellAudioPath, {
     metadata: {
@@ -138,7 +138,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   const duration = parseDuration(durationString);
   if (!duration) {
     await interaction.reply(
-      "Invalid duration format. Please use something like `5min`."
+      "Invalid duration format. Please use something like `5min`.",
     );
     return;
   }
@@ -148,7 +148,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   if (!meditationChannelId) {
     console.error("MEDITATION_CHANNEL_ID is not set in environment.");
     await interaction.reply(
-      "Configuration error. Please contact the administrator."
+      "Configuration error. Please contact the administrator.",
     );
     return;
   }
@@ -167,7 +167,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
       subscription = connection.subscribe(audioPlayer);
 
       await interaction.reply(
-        `Playing meditation music for ${durationString}. 🔊`
+        `Playing meditation music for ${durationString}. 🔊`,
       );
 
       // Play the beginning bell and wait 30s for it to complete
@@ -209,7 +209,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
 
   audioPlayer.on("stateChange", (oldState, newState) => {
     console.log(
-      `Audio player transitioned from ${oldState.status} to ${newState.status}`
+      `Audio player transitioned from ${oldState.status} to ${newState.status}`,
     );
   });
 }
@@ -222,11 +222,11 @@ async function handleStop(interaction: ChatInputCommandInteraction) {
   try {
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply(
-        "Stopping the meditation session and disconnecting. 👋"
+        "Stopping the meditation session and disconnecting. 👋",
       );
     } else if (channel) {
       await channel.send(
-        "Stopping the meditation session and disconnecting. 👋"
+        "Stopping the meditation session and disconnecting. 👋",
       );
     } else {
       console.error("Could not find the channel.");

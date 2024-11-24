@@ -45,7 +45,7 @@ export async function storeNewEntries(items: RSSParser.Item[]): Promise<void> {
         if (err) {
           console.error("Error inserting new entry:", err);
         }
-      }
+      },
     );
   }
 }
@@ -81,9 +81,9 @@ export function displayNewEntries(channel: TextChannel): void {
             if (err) {
               console.error("Error updating entry state:", err);
             }
-          }
+          },
         );
       });
-    }
+    },
   );
 }

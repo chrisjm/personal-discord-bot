@@ -1,5 +1,5 @@
 import { getQuote } from "../providers/yahooFinance";
-import { BaseAsset } from "../core/types";
+import { BaseAsset } from "../../../types/markets";
 
 // Map Yahoo Finance symbols to friendly names
 const NAME_MAP = {
@@ -89,13 +89,16 @@ export async function getMarketData(): Promise<MarketData> {
       .concat(MARKET_STRUCTURE.bonds.assets);
 
     // Make a single batch request to Yahoo Finance
-    const quotes = await Promise.all(symbols.map(symbol => getQuote(symbol)));
+    const quotes = await Promise.all(symbols.map((symbol) => getQuote(symbol)));
 
     // Create a map of symbol to quote data for easy lookup
-    const quoteMap = symbols.reduce((acc, symbol, index) => {
-      acc[symbol] = quotes[index];
-      return acc;
-    }, {} as Record<string, BaseAsset>);
+    const quoteMap = symbols.reduce(
+      (acc, symbol, index) => {
+        acc[symbol] = quotes[index];
+        return acc;
+      },
+      {} as Record<string, BaseAsset>,
+    );
 
     // Helper function to get asset data with the correct name
     const getAssetData = (symbol: string): BaseAsset => {

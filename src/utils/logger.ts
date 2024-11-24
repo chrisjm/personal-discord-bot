@@ -1,5 +1,5 @@
-import { LogLevel } from '../types/global';
-import chalk from 'chalk';
+import { LogLevel } from "../types/global";
+import chalk from "chalk";
 
 /**
  * Advanced logging utility for the Discord bot
@@ -72,9 +72,9 @@ export class Logger {
   private log(level: LogLevel, message: string, context?: any): void {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
-    
+
     console.log(logMessage);
-    
+
     if (context) {
       console.dir(context, { depth: null });
     }

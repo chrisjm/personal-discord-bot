@@ -1,3 +1,4 @@
+import { config } from "dotenv";
 import { Client, Events, TextChannel } from "discord.js";
 import {
   displayNewEntries,
@@ -5,28 +6,33 @@ import {
   storeNewEntries,
 } from "../news-minimalist";
 import { formatDate } from "../utils";
-import { waterReminderScheduler } from "../utils/WaterReminderScheduler";
+import * as waterReminderScheduler from "../utils/waterReminderScheduler";
+
+// Load environment variables from .env file
+config();
+
+const news_minimalist_rss_feed_url = process.env.NEWS_MINIMALIST_RSS_FEED_URL || '';
+const news_channel_id = process.env.NEWS_MINIMALIST_DISCORD_CHANNEL_ID || '';
 
 function refreshNewsMinimalist(client: Client) {
-  const channel = client.channels.cache.get(
-    process.env.NEWS_MINIMALIST_DISCORD_CHANNEL_ID
-  ) as TextChannel;
+  const channel = client.channels.cache.get(news_channel_id) as TextChannel;
 
   // Run once to update on startup
   processRSSFeed(channel);
 
   // Run every 10 minutes while running
-  setInterval(async () => {
-    processRSSFeed(channel);
-  }, 10 * 60 * 1000);
+  setInterval(
+    async () => {
+      processRSSFeed(channel);
+    },
+    10 * 60 * 1000,
+  );
 }
 
 async function processRSSFeed(channel: TextChannel) {
-  const items = await fetchRSSFeed(process.env.NEWS_MINIMALIST_RSS_FEED_URL);
+  const items = await fetchRSSFeed(news_minimalist_rss_feed_url);
   console.log(
-    `${formatDate(new Date())} Fetched ${items.length} entries from ${
-      process.env.NEWS_MINIMALIST_RSS_FEED_URL
-    }`
+    `${formatDate(new Date())} Fetched ${items.length} entries from ${news_minimalist_rss_feed_url}`,
   );
   if (items.length > 0) {
     await storeNewEntries(items);
