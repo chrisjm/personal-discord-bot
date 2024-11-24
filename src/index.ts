@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import path from "path";
-import { Client, Collection, GatewayIntentBits } from "discord.js";
+import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -10,10 +10,17 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.DirectMessageTyping,
+    GatewayIntentBits.DirectMessageReactions,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageTyping,
+    GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessageReactions,
-    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildPresences,
   ],
+  partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User, Partials.GuildMember],
 });
 
 client.commands = new Collection();
@@ -29,8 +36,8 @@ for (const file of commandFiles) {
   if ("data" in command && "execute" in command) {
     client.commands.set(command.data.name, command);
   } else {
-    console.log(
-      `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`,
+    console.error(
+      `No command matching ${filePath} was found.`,
     );
   }
 }
@@ -42,13 +49,13 @@ const eventFiles = fs
 
 for (const file of eventFiles) {
   const filePath = path.join(eventsPath, file);
-  const { default: event } = require(filePath);
-  if (event.once) {
-    console.log(`Adding once event ${event.name}.`);
-    client.once(event.name, (...args) => event.execute(...args));
+  const event = require(filePath);
+  const eventHandler = event.default || event;
+
+  if (eventHandler.once) {
+    client.once(eventHandler.name, (...args) => eventHandler.execute(...args));
   } else {
-    console.log(`Adding event ${event.name}.`);
-    client.on(event.name, (...args) => event.execute(...args));
+    client.on(eventHandler.name, (...args) => eventHandler.execute(...args));
   }
 }
 
