@@ -24,6 +24,7 @@ const NAME_MAP = {
   "USDGBP=X": "USD/GBP",
   "USDAUD=X": "USD/AUD",
   "USDCAD=X": "USD/CAD",
+  "USDMXN=X": "USD/MXN",
 
   // Government Bonds
   "^TNX": "US 10Y",
@@ -55,7 +56,7 @@ const MARKET_STRUCTURE = {
   },
   forex: {
     name: "Exchange Rates",
-    assets: ["USDEUR=X", "USDJPY=X", "USDGBP=X", "USDAUD=X", "USDCAD=X"],
+    assets: ["USDEUR=X", "USDJPY=X", "USDGBP=X", "USDAUD=X", "USDCAD=X", "USDMXN=X"],
   },
   bonds: {
     name: "Treasury Notes",
