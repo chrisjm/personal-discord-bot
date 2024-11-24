@@ -1,7 +1,4 @@
-import {
-  ChatInputCommandInteraction,
-  SlashCommandBuilder,
-} from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 
 /**
  * Interface representing a Discord bot command
@@ -12,8 +9,8 @@ export interface BotCommand {
    * Slash command data for Discord's command registration
    */
   data:
-  | SlashCommandBuilder
-  | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">;
+    | SlashCommandBuilder
+    | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">;
 
   /**
    * Execute method for the command

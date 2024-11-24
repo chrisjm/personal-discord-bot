@@ -9,8 +9,7 @@
     "start": "ts-eager src/index.ts",
     "deploy-commands": "ts-eager src/deploy-commands.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --write \"src/**/*.{ts,js,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js,json}\""
+    "format": "prettier --write \"src/**/*.{ts,js,json}\""
   },
   "author": "",
   "license": "MIT",

@@ -1,6 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import * as waterReminderDb from "../utils/waterReminderDatabase";
-import * as waterReminderScheduler from "../utils/waterReminderScheduler";
+import * as reminderDb from "../utils/reminderDatabase";
 
 export const data = new SlashCommandBuilder()
   .setName("water-reminder")
@@ -26,6 +25,12 @@ export const data = new SlashCommandBuilder()
           .setName("timezone")
           .setDescription("Your timezone (e.g., America/Los_Angeles)")
           .setRequired(false),
+      )
+      .addIntegerOption((option) =>
+        option
+          .setName("frequency")
+          .setDescription("Reminder frequency in minutes (default: 45)")
+          .setRequired(false),
       ),
   )
   .addSubcommand((subcommand) =>
@@ -41,6 +46,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const endTime = interaction.options.getString("end_time") || "19:00";
     const timezone =
       interaction.options.getString("timezone") || "America/Los_Angeles";
+    // TODO: Add support for random frequency of reminders between minimum and maximum
+    const frequency = interaction.options.getInteger("frequency") || 60;
 
     // Validate time format
     const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -53,20 +60,21 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     try {
-      await waterReminderDb.setPreferences({
+      await reminderDb.setPreferences({
         user_id: userId,
+        reminder_type: "water",
         enabled: true,
         start_time: startTime,
         end_time: endTime,
         timezone: timezone,
+        frequency_minutes: frequency,
       });
-
-      await waterReminderScheduler.startReminders(userId);
 
       await interaction.reply({
         content:
-          `✅ Water reminders enabled! You'll receive reminders between ${startTime} and ${endTime} ${timezone}.\n` +
-          "I'll send you friendly reminders to stay hydrated throughout the day!",
+          `✅ Water reminders enabled! You'll receive reminders between ${startTime} and ${endTime} ${timezone}` +
+          (frequency ? ` every ${frequency} minutes` : "") +
+          ".\nI'll send you friendly reminders to stay hydrated!",
         ephemeral: true,
       });
     } catch (error) {
@@ -79,15 +87,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
   } else if (subcommand === "stop") {
     try {
-      const prefs = await waterReminderDb.getPreferences(userId);
+      const prefs = await reminderDb.getPreferences(userId, "water");
       if (prefs) {
-        await waterReminderDb.setPreferences({
+        await reminderDb.setPreferences({
           ...prefs,
           enabled: false,
         });
       }
-
-      waterReminderScheduler.stopReminders(userId);
 
       await interaction.reply({
         content: "✅ Water reminders have been disabled. Stay hydrated!",

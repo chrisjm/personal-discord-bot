@@ -32,7 +32,7 @@ export async function fetchRSSFeed(url: string): Promise<RSSParser.Item[]> {
 export async function storeNewEntries(items: RSSParser.Item[]): Promise<void> {
   for (const item of items) {
     const title = item.title || "";
-    const description = item.contentSnippet || item.description || "";
+    const description = item.contentSnippet || "";
     const link = item.link || "";
     const guid = item.guid || item.link || "";
     const pubDate = item.pubDate || item.isoDate || "";

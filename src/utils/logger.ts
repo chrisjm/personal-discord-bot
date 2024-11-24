@@ -1,5 +1,9 @@
 import { LogLevel } from "../types/global";
-import chalk from "chalk";
+// Using dynamic import for chalk
+let chalkInstance: any;
+(async () => {
+  chalkInstance = (await import('chalk')).default;
+})();
 
 /**
  * Advanced logging utility for the Discord bot
@@ -33,7 +37,7 @@ export class Logger {
    * @param context - Optional context for the error
    */
   error(message: string, context?: any): void {
-    this.log(LogLevel.ERROR, chalk.red(message), context);
+    this.log(LogLevel.ERROR, chalkInstance.red(message), context);
   }
 
   /**
@@ -42,7 +46,7 @@ export class Logger {
    * @param context - Optional context for the warning
    */
   warn(message: string, context?: any): void {
-    this.log(LogLevel.WARN, chalk.yellow(message), context);
+    this.log(LogLevel.WARN, chalkInstance.yellow(message), context);
   }
 
   /**
@@ -51,7 +55,7 @@ export class Logger {
    * @param context - Optional context for the info
    */
   info(message: string, context?: any): void {
-    this.log(LogLevel.INFO, chalk.blue(message), context);
+    this.log(LogLevel.INFO, chalkInstance.blue(message), context);
   }
 
   /**
@@ -60,7 +64,7 @@ export class Logger {
    * @param context - Optional context for debugging
    */
   debug(message: string, context?: any): void {
-    this.log(LogLevel.DEBUG, chalk.gray(message), context);
+    this.log(LogLevel.DEBUG, chalkInstance.gray(message), context);
   }
 
   /**

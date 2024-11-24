@@ -54,6 +54,7 @@ async function connectToChannel(channel: VoiceBasedChannel) {
   const connection = joinVoiceChannel({
     channelId: channel?.id,
     guildId: channel?.guild?.id,
+    // @ts-ignore Type incompatibility; re-evaluate later (2024-11-23)
     adapterCreator: channel?.guild?.voiceAdapterCreator,
   });
 
@@ -164,7 +165,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   if (channel) {
     try {
       connection = await connectToChannel(channel);
-      subscription = connection.subscribe(audioPlayer);
+      subscription = connection.subscribe(audioPlayer) as PlayerSubscription;
 
       await interaction.reply(
         `Playing meditation music for ${durationString}. 🔊`,

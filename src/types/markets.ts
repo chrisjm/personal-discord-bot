@@ -1,5 +1,5 @@
 export interface MarketState {
-  marketState?: 'PRE' | 'REGULAR' | 'POST' | 'CLOSED';
+  marketState?: "PRE" | "REGULAR" | "POST" | "CLOSED";
   regularMarketPrice: number;
   regularMarketPreviousClose: number;
   regularMarketOpen?: number;
@@ -17,18 +17,18 @@ export interface BaseAsset {
   previousClose: number;
   isOpen: boolean;
   lastTradeTime: number;
-  currency?: string;           // The currency of the asset (e.g., USD, EUR)
-  exchangeRate?: number;       // Exchange rate to USD if not in USD
-  priceUSD?: number;          // Price in USD for easy comparison
+  currency?: string; // The currency of the asset (e.g., USD, EUR)
+  exchangeRate?: number; // Exchange rate to USD if not in USD
+  priceUSD?: number; // Price in USD for easy comparison
 }
 
 export interface CacheConfig {
-  duration: number;  // Cache duration in milliseconds
-  key: string;      // Cache key for the data
+  duration: number; // Cache duration in milliseconds
+  key: string; // Cache key for the data
 }
 
 export interface ProviderConfig {
   retryAttempts: number;
-  retryDelay: number;    // Delay between retries in milliseconds
-  timeout: number;       // Request timeout in milliseconds
+  retryDelay: number; // Delay between retries in milliseconds
+  timeout: number; // Request timeout in milliseconds
 }

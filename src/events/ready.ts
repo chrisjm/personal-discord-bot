@@ -6,13 +6,15 @@ import {
   storeNewEntries,
 } from "../news-minimalist";
 import { formatDate } from "../utils";
-import * as waterReminderScheduler from "../utils/waterReminderScheduler";
+import * as reminderScheduler from "../utils/reminderScheduler";
+import { waterReminderHandler } from "../handlers/waterReminder";
 
 // Load environment variables from .env file
 config();
 
-const news_minimalist_rss_feed_url = process.env.NEWS_MINIMALIST_RSS_FEED_URL || '';
-const news_channel_id = process.env.NEWS_MINIMALIST_DISCORD_CHANNEL_ID || '';
+const news_minimalist_rss_feed_url =
+  process.env.NEWS_MINIMALIST_RSS_FEED_URL || "";
+const news_channel_id = process.env.NEWS_MINIMALIST_DISCORD_CHANNEL_ID || "";
 
 function refreshNewsMinimalist(client: Client) {
   const channel = client.channels.cache.get(news_channel_id) as TextChannel;
@@ -44,18 +46,11 @@ export default {
   name: Events.ClientReady,
   once: true,
   async execute(client: Client) {
-    console.log(`🟢 Ready! Logged in as ${client.user?.tag}`);
+    console.log(`Ready! Logged in as ${client.user?.tag}`);
 
-    try {
-      // Initialize water reminder scheduler
-      waterReminderScheduler.setClient(client);
-      await waterReminderScheduler.initializeReminders();
-      console.log("🚰 Water reminder scheduler initialized");
-
-      // NOTE: Currently disabled since it's redundant
-      // refreshNewsMinimalist(client);
-    } catch (error) {
-      console.error(error);
-    }
+    // Initialize reminder system
+    reminderScheduler.setClient(client);
+    reminderScheduler.registerHandler(waterReminderHandler);
+    await reminderScheduler.initializeReminders();
   },
 };
