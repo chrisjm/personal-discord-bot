@@ -74,7 +74,7 @@ export interface MarketData {
   bonds: CategoryData;
 }
 
-interface CategoryData {
+export interface CategoryData {
   name: string;
   data: BaseAsset[];
 }

@@ -131,8 +131,9 @@ function formatMarketEntry(asset: BaseAsset): string {
   const priceStr = formatPrice(asset.price);
   const changeStr = formatChange(asset.percentChange);
   const symbol = getCurrencySymbol(asset.currency || "USD");
+  const name = asset.name || 'Unknown';
 
-  return `${emoji} **${asset.name}**: ${symbol}${priceStr} (${changeStr})`;
+  return `${emoji} **${name}**: ${symbol}${priceStr} (${changeStr})`;
 }
 
 function getAverageChangeColor(changes: number[]): number {
@@ -142,6 +143,14 @@ function getAverageChangeColor(changes: number[]): number {
 }
 
 function formatCategory(category: { name: string; data: BaseAsset[] }) {
+  if (!category || !Array.isArray(category.data)) {
+    return {
+      name: category.name || 'Unknown Category',
+      value: '❔ Data unavailable',
+      inline: true,
+    };
+  }
+
   let headerName = category.name;
   let statusEmoji = "";
 
@@ -156,15 +165,25 @@ function formatCategory(category: { name: string; data: BaseAsset[] }) {
     statusEmoji = ` ${status.emoji}`;
   }
 
+  const formattedEntries = category.data
+    .filter(asset => asset && typeof asset === 'object')
+    .map(asset => formatMarketEntry(asset))
+    .join("\n");
+
   return {
     name: headerName + statusEmoji,
-    value: category.data.map((asset) => formatMarketEntry(asset)).join("\n"),
+    value: formattedEntries || '❔ No data available',
     inline: true,
   };
 }
 
 function getDataCredits(): string {
   return "Data provided by Yahoo Finance and CoinGecko";
+}
+
+function isWeekend(): boolean {
+  const day = new Date().getUTCDay();
+  return day === 0 || day === 6; // 0 is Sunday, 6 is Saturday
 }
 
 async function formatMarketEmbed(): Promise<EmbedBuilder> {
@@ -174,76 +193,137 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
       getCryptoMarketData(),
     ]);
 
-    // Get all asset changes for color calculation
-    const allChanges = [
-      ...traditional.stocks.us.data,
-      ...traditional.stocks.europe.data,
-      ...traditional.stocks.asia.data,
-      ...traditional.forex.data,
-      ...traditional.bonds.data,
-    ].map((asset) => asset.percentChange);
+    const isWeekendDay = isWeekend();
+    const embedFields = [];
 
-    const embed = new EmbedBuilder()
-      .setTitle("📊 Global Markets Overview")
-      .setColor(getAverageChangeColor(allChanges))
-      .setTimestamp()
-      .setFooter({ text: getDataCredits() })
-      .addFields(
-        // Left column
+    if (isWeekendDay) {
+      embedFields.push(
         {
-          ...formatCategory({
-            ...traditional.stocks.us,
-            name: "🇺🇸 US Markets",
-          }),
-          inline: true,
-        },
-        // Right column
-        {
-          ...formatCategory({
-            ...traditional.stocks.europe,
-            name: "🇪🇺 European Markets",
-          }),
-          inline: true,
-        },
-        // Spacer for new row
-        { name: "\u200B", value: "\u200B", inline: true },
-        // Left column
-        {
-          ...formatCategory({
-            ...traditional.forex,
-            name: "💱 Exchange Rates",
-          }),
-          inline: true,
-        },
-        // Right column
-        {
-          ...formatCategory({
-            ...traditional.stocks.asia,
-            name: "🌏 Asian Markets",
-          }),
-          inline: true,
-        },
-        // Spacer for new row
-        { name: "\u200B", value: "\u200B", inline: true },
-        // Left column
-        {
-          ...formatCategory({
-            ...traditional.bonds,
-            name: "📈 Treasury Notes",
-          }),
-          inline: true,
-        },
-        // Right column
-        {
+          name: "📅 Traditional Markets",
+          value: "Markets are closed for the weekend. Regular trading hours resume on Monday.",
+          inline: false
+        }
+      );
+
+      if (crypto?.coins?.data?.length > 0) {
+        embedFields.push({
+          name: "₿ Crypto Markets",
+          value: crypto.coins.data
+            .map((asset) => formatMarketEntry(asset))
+            .join("\n") || '❔ No crypto data available',
+          inline: false
+        });
+      } else {
+        embedFields.push({
+          name: "₿ Crypto Markets",
+          value: "❔ Crypto market data unavailable",
+          inline: false
+        });
+      }
+    } else {
+      // During weekdays, show all markets if available
+      if (traditional) {
+        const validChanges = [
+          ...(traditional.stocks?.us?.data || []),
+          ...(traditional.stocks?.europe?.data || []),
+          ...(traditional.stocks?.asia?.data || []),
+          ...(traditional.forex?.data || []),
+          ...(traditional.bonds?.data || []),
+        ].map(asset => asset?.percentChange).filter(Boolean);
+
+        if (traditional.stocks?.us?.data) {
+          embedFields.push({
+            ...formatCategory({
+              ...traditional.stocks.us,
+              name: "🇺🇸 US Markets",
+            }),
+            inline: true,
+          });
+        }
+
+        if (traditional.stocks?.europe?.data) {
+          embedFields.push({
+            ...formatCategory({
+              ...traditional.stocks.europe,
+              name: "🇪🇺 European Markets",
+            }),
+            inline: true,
+          });
+        }
+
+        embedFields.push({ name: "\u200B", value: "\u200B", inline: true });
+
+        if (traditional.forex?.data) {
+          embedFields.push({
+            ...formatCategory({
+              ...traditional.forex,
+              name: "💱 Exchange Rates",
+            }),
+            inline: true,
+          });
+        }
+
+        if (traditional.stocks?.asia?.data) {
+          embedFields.push({
+            ...formatCategory({
+              ...traditional.stocks.asia,
+              name: "🌏 Asian Markets",
+            }),
+            inline: true,
+          });
+        }
+
+        embedFields.push({ name: "\u200B", value: "\u200B", inline: true });
+
+        if (traditional.bonds?.data) {
+          embedFields.push({
+            ...formatCategory({
+              ...traditional.bonds,
+              name: "📈 Treasury Notes",
+            }),
+            inline: true,
+          });
+        }
+      }
+
+      if (crypto?.coins?.data?.length > 0) {
+        embedFields.push({
           name: "₿ Crypto",
-          value: crypto.data
+          value: crypto.coins.data
             .map((asset) => formatMarketEntry(asset))
             .join("\n"),
           inline: true,
-        },
-        // Spacer for new row
-        { name: "\u200B", value: "\u200B", inline: true },
-      );
+        });
+      } else {
+        embedFields.push({
+          name: "₿ Crypto",
+          value: "❔ Crypto market data unavailable",
+          inline: true,
+        });
+      }
+
+      embedFields.push({ name: "\u200B", value: "\u200B", inline: true });
+    }
+
+    // If we have no valid fields, show an error message
+    if (embedFields.length === 0) {
+      embedFields.push({
+        name: "❌ Error",
+        value: "Unable to retrieve market data. Please try again later.",
+        inline: false
+      });
+    }
+
+    const validCryptoChanges = crypto?.coins?.data
+      ?.map(asset => asset.percentChange)
+      ?.filter((change): change is number => typeof change === 'number' && !isNaN(change)) || [];
+
+    const embed = new EmbedBuilder()
+      .setTitle("📊 Global Markets Overview")
+      .setColor(isWeekendDay ? 0x808080 : getAverageChangeColor(validCryptoChanges))
+      .setTimestamp()
+      .setFooter({ text: getDataCredits() })
+      .addFields(embedFields);
 
     return embed;
   } catch (error) {
