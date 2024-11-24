@@ -4,7 +4,7 @@ import fs from "fs";
 import {
   WaterReminderDatabaseRow,
   WaterReminderPreferences,
-} from "../types/water-reminder";
+} from "../types/waterReminder";
 
 // Initialize database connection
 const dbDir = path.join(__dirname, "../../data/sqlite");

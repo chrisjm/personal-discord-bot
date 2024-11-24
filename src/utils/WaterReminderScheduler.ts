@@ -1,6 +1,6 @@
 import { Client } from "discord.js";
 import * as waterReminderDb from "./waterReminderDatabase";
-import { WaterReminderPreferences } from "../types/water-reminder";
+import { WaterReminderPreferences } from "../types/waterReminder";
 import * as waterDb from "./waterTrackerDatabase";
 
 const spacetimeImport = import("spacetime");
