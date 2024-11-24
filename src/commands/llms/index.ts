@@ -62,7 +62,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.deferReply();
 
-      const result = await provider.complete(interaction, prompt, { model });
+      const result = await provider.complete(prompt, { model });
 
       // Record usage statistics
       await llmStats.recordUsage(

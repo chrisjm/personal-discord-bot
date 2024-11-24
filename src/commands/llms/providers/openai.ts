@@ -16,7 +16,6 @@ const getDefaultConfig = (): LLMConfig => ({
 });
 
 const complete = async (
-  interaction: ChatInputCommandInteraction,
   prompt: string,
   config?: Partial<LLMConfig>
 ): Promise<{ content: string; usage: LLMUsageStats }> => {

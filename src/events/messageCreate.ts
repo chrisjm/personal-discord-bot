@@ -28,10 +28,11 @@ export default {
       if (!prompt) return;
 
       // Show typing indicator while processing
+      // @ts-ignore Fix this when we settle on an architecture
       await message.channel.sendTyping();
 
       // Use the OpenAI provider to generate a response
-      const result = await openaiProvider.complete(message, prompt, { model: DEFAULT_MODEL });
+      const result = await openaiProvider.complete(prompt, { model: DEFAULT_MODEL });
 
       // Record usage statistics
       await llmStats.recordUsage(

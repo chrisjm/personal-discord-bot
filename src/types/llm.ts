@@ -30,7 +30,6 @@ export interface LLMProvider {
   availableModels: string[];
   getDefaultConfig: () => LLMConfig;
   complete: (
-    interaction: ChatInputCommandInteraction,
     prompt: string,
     config?: Partial<LLMConfig>
   ) => Promise<{
