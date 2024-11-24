@@ -67,7 +67,7 @@ export async function getQuote(coinId: string): Promise<BaseAsset> {
       lastTradeTime,
     };
 
-    cache.set(cacheKey, asset);
+    cache.set(cacheKey, asset, CACHE_TTL);
     return asset;
   } catch (error) {
     throw new CoinGeckoError(

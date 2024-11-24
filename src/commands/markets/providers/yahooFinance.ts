@@ -2,6 +2,9 @@ import yahooFinance from "yahoo-finance2";
 import { BaseAsset } from "../../../types/markets";
 import * as cache from "../../../utils/cacheDatabase";
 
+const CACHE_TTL = 30000; // 30 seconds
+const LONG_CACHE_TTL = 3600000; // 1 hour
+
 class YahooFinanceError extends Error {
   constructor(
     message: string,
@@ -31,7 +34,7 @@ async function getExchangeRate(currency: string): Promise<number> {
     }
 
     const rate = quote.regularMarketPrice;
-    cache.set(cacheKey, rate);
+    cache.set(cacheKey, rate, LONG_CACHE_TTL);
     return rate;
   } catch (error) {
     console.warn(`Error fetching exchange rate for ${currency}:`, error);
@@ -97,7 +100,7 @@ export async function getQuote(symbol: string): Promise<BaseAsset> {
       asset.priceUSD = asset.price * asset.exchangeRate;
     }
 
-    cache.set(cacheKey, asset);
+    cache.set(cacheKey, asset, CACHE_TTL);
     return asset;
   } catch (error) {
     throw new YahooFinanceError(

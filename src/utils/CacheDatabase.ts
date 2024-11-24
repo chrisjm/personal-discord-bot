@@ -9,7 +9,8 @@ const initializeDatabase = (db: Database): void => {
         CREATE TABLE IF NOT EXISTS generic_cache (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
-            timestamp INTEGER NOT NULL
+            timestamp INTEGER NOT NULL,
+            ttl INTEGER NOT NULL DEFAULT 0
         )
     `);
 };
@@ -41,13 +42,14 @@ const db = setupDatabase();
 interface CacheRow {
   value: string;
   timestamp: number;
+  ttl: number;
 }
 
 // Database operations
 export const get = async (key: string): Promise<any | null> => {
   return new Promise((resolve, reject) => {
     db.get(
-      "SELECT value, timestamp FROM generic_cache WHERE key = ? LIMIT 1",
+      "SELECT value, timestamp, ttl FROM generic_cache WHERE key = ? LIMIT 1",
       [key],
       (err, row: CacheRow | undefined) => {
         if (err) {
@@ -56,11 +58,19 @@ export const get = async (key: string): Promise<any | null> => {
         } else if (!row) {
           resolve(null);
         } else {
-          try {
-            resolve(JSON.parse(row.value));
-          } catch (e) {
-            console.error("Error parsing cached value:", e);
+          // Check if entry has expired
+          const now = Date.now();
+          if (row.ttl > 0 && now - row.timestamp > row.ttl) {
+            // Entry has expired, remove it
+            remove(key).catch(err => console.error("Error removing expired cache:", err));
             resolve(null);
+          } else {
+            try {
+              resolve(JSON.parse(row.value));
+            } catch (e) {
+              console.error("Error parsing cached value:", e);
+              resolve(null);
+            }
           }
         }
       },
@@ -68,12 +78,12 @@ export const get = async (key: string): Promise<any | null> => {
   });
 };
 
-export const set = async (key: string, value: any): Promise<void> => {
+export const set = async (key: string, value: any, ttl: number = 0): Promise<void> => {
   return new Promise((resolve, reject) => {
     const timestamp = Date.now();
     db.run(
-      "INSERT OR REPLACE INTO generic_cache (key, value, timestamp) VALUES (?, ?, ?)",
-      [key, JSON.stringify(value), timestamp],
+      "INSERT OR REPLACE INTO generic_cache (key, value, timestamp, ttl) VALUES (?, ?, ?, ?)",
+      [key, JSON.stringify(value), timestamp, ttl],
       (err) => {
         if (err) {
           console.error("Error setting cache:", err);
@@ -98,3 +108,25 @@ export const remove = async (key: string): Promise<void> => {
     });
   });
 };
+
+// Add cleanup function to remove expired entries
+const cleanupExpiredEntries = async (): Promise<void> => {
+  const now = Date.now();
+  return new Promise((resolve, reject) => {
+    db.run(
+      "DELETE FROM generic_cache WHERE ttl > 0 AND (? - timestamp) > ttl",
+      [now],
+      (err) => {
+        if (err) {
+          console.error("Error cleaning up expired cache entries:", err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      },
+    );
+  });
+};
+
+// Run cleanup every minute
+setInterval(cleanupExpiredEntries, 60000);
