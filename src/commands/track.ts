@@ -9,16 +9,24 @@ import {
   Interaction,
   SlashCommandBuilder,
 } from "discord.js";
-import * as waterDb from "../utils/waterTrackerDatabase";
+import * as trackingDb from "../utils/trackingDatabase";
 
 const spacetimeImport = import("spacetime");
 const CODE_START = "```\n";
 const CODE_END = "```\n";
 const USER_TIMEZONE = "America/Los_Angeles"; // This could be made configurable per user in the future
 
+// Define common tracking types and their default units
+const TRACKING_TYPES = {
+  water: { defaultUnit: "ml", description: "Track water intake" },
+  mood: { defaultUnit: "score", description: "Track mood (1-10)" },
+} as const;
+
+type TrackingType = keyof typeof TRACKING_TYPES;
+
 export const data = new SlashCommandBuilder()
-  .setName("track-water")
-  .setDescription("Track water intake")
+  .setName("track")
+  .setDescription("Track various metrics")
   .addStringOption((option) =>
     option
       .setName("action")
@@ -29,219 +37,221 @@ export const data = new SlashCommandBuilder()
         { name: "today", value: "today" },
         { name: "range", value: "range" },
       ),
+  )
+  .addStringOption((option) => {
+    option
+      .setName("type")
+      .setDescription("What type of metric to track")
+      .setRequired(true);
+
+    Object.entries(TRACKING_TYPES).forEach(([type, config]) => {
+      option.addChoices({ name: type, value: type });
+    });
+
+    return option;
+  })
+  .addNumberOption((option) =>
+    option
+      .setName("amount")
+      .setDescription("Amount to track")
+      .setRequired(false),
+  )
+  .addStringOption((option) =>
+    option
+      .setName("unit")
+      .setDescription("Unit of measurement (optional, will use default if not specified)")
+      .setRequired(false),
+  )
+  .addStringOption((option) =>
+    option
+      .setName("note")
+      .setDescription("Additional notes about this entry")
+      .setRequired(false),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  if (interaction.options.getString("action") === "add") {
-    const addHalfLiter = new ButtonBuilder()
-      .setCustomId("500-ml")
-      .setLabel("500mL")
-      .setStyle(ButtonStyle.Primary);
+  const action = interaction.options.getString("action", true);
+  const type = interaction.options.getString("type", true) as TrackingType;
 
-    const addLiter = new ButtonBuilder()
-      .setCustomId("1000-ml")
-      .setLabel("1L")
-      .setStyle(ButtonStyle.Secondary);
+  if (action === "add") {
+    const amount = interaction.options.getNumber("amount");
+    const unit = interaction.options.getString("unit") || TRACKING_TYPES[type].defaultUnit;
+    const note = interaction.options.getString("note") || undefined;
 
-    const cancel = new ButtonBuilder()
-      .setCustomId("cancel")
-      .setLabel("Cancel")
-      .setStyle(ButtonStyle.Danger);
+    if (amount !== null) {
+      // Direct amount provided
+      try {
+        const message = await trackingDb.addEntry(type, amount, unit, note);
+        await interaction.reply(message);
+      } catch (e) {
+        console.error(e);
+        await interaction.reply({
+          content: `Error adding entry: ${e}`,
+          ephemeral: true,
+        });
+      }
+    } else {
+      // No amount provided, show quick-add buttons
+      const smallAmount = new ButtonBuilder()
+        .setCustomId(`track-${type}-small`)
+        .setLabel(`Small ${unit}`)
+        .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      addHalfLiter,
-      addLiter,
-      cancel,
-    );
+      const mediumAmount = new ButtonBuilder()
+        .setCustomId(`track-${type}-medium`)
+        .setLabel(`Medium ${unit}`)
+        .setStyle(ButtonStyle.Primary);
 
-    const response = await interaction.reply({
-      content: `How much water would you like to add?`,
-      components: [row],
-    });
+      const largeAmount = new ButtonBuilder()
+        .setCustomId(`track-${type}-large`)
+        .setLabel(`Large ${unit}`)
+        .setStyle(ButtonStyle.Primary);
 
-    // Security - Ensure same user clicked the button as the original interaction
-    const collectorFilter = (i: Interaction) =>
-      i.user.id === interaction.user.id;
+      const cancel = new ButtonBuilder()
+        .setCustomId("cancel")
+        .setLabel("Cancel")
+        .setStyle(ButtonStyle.Danger);
 
-    try {
-      const confirmation = await response.awaitMessageComponent({
-        filter: collectorFilter,
-        time: 30_000,
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        smallAmount,
+        mediumAmount,
+        largeAmount,
+        cancel,
+      );
+
+      const response = await interaction.reply({
+        content: `How much ${type} would you like to add?`,
+        components: [row],
       });
 
-      if (confirmation.customId === "cancel") {
-        await confirmation.update({
-          content: "Action cancelled",
+      // Security - Ensure same user clicked the button as the original interaction
+      const collectorFilter = (i: Interaction) =>
+        i.user.id === interaction.user.id;
+
+      try {
+        const confirmation = await response.awaitMessageComponent({
+          filter: collectorFilter,
+          time: 30_000,
+        });
+
+        if (confirmation.customId === "cancel") {
+          await confirmation.update({
+            content: "Action cancelled",
+            components: [],
+          });
+        } else {
+          const [_, trackType, size] = confirmation.customId.split("-");
+          let trackAmount: number;
+
+          // Define amounts for each type and size
+          switch (trackType) {
+            case "water":
+              trackAmount = size === "small" ? 250 : size === "medium" ? 500 : 1000;
+              break;
+            case "mood":
+              trackAmount = size === "small" ? 3 : size === "medium" ? 6 : 9;
+              break;
+            default:
+              trackAmount = size === "small" ? 1 : size === "medium" ? 2 : 3;
+          }
+
+          try {
+            const message = await trackingDb.addEntry(
+              trackType as TrackingType,
+              trackAmount,
+              TRACKING_TYPES[trackType as TrackingType].defaultUnit
+            );
+            await confirmation.update({
+              content: message,
+              components: [],
+            });
+          } catch (e) {
+            console.error(e);
+            await confirmation.update({
+              content: `Error adding entry: ${e}`,
+              components: [],
+            });
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        await interaction.editReply({
+          content: `Error! ${e}`,
           components: [],
         });
-      } else {
-        const milliliters = parseInt(confirmation.customId.split("-")[0]);
-
-        try {
-          const message = await waterDb.addEntry(milliliters);
-          await confirmation.update({
-            content: message,
-            components: [],
-          });
-        } catch (e) {
-          console.error(e);
-          await confirmation.update({
-            content: `Error adding entry: ${e}`,
-            components: [],
-          });
-        }
       }
-    } catch (e) {
-      console.error(e);
-      await interaction.editReply({
-        content: `Error! ${e}`,
-        components: [],
-      });
     }
-  } else if (interaction.options.getString("action") === "today") {
-    const spacetime = (await spacetimeImport).default;
-    const now = spacetime.now(USER_TIMEZONE);
+  } else if (action === "today") {
     try {
-      // Convert local day boundaries to UTC for database query
-      const startOfDay = now.startOf("day");
-      const endOfDay = now.endOf("day");
-      const startDate = startOfDay.goto("UTC").format("iso");
-      const endDate = endOfDay.goto("UTC").format("iso");
+      const spacetime = (await spacetimeImport).default;
+      const now = spacetime.now(USER_TIMEZONE);
+      const startOfDay = now.startOf("day").toNativeDate().toISOString();
+      const endOfDay = now.endOf("day").toNativeDate().toISOString();
 
-      const entries = await waterDb.getEntriesInRange(startDate, endDate);
+      const entries = await trackingDb.getEntriesInRange(type, startOfDay, endOfDay);
 
-      if (!entries || entries.length === 0) {
-        await interaction.reply({
-          content: "No water entries found for today.",
-        });
+      if (entries.length === 0) {
+        await interaction.reply(`No ${type} entries found for today.`);
         return;
       }
 
-      const formattedEntries = entries.map((entry) => {
-        // Convert UTC database time to user's timezone for display
-        const datetime = spacetime(entry.entry_datetime).goto(USER_TIMEZONE);
-        return `${datetime.format("nice")} - ${entry.milliliters}mL`;
-      });
+      let total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+      const unit = entries[0].unit; // Assume consistent units for the same type
 
-      const totalMl = entries.reduce((acc, curr) => acc + curr.milliliters, 0);
-      await interaction.reply({
-        content: `${CODE_START}${formattedEntries.join(
-          "\n",
-        )}\nToday's total water intake: ${totalMl}mL\n${CODE_END}`,
-      });
-    } catch (e) {
-      console.error(e);
-      await interaction.reply({ content: `Error! ${e}` });
-    }
-  } else if (interaction.options.getString("action") === "range") {
-    const spacetime = (await spacetimeImport).default;
-    const now = spacetime.now(USER_TIMEZONE);
-
-    const yesterday = new ButtonBuilder()
-      .setCustomId("minus-1")
-      .setLabel("Yesterday")
-      .setStyle(ButtonStyle.Primary);
-
-    const minusTwoDays = new ButtonBuilder()
-      .setCustomId("minus-2")
-      .setLabel("-2 Days")
-      .setStyle(ButtonStyle.Primary);
-
-    const minusThreeDays = new ButtonBuilder()
-      .setCustomId("minus-3")
-      .setLabel("-3 Days")
-      .setStyle(ButtonStyle.Primary);
-
-    const minusFourDays = new ButtonBuilder()
-      .setCustomId("minus-4")
-      .setLabel("-4 Days")
-      .setStyle(ButtonStyle.Primary);
-
-    const cancel = new ButtonBuilder()
-      .setCustomId("cancel")
-      .setLabel("Cancel")
-      .setStyle(ButtonStyle.Danger);
-
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      yesterday,
-      minusTwoDays,
-      minusThreeDays,
-      minusFourDays,
-      cancel,
-    );
-
-    const response = await interaction.reply({
-      content: `How far back in history?`,
-      components: [row],
-    });
-
-    // Security - Ensure same user clicked the button as the original interaction
-    const collectorFilter = (i: Interaction) =>
-      i.user.id === interaction.user.id;
-
-    try {
-      const confirmation = await response.awaitMessageComponent({
-        filter: collectorFilter,
-        time: 30_000,
-      });
-
-      if (confirmation.customId === "cancel") {
-        await confirmation.update({
-          content: "Action cancelled",
-          components: [],
+      let response = `${CODE_START}Today's ${type} entries:\n`;
+      entries.forEach((entry) => {
+        const time = new Date(entry.entry_datetime).toLocaleTimeString("en-US", {
+          timeZone: USER_TIMEZONE,
+          hour: "numeric",
+          minute: "numeric",
         });
-      } else {
-        const days = parseInt(confirmation.customId.split("-")[1]);
-        const rangeDate = now.subtract(days, "day");
+        response += `${time}: ${entry.amount}${entry.unit}${entry.note ? ` (${entry.note})` : ""}\n`;
+      });
+      response += `\nTotal: ${total}${unit}${CODE_END}`;
 
-        try {
-          // Convert local day boundaries to UTC for database query
-          const startOfDay = rangeDate.startOf("day");
-          const endOfDay = rangeDate.endOf("day");
-          const startDate = startOfDay.goto("UTC").format("iso");
-          const endDate = endOfDay.goto("UTC").format("iso");
-
-          const entries = await waterDb.getEntriesInRange(startDate, endDate);
-
-          if (!entries || entries.length === 0) {
-            await confirmation.update({
-              content: `No water entries found for ${days} day${days > 1 ? "s" : ""} ago.`,
-              components: [],
-            });
-            return;
-          }
-
-          const formattedEntries = entries.map((entry) => {
-            // Convert UTC database time to user's timezone for display
-            const datetime = spacetime(entry.entry_datetime).goto(
-              USER_TIMEZONE,
-            );
-            return `${datetime.format("nice")} - ${entry.milliliters}mL`;
-          });
-
-          const totalMl = entries.reduce(
-            (acc, curr) => acc + curr.milliliters,
-            0,
-          );
-          await confirmation.update({
-            content: `${CODE_START}${formattedEntries.join(
-              "\n",
-            )}\nTotal water intake: ${totalMl}mL\n${CODE_END}`,
-            components: [],
-          });
-        } catch (e) {
-          console.error(e);
-          await confirmation.update({
-            content: `Error fetching entries: ${e}`,
-            components: [],
-          });
-        }
-      }
+      await interaction.reply(response);
     } catch (e) {
       console.error(e);
-      await interaction.editReply({
-        content: `Error! ${e}`,
-        components: [],
+      await interaction.reply({
+        content: `Error fetching today's entries: ${e}`,
+        ephemeral: true,
+      });
+    }
+  } else if (action === "range") {
+    try {
+      const spacetime = (await spacetimeImport).default;
+      const now = spacetime.now(USER_TIMEZONE);
+      const startOfWeek = now.startOf("week").toNativeDate().toISOString();
+      const endOfWeek = now.endOf("week").toNativeDate().toISOString();
+
+      const entries = await trackingDb.getEntriesInRange(type, startOfWeek, endOfWeek);
+
+      if (entries.length === 0) {
+        await interaction.reply(`No ${type} entries found for this week.`);
+        return;
+      }
+
+      let total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+      const unit = entries[0].unit; // Assume consistent units for the same type
+
+      let response = `${CODE_START}This week's ${type} entries:\n`;
+      entries.forEach((entry) => {
+        const date = new Date(entry.entry_datetime).toLocaleDateString("en-US", {
+          timeZone: USER_TIMEZONE,
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+        response += `${date}: ${entry.amount}${entry.unit}${entry.note ? ` (${entry.note})` : ""}\n`;
+      });
+      response += `\nTotal: ${total}${unit}${CODE_END}`;
+
+      await interaction.reply(response);
+    } catch (e) {
+      console.error(e);
+      await interaction.reply({
+        content: `Error fetching range entries: ${e}`,
+        ephemeral: true,
       });
     }
   }

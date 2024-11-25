@@ -1,8 +1,8 @@
-import { REST, Routes } from "discord.js";
+import dotenv from "dotenv";
 import path from "path";
 import * as fs from "fs";
+import { REST, Routes } from "discord.js";
 
-import dotenv from "dotenv";
 dotenv.config();
 
 // Assumes all commands are in the commands folder

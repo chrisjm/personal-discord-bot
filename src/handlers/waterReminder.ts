@@ -1,6 +1,6 @@
 import { Client } from "discord.js";
 import { ReminderHandler } from "../types/reminder";
-import * as waterDb from "../utils/waterTrackerDatabase";
+import * as trackerDb from "../utils/trackingDatabase";
 
 const REMINDER_MESSAGES = [
   "💧 Time for a water break! Stay hydrated!",
@@ -63,7 +63,7 @@ export const waterReminderHandler: ReminderHandler = {
 
       if (reaction.emoji.name === "👍") {
         // User drank water
-        await waterDb.addEntry(WATER_AMOUNT_ML);
+        await trackerDb.addEntry('water', WATER_AMOUNT_ML, 'ml', 'Water reminder');
         await message.reply(getRandomFromArray(CONGRATULATORY_MESSAGES));
       } else {
         // User didn't drink water
