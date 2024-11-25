@@ -2,7 +2,7 @@ import { LogLevel } from "../types/global";
 // Using dynamic import for chalk
 let chalkInstance: any;
 (async () => {
-  chalkInstance = (await import('chalk')).default;
+  chalkInstance = (await import("chalk")).default;
 })();
 
 /**

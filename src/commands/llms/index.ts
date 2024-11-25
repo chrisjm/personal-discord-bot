@@ -28,15 +28,15 @@ export const data = new SlashCommandBuilder()
           .addChoices(
             { name: "GPT-4 Mini", value: "gpt-4o-mini" },
             { name: "GPT-4", value: "gpt-4o" },
-            { name: "GPT-3.5 Turbo", value: "gpt-3.5-turbo" }
-          )
+            { name: "GPT-3.5 Turbo", value: "gpt-3.5-turbo" },
+          ),
       )
       .addStringOption((option) =>
         option
           .setName("prompt")
           .setDescription("Your message to the model")
-          .setRequired(true)
-      )
+          .setRequired(true),
+      ),
   )
   .addSubcommand((subcommand) =>
     subcommand
@@ -47,8 +47,8 @@ export const data = new SlashCommandBuilder()
           .setName("days")
           .setDescription("Number of days to show stats for (default: 30)")
           .setMinValue(1)
-          .setMaxValue(365)
-      )
+          .setMaxValue(365),
+      ),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -69,7 +69,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         interaction.user.id,
         provider.name,
         model,
-        result.usage
+        result.usage,
       );
 
       await interaction.editReply({
@@ -96,13 +96,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           {
             name: "Total Cost",
             value: `$${stats.totalCost.toFixed(4)}`,
-            inline: true
+            inline: true,
           },
           {
             name: "Total Tokens",
             value: stats.totalTokens.toString(),
-            inline: true
-          }
+            inline: true,
+          },
         )
         .setFooter({ text: "Usage by Model:" });
 

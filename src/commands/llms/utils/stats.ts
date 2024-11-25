@@ -51,7 +51,7 @@ const recordUsage = async (
   userId: string,
   provider: string,
   model: string,
-  usage: LLMUsageStats
+  usage: LLMUsageStats,
 ): Promise<void> => {
   return new Promise((resolve, reject) => {
     db.run(
@@ -78,14 +78,14 @@ const recordUsage = async (
       (err) => {
         if (err) reject(err);
         else resolve();
-      }
+      },
     );
   });
 };
 
 const getStats = async (
   userId?: string,
-  days = 30
+  days = 30,
 ): Promise<{
   totalCost: number;
   totalTokens: number;
@@ -105,7 +105,8 @@ const getStats = async (
           return;
         }
 
-        const usageByModel: Record<string, { tokens: number; cost: number }> = {};
+        const usageByModel: Record<string, { tokens: number; cost: number }> =
+          {};
         let totalCost = 0;
         let totalTokens = 0;
 
@@ -124,7 +125,7 @@ const getStats = async (
           totalTokens,
           usageByModel,
         });
-      }
+      },
     );
   });
 };

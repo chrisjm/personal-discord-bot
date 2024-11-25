@@ -21,7 +21,9 @@ export default {
       // Get the actual message content, removing the bot mention if present
       let prompt = message.content;
       if (isMention) {
-        prompt = prompt.replace(new RegExp(`<@!?${message.client.user!.id}>`), "").trim();
+        prompt = prompt
+          .replace(new RegExp(`<@!?${message.client.user!.id}>`), "")
+          .trim();
       }
 
       // If the message is empty after removing mention, ignore it
@@ -32,28 +34,29 @@ export default {
       await message.channel.sendTyping();
 
       // Use the OpenAI provider to generate a response
-      const result = await openaiProvider.complete(prompt, { model: DEFAULT_MODEL });
+      const result = await openaiProvider.complete(prompt, {
+        model: DEFAULT_MODEL,
+      });
 
       // Record usage statistics
       await llmStats.recordUsage(
         message.author.id,
         openaiProvider.name,
         DEFAULT_MODEL,
-        result.usage
+        result.usage,
       );
 
       // Send the response
       await message.reply({
         content: result.content,
-        allowedMentions: { repliedUser: true }
+        allowedMentions: { repliedUser: true },
       });
-
     } catch (error) {
       console.error("Error in message response:", error);
       await message.reply({
         content: "Sorry, I encountered an error while processing your message.",
-        allowedMentions: { repliedUser: true }
+        allowedMentions: { repliedUser: true },
       });
     }
-  }
+  },
 };

@@ -35,7 +35,9 @@ export const data = new SlashCommandBuilder()
       .addBooleanOption((option) =>
         option
           .setName("random")
-          .setDescription("Enable random timing between frequency and frequency*multiple (default: true)")
+          .setDescription(
+            "Enable random timing between frequency and frequency*multiple (default: true)",
+          )
           .setRequired(false),
       )
       .addNumberOption((option) =>
@@ -82,14 +84,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         timezone: timezone,
         frequency_minutes: frequency,
         random: interaction.options.getBoolean("random") ?? true,
-        frequency_random_multiple: interaction.options.getNumber("random_multiple") ?? 1.5
+        frequency_random_multiple:
+          interaction.options.getNumber("random_multiple") ?? 1.5,
       });
 
       await interaction.reply({
         content:
           `✅ Water reminders enabled! You'll receive reminders between ${startTime} and ${endTime} ${timezone}\n` +
           `Frequency: ${frequency} minutes` +
-          (interaction.options.getBoolean("random") ?? true
+          ((interaction.options.getBoolean("random") ?? true)
             ? ` (randomly between ${Math.floor(frequency)} and ${Math.floor(frequency * (interaction.options.getNumber("random_multiple") ?? 1.5))} minutes)`
             : ""),
         ephemeral: true,

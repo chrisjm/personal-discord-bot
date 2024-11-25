@@ -45,11 +45,17 @@ export function addEntry(
   type: string,
   amount: number,
   unit: string,
-  note?: string
+  note?: string,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const entry_datetime = new Date().toISOString();
-    console.log("Adding entry in UTC:", { type, amount, unit, note, entry_datetime });
+    console.log("Adding entry in UTC:", {
+      type,
+      amount,
+      unit,
+      note,
+      entry_datetime,
+    });
     db.run(
       "INSERT INTO tracking_entries (entry_datetime, type, amount, unit, note) VALUES (?, ?, ?, ?, ?)",
       [entry_datetime, type, amount, unit, note || null],
@@ -60,7 +66,7 @@ export function addEntry(
         } else {
           resolve(`Successfully tracked ${amount}${unit} of ${type}!`);
         }
-      }
+      },
     );
   });
 }
@@ -68,7 +74,7 @@ export function addEntry(
 export function getEntriesInRange(
   type: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<TrackingEntry[]> {
   return new Promise((resolve, reject) => {
     console.log("Fetching entries in UTC range:", { type, startDate, endDate });
@@ -85,14 +91,14 @@ export function getEntriesInRange(
           console.log("Found entries:", rows);
           resolve(rows);
         }
-      }
+      },
     );
   });
 }
 
 export function getEntriesForDay(
   type: string,
-  date: string
+  date: string,
 ): Promise<TrackingEntry[]> {
   return new Promise((resolve, reject) => {
     console.log("Fetching entries for day in UTC:", { type, date });
@@ -109,7 +115,7 @@ export function getEntriesForDay(
           console.log("Found entries:", rows);
           resolve(rows);
         }
-      }
+      },
     );
   });
 }

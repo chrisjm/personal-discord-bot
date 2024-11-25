@@ -31,7 +31,7 @@ export interface LLMProvider {
   getDefaultConfig: () => LLMConfig;
   complete: (
     prompt: string,
-    config?: Partial<LLMConfig>
+    config?: Partial<LLMConfig>,
   ) => Promise<{
     content: string;
     usage: LLMUsageStats;

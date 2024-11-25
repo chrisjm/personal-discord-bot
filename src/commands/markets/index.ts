@@ -131,7 +131,7 @@ function formatMarketEntry(asset: BaseAsset): string {
   const priceStr = formatPrice(asset.price);
   const changeStr = formatChange(asset.percentChange);
   const symbol = getCurrencySymbol(asset.currency || "USD");
-  const name = asset.name || 'Unknown';
+  const name = asset.name || "Unknown";
 
   return `${emoji} **${name}**: ${symbol}${priceStr} (${changeStr})`;
 }
@@ -145,8 +145,8 @@ function getAverageChangeColor(changes: number[]): number {
 function formatCategory(category: { name: string; data: BaseAsset[] }) {
   if (!category || !Array.isArray(category.data)) {
     return {
-      name: category.name || 'Unknown Category',
-      value: '❔ Data unavailable',
+      name: category.name || "Unknown Category",
+      value: "❔ Data unavailable",
       inline: true,
     };
   }
@@ -166,13 +166,13 @@ function formatCategory(category: { name: string; data: BaseAsset[] }) {
   }
 
   const formattedEntries = category.data
-    .filter(asset => asset && typeof asset === 'object')
-    .map(asset => formatMarketEntry(asset))
+    .filter((asset) => asset && typeof asset === "object")
+    .map((asset) => formatMarketEntry(asset))
     .join("\n");
 
   return {
     name: headerName + statusEmoji,
-    value: formattedEntries || '❔ No data available',
+    value: formattedEntries || "❔ No data available",
     inline: true,
   };
 }
@@ -200,7 +200,9 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
       ...(traditional.stocks?.asia?.data || []),
       ...(traditional.forex?.data || []),
       ...(traditional.bonds?.data || []),
-    ].map(asset => asset?.percentChange).filter(Boolean);
+    ]
+      .map((asset) => asset?.percentChange)
+      .filter(Boolean);
 
     if (traditional) {
       if (traditional.stocks?.us?.data) {
@@ -281,7 +283,7 @@ async function formatMarketEmbed(): Promise<EmbedBuilder> {
       embedFields.push({
         name: "❌ Error",
         value: "Unable to retrieve market data. Please try again later.",
-        inline: false
+        inline: false,
       });
     }
 

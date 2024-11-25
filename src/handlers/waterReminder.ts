@@ -63,7 +63,12 @@ export const waterReminderHandler: ReminderHandler = {
 
       if (reaction.emoji.name === "👍") {
         // User drank water
-        await trackerDb.addEntry('water', WATER_AMOUNT_ML, 'ml', 'Water reminder');
+        await trackerDb.addEntry(
+          "water",
+          WATER_AMOUNT_ML,
+          "ml",
+          "Water reminder",
+        );
         await message.reply(getRandomFromArray(CONGRATULATORY_MESSAGES));
       } else {
         // User didn't drink water

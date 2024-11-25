@@ -22,10 +22,7 @@ const getTimerKey = (userId: string, reminderType: string): string => {
   return `${userId}:${reminderType}`;
 };
 
-const getRandomInterval = (
-  minMinutes: number,
-  maxMinutes: number
-): number => {
+const getRandomInterval = (minMinutes: number, maxMinutes: number): number => {
   const min = minMinutes;
   const max = maxMinutes;
   return Math.floor(Math.random() * (max - min + 1) + min) * 60 * 1000;

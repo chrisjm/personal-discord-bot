@@ -56,7 +56,14 @@ const MARKET_STRUCTURE = {
   },
   forex: {
     name: "Exchange Rates",
-    assets: ["USDEUR=X", "USDJPY=X", "USDGBP=X", "USDAUD=X", "USDCAD=X", "USDMXN=X"],
+    assets: [
+      "USDEUR=X",
+      "USDJPY=X",
+      "USDGBP=X",
+      "USDAUD=X",
+      "USDCAD=X",
+      "USDMXN=X",
+    ],
   },
   bonds: {
     name: "Treasury Notes",

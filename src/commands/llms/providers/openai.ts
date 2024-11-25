@@ -17,7 +17,7 @@ const getDefaultConfig = (): LLMConfig => ({
 
 const complete = async (
   prompt: string,
-  config?: Partial<LLMConfig>
+  config?: Partial<LLMConfig>,
 ): Promise<{ content: string; usage: LLMUsageStats }> => {
   const finalConfig = { ...getDefaultConfig(), ...config };
 
@@ -29,7 +29,8 @@ const complete = async (
     model: finalConfig.model,
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: prompt }],
+      { role: "user", content: prompt },
+    ],
     temperature: finalConfig.temperature,
     max_tokens: finalConfig.maxTokens,
     top_p: finalConfig.topP,
@@ -43,15 +44,16 @@ const complete = async (
     "gpt-4": { prompt: 0.03, completion: 0.06 },
     "gpt-3.5-turbo": { prompt: 0.001, completion: 0.002 },
   };
-  const modelRates = rates[finalConfig.model as keyof typeof rates] || rates["gpt-3.5-turbo"];
+  const modelRates =
+    rates[finalConfig.model as keyof typeof rates] || rates["gpt-3.5-turbo"];
 
   const usage: LLMUsageStats = {
     promptTokens: response.usage?.prompt_tokens || 0,
     completionTokens: response.usage?.completion_tokens || 0,
     totalTokens: response.usage?.total_tokens || 0,
     estimatedCost:
-      (response.usage?.prompt_tokens || 0) * modelRates.prompt / 1000 +
-      (response.usage?.completion_tokens || 0) * modelRates.completion / 1000,
+      ((response.usage?.prompt_tokens || 0) * modelRates.prompt) / 1000 +
+      ((response.usage?.completion_tokens || 0) * modelRates.completion) / 1000,
   };
 
   return {

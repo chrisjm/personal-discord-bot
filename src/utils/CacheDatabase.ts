@@ -62,7 +62,9 @@ export const get = async (key: string): Promise<any | null> => {
           const now = Date.now();
           if (row.ttl > 0 && now - row.timestamp > row.ttl) {
             // Entry has expired, remove it
-            remove(key).catch(err => console.error("Error removing expired cache:", err));
+            remove(key).catch((err) =>
+              console.error("Error removing expired cache:", err),
+            );
             resolve(null);
           } else {
             try {
@@ -78,7 +80,11 @@ export const get = async (key: string): Promise<any | null> => {
   });
 };
 
-export const set = async (key: string, value: any, ttl: number = 0): Promise<void> => {
+export const set = async (
+  key: string,
+  value: any,
+  ttl: number = 0,
+): Promise<void> => {
   return new Promise((resolve, reject) => {
     const timestamp = Date.now();
     db.run(

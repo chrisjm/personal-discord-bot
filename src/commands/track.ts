@@ -59,7 +59,9 @@ export const data = new SlashCommandBuilder()
   .addStringOption((option) =>
     option
       .setName("unit")
-      .setDescription("Unit of measurement (optional, will use default if not specified)")
+      .setDescription(
+        "Unit of measurement (optional, will use default if not specified)",
+      )
       .setRequired(false),
   )
   .addStringOption((option) =>
@@ -75,7 +77,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   if (action === "add") {
     const amount = interaction.options.getNumber("amount");
-    const unit = interaction.options.getString("unit") || TRACKING_TYPES[type].defaultUnit;
+    const unit =
+      interaction.options.getString("unit") || TRACKING_TYPES[type].defaultUnit;
     const note = interaction.options.getString("note") || undefined;
 
     if (amount !== null) {
@@ -146,7 +149,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           // Define amounts for each type and size
           switch (trackType) {
             case "water":
-              trackAmount = size === "small" ? 250 : size === "medium" ? 500 : 1000;
+              trackAmount =
+                size === "small" ? 250 : size === "medium" ? 500 : 1000;
               break;
             case "mood":
               trackAmount = size === "small" ? 3 : size === "medium" ? 6 : 9;
@@ -159,7 +163,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const message = await trackingDb.addEntry(
               trackType as TrackingType,
               trackAmount,
-              TRACKING_TYPES[trackType as TrackingType].defaultUnit
+              TRACKING_TYPES[trackType as TrackingType].defaultUnit,
             );
             await confirmation.update({
               content: message,
@@ -188,7 +192,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const startOfDay = now.startOf("day").toNativeDate().toISOString();
       const endOfDay = now.endOf("day").toNativeDate().toISOString();
 
-      const entries = await trackingDb.getEntriesInRange(type, startOfDay, endOfDay);
+      const entries = await trackingDb.getEntriesInRange(
+        type,
+        startOfDay,
+        endOfDay,
+      );
 
       if (entries.length === 0) {
         await interaction.reply(`No ${type} entries found for today.`);
@@ -200,11 +208,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
       let response = `${CODE_START}Today's ${type} entries:\n`;
       entries.forEach((entry) => {
-        const time = new Date(entry.entry_datetime).toLocaleTimeString("en-US", {
-          timeZone: USER_TIMEZONE,
-          hour: "numeric",
-          minute: "numeric",
-        });
+        const time = new Date(entry.entry_datetime).toLocaleTimeString(
+          "en-US",
+          {
+            timeZone: USER_TIMEZONE,
+            hour: "numeric",
+            minute: "numeric",
+          },
+        );
         response += `${time}: ${entry.amount}${entry.unit}${entry.note ? ` (${entry.note})` : ""}\n`;
       });
       response += `\nTotal: ${total}${unit}${CODE_END}`;
@@ -224,7 +235,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const startOfWeek = now.startOf("week").toNativeDate().toISOString();
       const endOfWeek = now.endOf("week").toNativeDate().toISOString();
 
-      const entries = await trackingDb.getEntriesInRange(type, startOfWeek, endOfWeek);
+      const entries = await trackingDb.getEntriesInRange(
+        type,
+        startOfWeek,
+        endOfWeek,
+      );
 
       if (entries.length === 0) {
         await interaction.reply(`No ${type} entries found for this week.`);
@@ -236,12 +251,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
       let response = `${CODE_START}This week's ${type} entries:\n`;
       entries.forEach((entry) => {
-        const date = new Date(entry.entry_datetime).toLocaleDateString("en-US", {
-          timeZone: USER_TIMEZONE,
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        });
+        const date = new Date(entry.entry_datetime).toLocaleDateString(
+          "en-US",
+          {
+            timeZone: USER_TIMEZONE,
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          },
+        );
         response += `${date}: ${entry.amount}${entry.unit}${entry.note ? ` (${entry.note})` : ""}\n`;
       });
       response += `\nTotal: ${total}${unit}${CODE_END}`;

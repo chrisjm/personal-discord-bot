@@ -20,7 +20,13 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildPresences,
   ],
-  partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User, Partials.GuildMember],
+  partials: [
+    Partials.Channel,
+    Partials.Message,
+    Partials.Reaction,
+    Partials.User,
+    Partials.GuildMember,
+  ],
 });
 
 client.commands = new Collection();
@@ -36,9 +42,7 @@ for (const file of commandFiles) {
   if ("data" in command && "execute" in command) {
     client.commands.set(command.data.name, command);
   } else {
-    console.error(
-      `No command matching ${filePath} was found.`,
-    );
+    console.error(`No command matching ${filePath} was found.`);
   }
 }
 
