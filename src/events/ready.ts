@@ -1,46 +1,12 @@
 import { config } from "dotenv";
-import { Client, Events, TextChannel } from "discord.js";
-import {
-  displayNewEntries,
-  fetchRSSFeed,
-  storeNewEntries,
-} from "../news-minimalist";
-import { formatDate } from "../utils";
+import { Client, Events } from "discord.js";
 import * as reminderScheduler from "../utils/reminderScheduler";
 import { waterReminderHandler } from "../handlers/waterReminder";
+import { getAllRSSFeeds } from "../utils/rssDatabase";
+import { addFeed, cleanup as cleanupRSSFeeds, displayAllUnprocessedItems } from "../utils/rssFeedHandler";
 
-// Load environment variables from .env file
+// Load environment variables
 config();
-
-const news_minimalist_rss_feed_url =
-  process.env.NEWS_MINIMALIST_RSS_FEED_URL || "";
-const news_channel_id = process.env.NEWS_MINIMALIST_DISCORD_CHANNEL_ID || "";
-
-function refreshNewsMinimalist(client: Client) {
-  const channel = client.channels.cache.get(news_channel_id) as TextChannel;
-
-  // Run once to update on startup
-  processRSSFeed(channel);
-
-  // Run every 10 minutes while running
-  setInterval(
-    async () => {
-      processRSSFeed(channel);
-    },
-    10 * 60 * 1000,
-  );
-}
-
-async function processRSSFeed(channel: TextChannel) {
-  const items = await fetchRSSFeed(news_minimalist_rss_feed_url);
-  console.log(
-    `${formatDate(new Date())} Fetched ${items.length} entries from ${news_minimalist_rss_feed_url}`,
-  );
-  if (items.length > 0) {
-    await storeNewEntries(items);
-    displayNewEntries(channel);
-  }
-}
 
 export default {
   name: Events.ClientReady,
@@ -48,9 +14,35 @@ export default {
   async execute(client: Client) {
     console.log(`Ready! Logged in as ${client.user?.tag}`);
 
-    // Initialize reminder system
+    // Initialize RSS feeds
+    try {
+      const feeds = await getAllRSSFeeds();
+      for (const feed of feeds) {
+        await addFeed(
+          feed.name,
+          feed.url,
+          feed.channelId,
+          feed.updateFrequency,
+          feed.data,
+        );
+      }
+      console.log(`Initialized ${feeds.length} RSS feeds`);
+
+      // Display any unprocessed items
+      await displayAllUnprocessedItems(client);
+    } catch (error) {
+      console.error("Failed to initialize RSS feeds:", error);
+    }
+
+    // Initialize reminder scheduler
     reminderScheduler.setClient(client);
     reminderScheduler.registerHandler(waterReminderHandler);
     await reminderScheduler.initializeReminders();
+
+    // Clean up on process exit
+    process.on("SIGINT", () => {
+      cleanupRSSFeeds();
+      process.exit(0);
+    });
   },
 };
