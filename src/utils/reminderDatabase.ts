@@ -31,6 +31,8 @@ function initializeDatabase(): void {
       end_time TEXT DEFAULT '19:00',
       timezone TEXT DEFAULT 'America/Los_Angeles',
       frequency_minutes INTEGER,
+      random INTEGER DEFAULT 0,
+      frequency_random_multiple REAL DEFAULT 1.0,
       PRIMARY KEY (user_id, reminder_type)
     )
   `);
@@ -43,8 +45,8 @@ export async function setPreferences(
   return new Promise((resolve, reject) => {
     db.run(
       `INSERT OR REPLACE INTO reminder_preferences
-        (user_id, reminder_type, enabled, start_time, end_time, timezone, frequency_minutes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (user_id, reminder_type, enabled, start_time, end_time, timezone, frequency_minutes, random, frequency_random_multiple)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         prefs.user_id,
         prefs.reminder_type,
@@ -52,7 +54,9 @@ export async function setPreferences(
         prefs.start_time,
         prefs.end_time,
         prefs.timezone,
-        prefs.frequency_minutes || null,
+        prefs.frequency_minutes,
+        prefs.random || 0,
+        prefs.frequency_random_multiple || 1.0,
       ],
       (err) => {
         if (err) {
@@ -89,7 +93,9 @@ export async function getPreferences(
             start_time: row.start_time,
             end_time: row.end_time,
             timezone: row.timezone,
-            frequency_minutes: row.frequency_minutes || undefined,
+            frequency_minutes: row.frequency_minutes,
+            random: row.random === 1,
+            frequency_random_multiple: row.frequency_random_multiple || 1.0,
           });
         }
       },
@@ -118,7 +124,9 @@ export async function getAllEnabledUsers(
               start_time: row.start_time,
               end_time: row.end_time,
               timezone: row.timezone,
-              frequency_minutes: row.frequency_minutes || undefined,
+              frequency_minutes: row.frequency_minutes || 60,
+              random: row.random === 1,
+              frequency_random_multiple: row.frequency_random_multiple || 1.0,
             })),
           );
         }

@@ -22,6 +22,15 @@ const getTimerKey = (userId: string, reminderType: string): string => {
   return `${userId}:${reminderType}`;
 };
 
+const getRandomInterval = (
+  minMinutes: number,
+  maxMinutes: number
+): number => {
+  const min = minMinutes;
+  const max = maxMinutes;
+  return Math.floor(Math.random() * (max - min + 1) + min) * 60 * 1000;
+};
+
 const scheduleNextReminder = (
   userId: string,
   prefs: ReminderPreferences,
@@ -32,9 +41,10 @@ const scheduleNextReminder = (
     return;
   }
 
-  const interval = prefs.frequency_minutes
-    ? prefs.frequency_minutes * 60 * 1000
-    : handler.defaultFrequencyMinutes * 60 * 1000;
+  const interval = getRandomInterval(
+    prefs.frequency_minutes,
+    prefs.frequency_minutes * prefs.frequency_random_multiple,
+  );
 
   const timerKey = getTimerKey(userId, prefs.reminder_type);
   const timer = setTimeout(

@@ -37,17 +37,15 @@ const getRandomFromArray = (arr: string[]): string =>
 export const waterReminderHandler: ReminderHandler = {
   type: "water",
   defaultMessages: REMINDER_MESSAGES,
-  defaultFrequencyMinutes: 60, // Default to reminding every 60 minutes
+  defaultFrequencyMinutes: 60, // Minimum default frequency
+  defaultRandom: true,
+  defaultFrequencyRandomMultiple: 1.5,
 
   onReminder: async (client: Client, userId: string) => {
     const user = await client.users.fetch(userId);
     const message = await user.send(getRandomFromArray(REMINDER_MESSAGES));
 
     try {
-      // Add the reaction options to the message first
-      // await message.react("👍");
-      // await message.react("👎");
-
       // Create a filter for the collector
       const filter = (reaction: any, reactUser: any) =>
         ["👍", "👎"].includes(reaction.emoji.name) && reactUser.id === userId;

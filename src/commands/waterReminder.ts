@@ -31,6 +31,20 @@ export const data = new SlashCommandBuilder()
           .setName("frequency")
           .setDescription("Reminder frequency in minutes (default: 45)")
           .setRequired(false),
+      )
+      .addBooleanOption((option) =>
+        option
+          .setName("random")
+          .setDescription("Enable random timing between frequency and frequency*multiple (default: true)")
+          .setRequired(false),
+      )
+      .addNumberOption((option) =>
+        option
+          .setName("random_multiple")
+          .setDescription("Maximum random frequency multiplier (default: 1.5)")
+          .setMinValue(1.0)
+          .setMaxValue(3.0)
+          .setRequired(false),
       ),
   )
   .addSubcommand((subcommand) =>
@@ -46,7 +60,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const endTime = interaction.options.getString("end_time") || "19:00";
     const timezone =
       interaction.options.getString("timezone") || "America/Los_Angeles";
-    // TODO: Add support for random frequency of reminders between minimum and maximum
     const frequency = interaction.options.getInteger("frequency") || 60;
 
     // Validate time format
@@ -68,13 +81,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         end_time: endTime,
         timezone: timezone,
         frequency_minutes: frequency,
+        random: interaction.options.getBoolean("random") ?? true,
+        frequency_random_multiple: interaction.options.getNumber("random_multiple") ?? 1.5
       });
 
       await interaction.reply({
         content:
-          `✅ Water reminders enabled! You'll receive reminders between ${startTime} and ${endTime} ${timezone}` +
-          (frequency ? ` every ${frequency} minutes` : "") +
-          ".\nI'll send you friendly reminders to stay hydrated!",
+          `✅ Water reminders enabled! You'll receive reminders between ${startTime} and ${endTime} ${timezone}\n` +
+          `Frequency: ${frequency} minutes` +
+          (interaction.options.getBoolean("random") ?? true
+            ? ` (randomly between ${Math.floor(frequency)} and ${Math.floor(frequency * (interaction.options.getNumber("random_multiple") ?? 1.5))} minutes)`
+            : ""),
         ephemeral: true,
       });
     } catch (error) {
