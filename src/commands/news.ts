@@ -28,7 +28,7 @@ async function getTopNews(category: NewsCategory = 'general') {
     status: string;
     articles: NewsArticle[];
   }>(
-    `https://newsapi.org/v2/top-headlines?pageSize=20&country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
+    `https://newsapi.org/v2/top-headlines?pageSize=10&country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
   );
   const { data } = response;
 
@@ -60,12 +60,36 @@ async function summarizeNews(articles: any[], userId?: string): Promise<{ conten
 
 ${JSON.stringify(articles, null, 2)}
 
-Provide a strictly factual summary of the key news developments. Focus only on the main facts and events reported, avoiding any editorial commentary or additional thoughts and keep things concise. Format for Discord with important items in bold and in a list and add source name in parentheses.
+Please provide a strictly factual summary of the key developments. Focus solely on main facts and events, avoiding editorial commentary or personal opinions. Keep the summaries concise.
 
-For example:
-* **Short Title:** 1-3 sentence summary _(source @ 2024-11-14 12:00 AM)_
-* **Short Title:** 1-3 sentence summary _(source @ 2024-11-13 11:00 AM)_`;
+1. **Sentiment Analysis:** Assess the overall sentiment of each article and assign a sentiment score (on a scale of 0 to 1). Indicate the sentiment with an accompanying colored dot: 🟢 for positive, ⚪️ for neutral, and 🔴 for negative.
 
+2. **Entity Recognition:** Identify and list key entities (people, organizations, locations) mentioned in each article.
+
+3. **Data Extraction:** Highlight relevant statistics or numerical data that support the news.
+
+4. **Tagging:** Identify relevant tags for each article and present them as emojis in front of the title.
+
+5. **Formatting:** Structure your response for Discord as follows:
+   - Utilize bold formatting for important items.
+   - Include the source name and the date and time of the article in parentheses.
+
+**Example Output:**
+📊✈️ **Short Title** (Sentiment: 0.8, 🟢)
+**Key Entities:** Entity1, Entity2, Entity3
+**Data Points:** Statistic1, Statistic2
+1-3 sentence summary _(11/14/24 13:30)_
+
+🚀🛰️ **Short Title** (Sentiment: 0.5, ⚪️)
+**Key Entities:** Entity1, Entity2
+**Data Points:** Statistic1
+1-3 sentence summary _(11/13/24 11:00)_
+
+🏥🦠 **Short Title** (Sentiment: 0.2, 🔴)
+**Key Entities:** Entity1, Entity2, Entity3
+**Data Points:** Statistic1, Statistic2
+1-3 sentence summary _(11/12/24 10:00)_
+`;
   try {
     const result = await complete(prompt, openaiProvider, {
       config: {
