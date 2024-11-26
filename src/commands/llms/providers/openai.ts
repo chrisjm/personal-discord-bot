@@ -15,7 +15,7 @@ const getDefaultConfig = (): LLMConfig => ({
   presencePenalty: 0,
 });
 
-const complete = async (
+export const complete = async (
   prompt: string,
   config?: Partial<LLMConfig>,
 ): Promise<{ content: string; usage: LLMUsageStats }> => {
@@ -41,7 +41,7 @@ const complete = async (
   // Calculate estimated cost based on model and tokens
   // These rates are approximate and may need adjustment
   const rates = {
-    "gpt-4": { prompt: 0.03, completion: 0.06 },
+    "gpt-4o": { prompt: 0.03, completion: 0.06 },
     "gpt-3.5-turbo": { prompt: 0.001, completion: 0.002 },
   };
   const modelRates =

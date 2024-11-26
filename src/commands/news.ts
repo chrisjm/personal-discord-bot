@@ -3,6 +3,7 @@ dotenv.config();
 
 import axios from "axios";
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { complete } from "./llms/providers/openai";
 
 // Type definition for NewsAPI article
 interface NewsArticle {
@@ -11,7 +12,9 @@ interface NewsArticle {
     name: string;
   };
   title: string;
+  description: string;
   url: string;
+  publishedAt: string;
 }
 
 // Whitelist of allowed news sources
@@ -27,99 +30,124 @@ const WHITELIST_SOURCES = [
   "the-wall-street-journal",
 ];
 
-async function getTopNews() {
+// Valid news categories
+const NEWS_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology'] as const;
+type NewsCategory = typeof NEWS_CATEGORIES[number];
+
+async function getTopNews(category: NewsCategory = 'general') {
   const response = await axios.get<{
     status: string;
     articles: NewsArticle[];
   }>(
-    `https://newsapi.org/v2/top-headlines?country=us&category=general&apiKey=${process.env.NEWS_API_KEY}`,
+    `https://newsapi.org/v2/top-headlines?country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
   );
   const { data } = response;
-  let articles: string[] = [];
+
   if (data.status === "ok") {
-    articles = data.articles
+    const filteredArticles = data.articles
       .filter((article) =>
         WHITELIST_SOURCES.includes(article.source.id?.toLowerCase() || ""),
-      )
-      .map((article) => {
-        return `* [${article.title}](${article.url}) - ${article.source.name}`;
-      });
-    return articles.length > 0
-      ? articles.join("\n")
-      : "No articles found from whitelisted sources.";
-  } else {
-    return "There was an error retrieving news";
-  }
-}
+      );
 
-async function getYesterdayNews() {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const formattedDate = yesterday.toISOString().split("T")[0];
-
-  let articles: string[] = [];
-  let page = 1;
-
-  while (articles.length < 10 && page <= 1) {
-    const response = await axios.get<{
-      status: string;
-      articles: NewsArticle[];
-    }>(
-      `https://newsapi.org/v2/everything?q=general&from=${formattedDate}&to=${formattedDate}&language=en&sortBy=popularity&apiKey=${process.env.NEWS_API_KEY}&pageSize=100&page=${page}`,
-    );
-    const { data } = response;
-
-    if (data.status === "ok") {
-      const filteredArticles = data.articles
-        .filter((article) =>
-          WHITELIST_SOURCES.includes(article.source.id || ""),
-        )
-        .map((article) => `${article.title} - ${article.url}`);
-
-      articles.push(...filteredArticles);
-      if (filteredArticles.length === 0) break; // No more articles from whitelisted sources
-    } else {
-      break; // API error, stop trying
+    if (filteredArticles.length === 0) {
+      return { text: "No articles found from whitelisted sources.", articles: [] };
     }
 
-    page++;
-  }
+    // Format articles for display
+    const formattedText = filteredArticles
+      .map((article) => {
+        const date = new Date(article.publishedAt);
+        const formattedDate = date.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+        return `* **${article.title}** ${formattedDate}`;
+      })
+      .join("\n");
 
-  articles = articles.slice(0, 10); // Ensure we only return max 10 articles
-  return articles.length > 0
-    ? articles.join("\n\n")
-    : "No news articles found from yesterday.";
+    // Prepare data for GPT summarization
+    const articlesForSummary = filteredArticles.map(article => ({
+      title: article.title,
+      description: article.description,
+      source: article.source.name,
+      publishedAt: article.publishedAt
+    }));
+
+    return {
+      text: formattedText,
+      articles: articlesForSummary
+    };
+  } else {
+    return { text: "There was an error retrieving news", articles: [] };
+  }
 }
+
+async function summarizeNews(articles: any[]) {
+  const prompt = `Here are the latest news articles:
+
+${JSON.stringify(articles, null, 2)}
+
+Please provide a concise summary of these news articles, highlighting the most important developments and common themes. Format the response in a clear and engaging way in paragraph form. Must keep it under 1500 characters in length. Format for Discord and bold important items.`;
+
+  try {
+    const result = await complete(prompt, {
+      model: "gpt-4o",
+      temperature: 0.25,
+      maxTokens: 500
+    });
+    return result.content;
+  } catch (error) {
+    console.error('Error getting summary:', error);
+    return 'Unable to generate summary at this time.';
+  }
+}
+
 
 export const data = new SlashCommandBuilder()
   .setName("news")
-  .setDescription("Retrieve news from NewsAPI")
+  .setDescription("Retrieve and summarize news from NewsAPI")
   .addStringOption((option) =>
     option
-      .setName("action")
-      .setDescription("What would you like to see?")
-      .setRequired(true)
+      .setName("category")
+      .setDescription("News category to fetch")
+      .setRequired(false)
       .addChoices(
-        { name: "top", value: "top" },
-        { name: "yesterday", value: "yesterday" },
-      ),
+        ...NEWS_CATEGORIES.map(category => ({
+          name: category.charAt(0).toUpperCase() + category.slice(1),
+          value: category
+        }))
+      )
+  )
+  .addBooleanOption((option) =>
+    option
+      .setName("summarize")
+      .setDescription("Get an AI-generated summary of the news")
+      .setRequired(false)
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  const action = interaction.options.getString("action");
   await interaction.deferReply();
 
-  let result: string;
-  if (action === "top") {
-    result = await getTopNews();
-  } else if (action === "yesterday") {
-    result = await getYesterdayNews();
-  } else {
-    result = "Invalid action specified";
-  }
+  const category = (interaction.options.getString("category") || "general") as NewsCategory;
+  const shouldSummarize = interaction.options.getBoolean("summarize") || false;
 
-  await interaction.editReply({
-    content: result,
-    components: [],
-  });
+  try {
+    const newsResult = await getTopNews(category);
+    const header = `**${category.charAt(0).toUpperCase() + category.slice(1)} News** (${newsResult.articles.length} stories)`;
+
+    // Send first message with articles
+    await interaction.editReply(`${header}\n${newsResult.text}`);
+
+    // If summarize is requested and we have articles, send a second message with the summary
+    if (shouldSummarize && newsResult.articles.length > 0) {
+      const summary = await summarizeNews(newsResult.articles);
+      await interaction.followUp(`**Summary:**\n${summary}`);
+    }
+  } catch (error) {
+    console.error("Error in news command:", error);
+    await interaction.editReply("There was an error retrieving the news.");
+  }
 }
