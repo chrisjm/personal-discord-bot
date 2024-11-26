@@ -42,27 +42,28 @@ export const waterReminderHandler: ReminderHandler = {
   defaultFrequencyRandomMultiple: 1.5,
 
   onReminder: async (client: Client, userId: string) => {
+    console.log(`[DEBUG] Water reminder handler started for user ${userId}`);
     const user = await client.users.fetch(userId);
     const message = await user.send(getRandomFromArray(REMINDER_MESSAGES));
+    console.log(`[DEBUG] Sent reminder message to user ${userId}`);
 
-    try {
-      // Create a filter for the collector
-      const filter = (reaction: any, reactUser: any) =>
-        ["👍", "👎"].includes(reaction.emoji.name) && reactUser.id === userId;
+    // Start collecting reactions but don't await it
+    // Create a filter for the collector
+    const filter = (reaction: any, reactUser: any) =>
+      ["👍", "👎"].includes(reaction.emoji.name) && reactUser.id === userId;
 
-      // Wait for a reaction
-      const collected = await message.awaitReactions({
-        filter,
-        max: 1,
-        time: 300000, // wait for 5 minutes
-        errors: ["time"],
-      });
+    // Set up the collector without awaiting it
+    const collector = message.createReactionCollector({
+      filter,
+      max: 1,
+      time: 300000, // 5 minutes timeout
+    });
 
-      const reaction = collected.first();
-      if (!reaction) return;
-
+    // Handle reactions asynchronously
+    collector.on('collect', async (reaction) => {
       if (reaction.emoji.name === "👍") {
         // User drank water
+        console.log(`[DEBUG] User ${userId} confirmed drinking water`);
         await trackerDb.addEntry(
           "water",
           WATER_AMOUNT_ML,
@@ -72,11 +73,15 @@ export const waterReminderHandler: ReminderHandler = {
         await message.reply(getRandomFromArray(CONGRATULATORY_MESSAGES));
       } else {
         // User didn't drink water
+        console.log(`[DEBUG] User ${userId} declined drinking water`);
         await message.reply(getRandomFromArray(ENCOURAGEMENT_MESSAGES));
       }
-    } catch (error) {
-      // No reaction after 5 minutes
-      console.log("No reaction received for water reminder.");
-    }
+    });
+
+    collector.on('end', (collected) => {
+      if (collected.size === 0) {
+        console.log(`[DEBUG] No reaction received from user ${userId} after timeout`);
+      }
+    });
   },
 };

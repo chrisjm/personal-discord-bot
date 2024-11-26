@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import * as reminderDb from "../utils/reminderDatabase";
+import * as reminderScheduler from "../utils/reminderScheduler";
 
 export const data = new SlashCommandBuilder()
   .setName("water-reminder")
@@ -75,7 +76,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     try {
-      await reminderDb.setPreferences({
+      const prefs = {
         user_id: userId,
         reminder_type: "water",
         enabled: true,
@@ -86,7 +87,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         random: interaction.options.getBoolean("random") ?? true,
         frequency_random_multiple:
           interaction.options.getNumber("random_multiple") ?? 1.5,
-      });
+      };
+
+      await reminderDb.setPreferences(prefs);
+      
+      // Send immediate reminder and start the chain
+      await reminderScheduler.startReminders(userId, "water");
 
       await interaction.reply({
         content:
@@ -94,7 +100,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           `Frequency: ${frequency} minutes` +
           ((interaction.options.getBoolean("random") ?? true)
             ? ` (randomly between ${Math.floor(frequency)} and ${Math.floor(frequency * (interaction.options.getNumber("random_multiple") ?? 1.5))} minutes)`
-            : ""),
+            : "") +
+          `\nYour first reminder will be sent shortly!`,
         ephemeral: true,
       });
     } catch (error) {

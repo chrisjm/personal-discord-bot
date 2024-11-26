@@ -33,6 +33,7 @@ function initializeDatabase(): void {
       frequency_minutes INTEGER,
       random INTEGER DEFAULT 0,
       frequency_random_multiple REAL DEFAULT 1.0,
+      last_sent INTEGER DEFAULT 0,
       PRIMARY KEY (user_id, reminder_type)
     )
   `);
@@ -45,8 +46,8 @@ export async function setPreferences(
   return new Promise((resolve, reject) => {
     db.run(
       `INSERT OR REPLACE INTO reminder_preferences
-        (user_id, reminder_type, enabled, start_time, end_time, timezone, frequency_minutes, random, frequency_random_multiple)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (user_id, reminder_type, enabled, start_time, end_time, timezone, frequency_minutes, random, frequency_random_multiple, last_sent)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         prefs.user_id,
         prefs.reminder_type,
@@ -57,6 +58,7 @@ export async function setPreferences(
         prefs.frequency_minutes,
         prefs.random || 0,
         prefs.frequency_random_multiple || 1.0,
+        prefs.last_sent || 0,
       ],
       (err) => {
         if (err) {
@@ -96,6 +98,7 @@ export async function getPreferences(
             frequency_minutes: row.frequency_minutes,
             random: row.random === 1,
             frequency_random_multiple: row.frequency_random_multiple || 1.0,
+            last_sent: row.last_sent,
           });
         }
       },
@@ -127,10 +130,33 @@ export async function getAllEnabledUsers(
               frequency_minutes: row.frequency_minutes || 60,
               random: row.random === 1,
               frequency_random_multiple: row.frequency_random_multiple || 1.0,
+              last_sent: row.last_sent,
             })),
           );
         }
       },
+    );
+  });
+}
+
+// Update last sent time for a reminder
+export async function updateLastSent(
+  userId: string,
+  reminderType: string,
+  timestamp: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      "UPDATE reminder_preferences SET last_sent = ? WHERE user_id = ? AND reminder_type = ?",
+      [timestamp, userId, reminderType],
+      (err) => {
+        if (err) {
+          console.error("Database error in updateLastSent:", err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      }
     );
   });
 }
