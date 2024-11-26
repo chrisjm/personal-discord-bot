@@ -3,7 +3,9 @@ dotenv.config();
 
 import axios from "axios";
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { complete } from "./llms/providers/openai";
+import { openaiProvider } from "./llms/providers/openai";
+import { LLMUsageStats } from "../types/llm";
+import { complete } from "./llms/utils/complete";
 
 // Type definition for NewsAPI article
 interface NewsArticle {
@@ -17,19 +19,6 @@ interface NewsArticle {
   publishedAt: string;
 }
 
-// Whitelist of allowed news sources
-const WHITELIST_SOURCES = [
-  "bbc-news",
-  "abc-news",
-  "npr",
-  "cbc-news",
-  "fox-news",
-  "reuters",
-  "associated-press",
-  "new-scientist",
-  "the-wall-street-journal",
-];
-
 // Valid news categories
 const NEWS_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology'] as const;
 type NewsCategory = typeof NEWS_CATEGORIES[number];
@@ -39,34 +28,16 @@ async function getTopNews(category: NewsCategory = 'general') {
     status: string;
     articles: NewsArticle[];
   }>(
-    `https://newsapi.org/v2/top-headlines?country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
+    `https://newsapi.org/v2/top-headlines?pageSize=20&country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
   );
   const { data } = response;
 
   if (data.status === "ok") {
-    const filteredArticles = data.articles
-      .filter((article) =>
-        WHITELIST_SOURCES.includes(article.source.id?.toLowerCase() || ""),
-      );
+    const filteredArticles = data.articles;
 
     if (filteredArticles.length === 0) {
-      return { text: "No articles found from whitelisted sources.", articles: [] };
+      return { text: "No articles found.", articles: [], stats: null };
     }
-
-    // Format articles for display
-    const formattedText = filteredArticles
-      .map((article) => {
-        const date = new Date(article.publishedAt);
-        const formattedDate = date.toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-        return `* **${article.title}** ${formattedDate}`;
-      })
-      .join("\n");
 
     // Prepare data for GPT summarization
     const articlesForSummary = filteredArticles.map(article => ({
@@ -77,34 +48,75 @@ async function getTopNews(category: NewsCategory = 'general') {
     }));
 
     return {
-      text: formattedText,
-      articles: articlesForSummary
+      articles: articlesForSummary,
     };
   } else {
-    return { text: "There was an error retrieving news", articles: [] };
+    return { text: "There was an error retrieving news", articles: [], stats: null };
   }
 }
 
-async function summarizeNews(articles: any[]) {
-  const prompt = `Here are the latest news articles:
+async function summarizeNews(articles: any[], userId?: string): Promise<{ content: string; usage: LLMUsageStats }> {
+  const prompt = `Analyze and summarize these news articles:
 
 ${JSON.stringify(articles, null, 2)}
 
-Please provide a concise summary of these news articles, highlighting the most important developments and common themes. Format the response in a clear and engaging way in paragraph form. Must keep it under 1500 characters in length. Format for Discord and bold important items.`;
+Provide a strictly factual summary of the key news developments. Focus only on the main facts and events reported, avoiding any editorial commentary or additional thoughts and keep things concise. Format for Discord with important items in bold and in a list and add source name in parentheses.
+
+For example:
+* **Short Title:** 1-3 sentence summary _(source @ 2024-11-14 12:00 AM)_
+* **Short Title:** 1-3 sentence summary _(source @ 2024-11-13 11:00 AM)_`;
 
   try {
-    const result = await complete(prompt, {
-      model: "gpt-4o",
-      temperature: 0.25,
-      maxTokens: 500
+    const result = await complete(prompt, openaiProvider, {
+      config: {
+        model: "gpt-4o-mini",
+        temperature: 0.1,
+        maxTokens: 1000
+      },
+      userId,
+      metadata: {
+        command: "news",
+        articleCount: articles.length
+      }
     });
-    return result.content;
+    return result;
   } catch (error) {
     console.error('Error getting summary:', error);
-    return 'Unable to generate summary at this time.';
+    throw error;
   }
 }
 
+// Constants for Discord limits
+const DISCORD_MAX_LENGTH = 2000;
+
+function chunkMessage(message: string, maxLength: number = DISCORD_MAX_LENGTH): string[] {
+  if (message.length <= maxLength) return [message];
+
+  const chunks: string[] = [];
+  let remaining = message;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Find the last newline or space within the limit
+    let splitIndex = remaining.lastIndexOf('\n', maxLength);
+    if (splitIndex === -1 || splitIndex > maxLength) {
+      splitIndex = remaining.lastIndexOf(' ', maxLength);
+    }
+    if (splitIndex === -1) splitIndex = maxLength;
+
+    chunks.push(remaining.slice(0, splitIndex));
+    remaining = remaining.slice(splitIndex).trim();
+  }
+
+  // Add continuation markers
+  return chunks.map((chunk, i) =>
+    i < chunks.length - 1 ? `${chunk}\n_(continued...)_` : chunk
+  );
+}
 
 export const data = new SlashCommandBuilder()
   .setName("news")
@@ -121,33 +133,32 @@ export const data = new SlashCommandBuilder()
         }))
       )
   )
-  .addBooleanOption((option) =>
-    option
-      .setName("summarize")
-      .setDescription("Get an AI-generated summary of the news")
-      .setRequired(false)
-  );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
 
   const category = (interaction.options.getString("category") || "general") as NewsCategory;
-  const shouldSummarize = interaction.options.getBoolean("summarize") || false;
 
   try {
     const newsResult = await getTopNews(category);
-    const header = `**${category.charAt(0).toUpperCase() + category.slice(1)} News** (${newsResult.articles.length} stories)`;
 
-    // Send first message with articles
-    await interaction.editReply(`${header}\n${newsResult.text}`);
+    // If we have articles, send the summary in chunks
+    if (newsResult.articles.length > 0) {
+      const { content: summary, usage } = await summarizeNews(newsResult.articles, interaction.user.id);
+      const summaryChunks = chunkMessage(summary);
 
-    // If summarize is requested and we have articles, send a second message with the summary
-    if (shouldSummarize && newsResult.articles.length > 0) {
-      const summary = await summarizeNews(newsResult.articles);
-      await interaction.followUp(`**Summary:**\n${summary}`);
+      // Send the first chunk with usage stats
+      const usageStats = `\n\n_Cost: ~$${(usage.estimatedCost).toFixed(4)} (${usage.totalTokens} tokens)_`;
+      await interaction.editReply(summaryChunks[0] + (summaryChunks.length === 1 ? usageStats : ''));
+
+      // Send remaining chunks if any
+      for (let i = 1; i < summaryChunks.length; i++) {
+        const isLast = i === summaryChunks.length - 1;
+        await interaction.followUp(summaryChunks[i] + (isLast ? usageStats : ''));
+      }
     }
   } catch (error) {
     console.error("Error in news command:", error);
-    await interaction.editReply("There was an error retrieving the news.");
+    await interaction.editReply("There was an error fetching the news. Please try again later.");
   }
 }
