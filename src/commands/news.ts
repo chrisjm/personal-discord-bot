@@ -31,7 +31,7 @@ async function getTopNews(category: NewsCategory = 'general') {
     status: string;
     articles: NewsAPINewsArticle[];
   }>(
-    `https://newsapi.org/v2/top-headlines?pageSize=5&country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
+    `https://newsapi.org/v2/top-headlines?pageSize=20&country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
   );
   const { data } = response;
 
@@ -42,11 +42,11 @@ async function getTopNews(category: NewsCategory = 'general') {
   // Save all articles to database, preserving shown status for existing articles
   const articlesWithGuids = await Promise.all(data.articles.map(async article => {
     const guid = article.url; // Using URL as GUID
-    
+
     // Check if article already exists
     const existingArticle = await getNewsArticle(guid);
     const hasBeenShown = existingArticle ? existingArticle.hasBeenShown : false;
-    
+
     await addNewsArticle({
       guid,
       title: article.title,
@@ -300,7 +300,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       return embed;
     });
 
-    // Send embeds in chunks of 10 (Discord's limit)
+    // Send the embeds in chunks of 10 (Discord's limit)
     for (let i = 0; i < embeds.length; i += 10) {
       const embedChunk = embeds.slice(i, i + 10);
       if (i === 0) {
@@ -310,8 +310,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       }
     }
 
+    // Mark articles as shown after successfully sending them
+    await markArticlesAsShown(newsData.articles.map(article => article.guid));
+
   } catch (error) {
     console.error("Error in news command:", error);
-    await interaction.editReply("Sorry, there was an error while fetching the news.");
+    await interaction.editReply("An error occurred while fetching or processing the news.");
   }
 }
