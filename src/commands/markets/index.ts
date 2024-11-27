@@ -6,6 +6,7 @@ import {
 import { getMarketData as getTraditionalMarketData } from "./assets/traditional";
 import { getMarketData as getCryptoMarketData } from "./assets/crypto";
 import { BaseAsset } from "../../types/markets";
+import { getChangeColor } from "../../utils";
 
 export const data = new SlashCommandBuilder()
   .setName("markets")
@@ -64,40 +65,6 @@ function formatPrice(price: number): string {
 function formatChange(change: number): string {
   const sign = change > 0 ? "+" : "";
   return `${sign}${change.toFixed(2)}%`;
-}
-
-function getChangeColor(change: number): number {
-  const roundedChange = Math.round(change * 100) / 100;
-
-  const greenShades = [
-    0xccffcc, // Very light green
-    0x99ff99, // Light green
-    0x66cc66, // Medium light green
-    0x339933, // Medium green
-    0x006600, // Dark green
-  ];
-
-  const redShades = [
-    0xffcccc, // Very light red
-    0xff9999, // Light red
-    0xff6666, // Medium light red
-    0xff3333, // Medium red
-    0xcc0000, // Dark red
-  ];
-
-  if (roundedChange === 0) {
-    return 0xffffff; // White
-  }
-
-  if (roundedChange > 0) {
-    // Changes 0-10% mapped to 5 green shades
-    const index = Math.min(Math.floor(roundedChange / 2), 4);
-    return greenShades[index];
-  }
-
-  // Changes 0-10% mapped to 5 red shades
-  const index = Math.min(Math.floor(Math.abs(roundedChange) / 2), 4);
-  return redShades[index];
 }
 
 // Currency symbol mapping
