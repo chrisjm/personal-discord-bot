@@ -197,12 +197,12 @@ Example response format:
   const content = articles.map(article => {
     const analysis = allAnalyses[article.guid];
     return `Title: ${article.title}
-Summary: ${analysis.summary}
-Sentiment: ${analysis.sentimentScore}
-Entities: ${analysis.entities.join(", ")}
-Emojis: ${analysis.emojis.join(" ")}
-Source: ${article.source}
-Date: ${article.publishedAt}
+Summary: ${analysis?.summary}
+Sentiment: ${analysis?.sentimentScore}
+Entities: ${analysis?.entities.join(", ")}
+Emojis: ${analysis?.emojis.join(" ")}
+Source: ${article?.source}
+Date: ${article?.publishedAt}
 ---`;
   }).join("\n");
 
