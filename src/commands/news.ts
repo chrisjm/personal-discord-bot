@@ -7,9 +7,10 @@ import { openaiProvider } from "./llms/providers/openai";
 import { LLMUsageStats } from "../types/llm";
 import { complete } from "./llms/utils/complete";
 import { getChangeColor, formatDateHumanReadable } from "../utils";
+import { addNewsArticle, addNewsAnalysis, getUnshownArticles, getNewsAnalysis, markArticlesAsShown, NewsAnalysis, getNewsArticle } from "../utils/newsDatabase";
 
 // Type definition for NewsAPI article
-interface NewsArticle {
+interface NewsAPINewsArticle {
   source: {
     id: string | null;
     name: string;
@@ -25,81 +26,212 @@ const NEWS_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'scie
 type NewsCategory = typeof NEWS_CATEGORIES[number];
 
 async function getTopNews(category: NewsCategory = 'general') {
+  // Get fresh articles from NewsAPI
   const response = await axios.get<{
     status: string;
-    articles: NewsArticle[];
+    articles: NewsAPINewsArticle[];
   }>(
     `https://newsapi.org/v2/top-headlines?pageSize=5&country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`,
   );
   const { data } = response;
 
-  if (data.status === "ok") {
-    const filteredArticles = data.articles;
+  if (data.status !== "ok" || !data.articles?.length) {
+    return { text: "No articles found.", articles: [], stats: null };
+  }
 
-    if (filteredArticles.length === 0) {
-      return { text: "No articles found.", articles: [], stats: null };
-    }
-
-    // Prepare data for GPT summarization
-    const articlesForSummary = filteredArticles.map(article => ({
+  // Save all articles to database, preserving shown status for existing articles
+  const articlesWithGuids = await Promise.all(data.articles.map(async article => {
+    const guid = article.url; // Using URL as GUID
+    
+    // Check if article already exists
+    const existingArticle = await getNewsArticle(guid);
+    const hasBeenShown = existingArticle ? existingArticle.hasBeenShown : false;
+    
+    await addNewsArticle({
+      guid,
       title: article.title,
       description: article.description,
-      source: article.source.name,
+      url: article.url,
+      sourceName: article.source.name,
+      sourceId: article.source.id,
       publishedAt: article.publishedAt,
-      url: article.url
-    }));
-
+      category,
+      hasBeenShown
+    });
     return {
-      articles: articlesForSummary,
+      ...article,
+      guid
     };
-  } else {
-    return { text: "There was an error retrieving news", articles: [], stats: null };
+  }));
+
+  // Get list of unshown articles to filter out already shown ones
+  const unshownArticles = await getUnshownArticles(category);
+  const unshownGuids = new Set(unshownArticles.map(a => a.guid));
+
+  // Filter to only unshown articles
+  const newArticles = articlesWithGuids.filter(article => unshownGuids.has(article.guid));
+
+  if (newArticles.length === 0) {
+    return { text: "No new articles to show.", articles: [], stats: null };
   }
+
+  // Prepare data for GPT summarization
+  const articlesForSummary = newArticles.map(article => ({
+    title: article.title,
+    description: article.description,
+    source: article.source.name,
+    publishedAt: article.publishedAt,
+    url: article.url,
+    guid: article.guid
+  }));
+
+  return {
+    articles: articlesForSummary,
+  };
 }
 
 async function summarizeNews(articles: any[], userId?: string): Promise<{ content: string; usage: LLMUsageStats }> {
-  const prompt = `Analyze and summarize these news articles:
-
-${JSON.stringify(articles, null, 2)}
-
-Please provide a strictly factual summary of the key developments. Focus solely on main facts and events, avoiding editorial commentary or personal opinions. Keep the summaries concise.
-
-For each article, provide:
-1. A clear, concise title
-2. A brief summary (2-5 sentences)
-3. Sentiment score (0 to 1)
-4. Key entities (people, organizations, locations)
-5. Relevant emojis for the topic
-
-Format each article as:
-Title: [title]
-Summary: [summary]
-Sentiment: [score]
-Entities: [entity1, entity2, ...]
-Emojis: [emoji1 emoji2 ...]
-Source: [source]
-Date: [date]
-
-Separate each article with "---"`;
-
-  try {
-    const result = await complete(prompt, openaiProvider, {
-      config: {
-        model: "gpt-4o-mini",
-        temperature: 0.1,
-        maxTokens: 1000
-      },
-      userId,
-      metadata: {
-        command: "news",
-        articleCount: articles.length
+  // Handle case when there are no articles to process
+  if (!articles || articles.length === 0) {
+    return {
+      content: "No new articles to summarize at this time.",
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        estimatedCost: 0
       }
-    });
-    return result;
-  } catch (error) {
-    console.error('Error getting summary:', error);
-    throw error;
+    };
   }
+
+  // Check which articles already have analysis
+  const articlesNeedingAnalysis: any[] = [];
+  const cachedAnalyses: { [guid: string]: NewsAnalysis } = {};
+  let result;
+
+  for (const article of articles) {
+    const analysis = await getNewsAnalysis(article.guid);
+    if (analysis) {
+      cachedAnalyses[article.guid] = analysis;
+    } else {
+      articlesNeedingAnalysis.push(article);
+    }
+  }
+
+  let newAnalyses: { [guid: string]: NewsAnalysis } = {};
+
+  // Only call GPT for articles that need analysis
+  if (articlesNeedingAnalysis.length > 0) {
+    const prompt = `Analyze and summarize these news articles:
+
+${JSON.stringify(articlesNeedingAnalysis, null, 2)}
+
+For each article, analyze the content and provide a JSON array containing objects with the following structure:
+{
+  "guid": string,           // The article's guid from the input
+  "summary": string,        // 2-5 sentence factual summary
+  "sentimentScore": number, // Score from 0 to 1
+  "entities": string[],     // List of key people, organizations, locations
+  "emojis": string[]       // List of relevant emojis
+}
+
+Focus solely on main facts and events, avoiding editorial commentary or personal opinions.
+Keep the summaries concise and factual.
+
+IMPORTANT: Return ONLY the JSON array, with no additional text or formatting.
+Example response format:
+[
+  {
+    "guid": "https://example.com/article1",
+    "summary": "SpaceX successfully launched 60 Starlink satellites...",
+    "sentimentScore": 0.8,
+    "entities": ["SpaceX", "Elon Musk", "Cape Canaveral"],
+    "emojis": ["🚀", "🛰️", "✨"]
+  }
+]`;
+    try {
+      result = await complete(prompt, openaiProvider, {
+        config: {
+          model: "gpt-4o-mini",
+          temperature: 0.1,
+          maxTokens: 1000
+        },
+        userId,
+        metadata: {
+          command: "news",
+          articleCount: articlesNeedingAnalysis.length
+        }
+      });
+
+      // Parse the JSON response
+      let analyses: NewsAnalysis[];
+      try {
+        analyses = JSON.parse(result.content);
+      } catch (error) {
+        console.error('Error parsing GPT response as JSON:', error);
+        console.error('Raw response:', result.content);
+        throw new Error('Failed to parse news analysis response');
+      }
+
+      // Cache the analyses
+      for (const analysis of analyses) {
+        await addNewsAnalysis(analysis);
+        newAnalyses[analysis.guid] = analysis;
+      }
+
+      // Store the result for usage stats
+      result.usage.estimatedCost = result.usage.estimatedCost || 0;
+      result.usage.promptTokens = result.usage.promptTokens || 0;
+      result.usage.completionTokens = result.usage.completionTokens || 0;
+      result.usage.totalTokens = result.usage.totalTokens || 0;
+    } catch (error) {
+      console.error('Error getting summary:', error);
+      throw error;
+    }
+  }
+
+  // Combine cached and new analyses
+  const allAnalyses = { ...cachedAnalyses, ...newAnalyses };
+
+  // Format the final output using all analyses
+  const content = articles.map(article => {
+    const analysis = allAnalyses[article.guid];
+    return `Title: ${article.title}
+Summary: ${analysis.summary}
+Sentiment: ${analysis.sentimentScore}
+Entities: ${analysis.entities.join(", ")}
+Emojis: ${analysis.emojis.join(" ")}
+Source: ${article.source}
+Date: ${article.publishedAt}
+---`;
+  }).join("\n");
+
+  // Mark all articles as shown after successful processing
+  await markArticlesAsShown(articles.map(a => a.guid));
+
+  // If we used cached analyses only, return zero usage
+  if (articlesNeedingAnalysis.length === 0) {
+    return {
+      content,
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        estimatedCost: 0
+      }
+    };
+  }
+
+  // If new analyses were generated, return the usage from the result
+  return {
+    content,
+    usage: result ? result.usage : {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      estimatedCost: 0
+    }
+  };
 }
 
 export const data = new SlashCommandBuilder()
