@@ -1,121 +1,113 @@
-import sqlite3 from "sqlite3";
-import path from "path";
-import fs from "fs";
+import { db } from "../db";
+import { tracking } from "../db/schema/tracking";
+import { eq, and, between } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 export interface TrackingEntry {
   entry_datetime: string;
   type: string;
   amount: number;
   unit: string;
-  note: string;
+  note: string | null;
 }
 
-// Initialize database connection
-const dbDir = path.join(__dirname, "../../data/sqlite");
-const dbPath = path.join(dbDir, "tracking.db");
-
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-export const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("Error opening tracking database:", err);
-  } else {
-    console.log("Connected to tracking database");
-    initializeDatabase();
-  }
-});
-
-// Initialize database tables
-function initializeDatabase(): void {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS tracking_entries (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      entry_datetime TEXT NOT NULL,
-      type TEXT NOT NULL,
-      amount REAL NOT NULL,
-      unit TEXT NOT NULL,
-      note TEXT
-    )
-  `);
-}
-
-export function addEntry(
+export async function addEntry(
   type: string,
   amount: number,
   unit: string,
   note?: string,
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const entry_datetime = new Date().toISOString();
-    console.log("Adding entry in UTC:", {
-      type,
-      amount,
-      unit,
-      note,
-      entry_datetime,
-    });
-    db.run(
-      "INSERT INTO tracking_entries (entry_datetime, type, amount, unit, note) VALUES (?, ?, ?, ?, ?)",
-      [entry_datetime, type, amount, unit, note || null],
-      (err) => {
-        if (err) {
-          console.error("Database error in addEntry:", err);
-          reject(err);
-        } else {
-          resolve(`Successfully tracked ${amount}${unit} of ${type}!`);
-        }
-      },
-    );
+  const entry_datetime = new Date().toISOString();
+  console.log("Adding entry in UTC:", {
+    type,
+    amount,
+    unit,
+    note,
+    entry_datetime,
   });
+
+  try {
+    await db.insert(tracking).values({
+      id: nanoid(),
+      userId: "system", // This could be updated to use actual user IDs
+      type,
+      value: JSON.stringify({ amount, unit, note, entry_datetime }),
+      timestamp: Date.now(),
+    });
+    return `Successfully tracked ${amount}${unit} of ${type}!`;
+  } catch (err) {
+    console.error("Database error in addEntry:", err);
+    throw err;
+  }
 }
 
-export function getEntriesInRange(
+export async function getEntriesInRange(
   type: string,
   startDate: string,
   endDate: string,
 ): Promise<TrackingEntry[]> {
-  return new Promise((resolve, reject) => {
-    console.log("Fetching entries in UTC range:", { type, startDate, endDate });
-    db.all<TrackingEntry>(
-      `SELECT entry_datetime, type, amount, unit, note 
-       FROM tracking_entries 
-       WHERE type = ? AND entry_datetime BETWEEN ? AND ?`,
-      [type, startDate, endDate],
-      (err, rows: TrackingEntry[]) => {
-        if (err) {
-          console.error("Database error in getEntriesInRange:", err);
-          reject(err);
-        } else {
-          console.log("Found entries:", rows);
-          resolve(rows);
-        }
-      },
-    );
-  });
+  console.log("Fetching entries in UTC range:", { type, startDate, endDate });
+
+  try {
+    const startTimestamp = new Date(startDate).getTime();
+    const endTimestamp = new Date(endDate).getTime();
+
+    const entries = await db.select()
+      .from(tracking)
+      .where(
+        and(
+          eq(tracking.type, type),
+          between(tracking.timestamp, startTimestamp, endTimestamp)
+        )
+      );
+
+    return entries.map(entry => {
+      const value = JSON.parse(entry.value);
+      return {
+        entry_datetime: value.entry_datetime,
+        type: entry.type,
+        amount: value.amount,
+        unit: value.unit,
+        note: value.note,
+      };
+    });
+  } catch (err) {
+    console.error("Database error in getEntriesInRange:", err);
+    throw err;
+  }
 }
 
-export function getEntriesForDay(
+export async function getEntriesForDay(
   type: string,
   date: string,
 ): Promise<TrackingEntry[]> {
-  return new Promise((resolve, reject) => {
-    console.log("Fetching entries for day in UTC:", { type, date });
-    db.all<TrackingEntry>(
-      `SELECT entry_datetime, type, amount, unit, note 
-       FROM tracking_entries 
-       WHERE type = ? AND date(entry_datetime) = date(?)`,
-      [type, date],
-      (err, rows: TrackingEntry[]) => {
-        if (err) {
-          console.error("Database error in getEntriesForDay:", err);
-          reject(err);
-        } else {
-          console.log("Found entries:", rows);
-          resolve(rows);
-        }
-      },
-    );
-  });
+  console.log("Fetching entries for day in UTC:", { type, date });
+
+  try {
+    const startTimestamp = new Date(date + "T00:00:00.000Z").getTime();
+    const endTimestamp = new Date(date + "T23:59:59.999Z").getTime();
+
+    const entries = await db.select()
+      .from(tracking)
+      .where(
+        and(
+          eq(tracking.type, type),
+          between(tracking.timestamp, startTimestamp, endTimestamp)
+        )
+      );
+
+    return entries.map(entry => {
+      const value = JSON.parse(entry.value);
+      return {
+        entry_datetime: value.entry_datetime,
+        type: entry.type,
+        amount: value.amount,
+        unit: value.unit,
+        note: value.note,
+      };
+    });
+  } catch (err) {
+    console.error("Database error in getEntriesForDay:", err);
+    throw err;
+  }
 }
