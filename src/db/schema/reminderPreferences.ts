@@ -1,4 +1,4 @@
-import { text, integer, real, sqliteTable } from "drizzle-orm/sqlite-core";
+import { text, integer, real, sqliteTable, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const reminderPreferences = sqliteTable("reminder_preferences", {
   userId: text("user_id").notNull(),
@@ -10,5 +10,7 @@ export const reminderPreferences = sqliteTable("reminder_preferences", {
   frequencyMinutes: integer("frequency_minutes").notNull(),
   random: integer("random").notNull().default(0),
   frequencyRandomMultiple: real("frequency_random_multiple").notNull().default(1.0),
-  lastSent: integer("last_sent").notNull().default(0),
-});
+  lastSent: integer("last_sent").notNull().default(0)
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.reminderType] })
+}));

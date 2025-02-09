@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4a6a51ac-1c23-41ca-9ec4-2203ef178ac5",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "ae7692bc-dd6f-468e-bf9b-22eca6f24f9b",
+  "prevId": "be87639f-4f7b-4b16-a8b3-fbf4942880de",
   "tables": {
     "generic_cache": {
       "name": "generic_cache",
@@ -126,7 +126,15 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "reminder_preferences_user_id_reminder_type_pk": {
+          "columns": [
+            "user_id",
+            "reminder_type"
+          ],
+          "name": "reminder_preferences_user_id_reminder_type_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -254,7 +262,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "rss_items_feed_name_guid_pk": {
+          "columns": [
+            "feed_name",
+            "guid"
+          ],
+          "name": "rss_items_feed_name_guid_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

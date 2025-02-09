@@ -1,4 +1,4 @@
-import { text, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+import { text, integer, sqliteTable, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const rssFeeds = sqliteTable("rss_feeds", {
   name: text("name").primaryKey(),
@@ -17,4 +17,6 @@ export const rssItems = sqliteTable("rss_items", {
   pubDate: text("pub_date").notNull(),
   content: text("content").notNull(),
   processed: integer("processed").notNull().default(0),
-});
+}, (table) => ({
+  pk: primaryKey({ columns: [table.feedName, table.guid] })
+}));

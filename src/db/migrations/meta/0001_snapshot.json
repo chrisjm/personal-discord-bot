@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fcbb560e-e108-458d-9870-589fb737188a",
-  "prevId": "d36b1d2d-fed7-4c97-b9b3-fac3dba2b8a6",
+  "id": "be87639f-4f7b-4b16-a8b3-fbf4942880de",
+  "prevId": "4a6a51ac-1c23-41ca-9ec4-2203ef178ac5",
   "tables": {
     "generic_cache": {
       "name": "generic_cache",
@@ -126,15 +126,23 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "reminder_preferences_user_id_reminder_type_pk": {
+          "columns": [
+            "user_id",
+            "reminder_type"
+          ],
+          "name": "reminder_preferences_user_id_reminder_type_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
     "rss_feeds": {
       "name": "rss_feeds",
       "columns": {
-        "id": {
-          "name": "id",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
@@ -154,15 +162,24 @@
           "notNull": true,
           "autoincrement": false
         },
-        "last_checked": {
-          "name": "last_checked",
+        "update_frequency": {
+          "name": "update_frequency",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 3600
         },
-        "last_item_guid": {
-          "name": "last_item_guid",
+        "last_update": {
+          "name": "last_update",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "data": {
+          "name": "data",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -171,6 +188,80 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rss_items": {
+      "name": "rss_items",
+      "columns": {
+        "feed_name": {
+          "name": "feed_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "guid": {
+          "name": "guid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "link": {
+          "name": "link",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pub_date": {
+          "name": "pub_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "processed": {
+          "name": "processed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rss_items_feed_name_rss_feeds_name_fk": {
+          "name": "rss_items_feed_name_rss_feeds_name_fk",
+          "tableFrom": "rss_items",
+          "tableTo": "rss_feeds",
+          "columnsFrom": [
+            "feed_name"
+          ],
+          "columnsTo": [
+            "name"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
