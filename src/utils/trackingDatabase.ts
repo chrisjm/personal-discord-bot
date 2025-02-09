@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { tracking } from "../db/schema/tracking";
 import { eq, and, between } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { randomUUID } from "crypto";
 
 export interface TrackingEntry {
   entry_datetime: string;
@@ -12,6 +12,7 @@ export interface TrackingEntry {
 }
 
 export async function addEntry(
+  userId: string,
   type: string,
   amount: number,
   unit: string,
@@ -28,8 +29,8 @@ export async function addEntry(
 
   try {
     await db.insert(tracking).values({
-      id: nanoid(),
-      userId: "system", // This could be updated to use actual user IDs
+      id: randomUUID(),
+      userId,
       type,
       value: JSON.stringify({ amount, unit, note, entry_datetime }),
       timestamp: Date.now(),
@@ -42,6 +43,7 @@ export async function addEntry(
 }
 
 export async function getEntriesInRange(
+  userId: string,
   type: string,
   startDate: string,
   endDate: string,
@@ -56,6 +58,7 @@ export async function getEntriesInRange(
       .from(tracking)
       .where(
         and(
+          eq(tracking.userId, userId),
           eq(tracking.type, type),
           between(tracking.timestamp, startTimestamp, endTimestamp)
         )
@@ -78,6 +81,7 @@ export async function getEntriesInRange(
 }
 
 export async function getEntriesForDay(
+  userId: string,
   type: string,
   date: string,
 ): Promise<TrackingEntry[]> {
@@ -91,6 +95,7 @@ export async function getEntriesForDay(
       .from(tracking)
       .where(
         and(
+          eq(tracking.userId, userId),
           eq(tracking.type, type),
           between(tracking.timestamp, startTimestamp, endTimestamp)
         )
