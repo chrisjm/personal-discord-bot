@@ -3,7 +3,11 @@ import { Client, Events } from "discord.js";
 import * as reminderScheduler from "../utils/reminderScheduler";
 import { waterReminderHandler } from "../handlers/waterReminder";
 import { getAllRSSFeeds } from "../utils/rssDatabase";
-import { addFeed, cleanup as cleanupRSSFeeds, displayAllUnprocessedItems } from "../utils/rssFeedHandler";
+import {
+  addFeed,
+  cleanup as cleanupRSSFeeds,
+  displayAllUnprocessedItems,
+} from "../utils/rssFeedHandler";
 
 // Load environment variables
 config();

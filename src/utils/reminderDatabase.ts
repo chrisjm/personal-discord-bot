@@ -116,7 +116,7 @@ export async function getAllEnabledUsers(
 export async function updateLastSent(
   userId: string,
   reminderType: string,
-  timestamp: number
+  timestamp: number,
 ): Promise<void> {
   try {
     await db

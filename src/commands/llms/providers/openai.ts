@@ -13,17 +13,17 @@ interface TokenRates {
 
 const MODEL_RATES: Record<string, TokenRates> = {
   "gpt-4o": {
-    input: 2.50,   // per 1M input tokens
-    output: 10.00  // per 1M output tokens
+    input: 2.5, // per 1M input tokens
+    output: 10.0, // per 1M output tokens
   },
   "gpt-4o-mini": {
     input: 0.15,
-    output: 0.60
+    output: 0.6,
   },
   "gpt-3.5-turbo-0613": {
-    input: 1.50,
-    output: 2.00
-  }
+    input: 1.5,
+    output: 2.0,
+  },
 };
 
 const getDefaultConfig = (): LLMConfig => ({
@@ -35,11 +35,15 @@ const getDefaultConfig = (): LLMConfig => ({
   presencePenalty: 0,
 });
 
-const calculateCost = (model: string, promptTokens: number, completionTokens: number): number => {
+const calculateCost = (
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+): number => {
   const rates = MODEL_RATES[model] || MODEL_RATES["gpt-4o-mini"];
   return (
-    (promptTokens * rates.input / 1_000_000) +     // Input tokens cost
-    (completionTokens * rates.output / 1_000_000)   // Output tokens cost
+    (promptTokens * rates.input) / 1_000_000 + // Input tokens cost
+    (completionTokens * rates.output) / 1_000_000 // Output tokens cost
   );
 };
 
@@ -73,8 +77,8 @@ export const complete = async (
     estimatedCost: calculateCost(
       finalConfig.model,
       response.usage?.prompt_tokens || 0,
-      response.usage?.completion_tokens || 0
-    )
+      response.usage?.completion_tokens || 0,
+    ),
   };
 
   return {

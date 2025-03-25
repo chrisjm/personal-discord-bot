@@ -78,7 +78,10 @@ export function stopUpdateInterval(feedName: string): void {
 }
 
 // Update a feed and display new items
-export async function updateFeed(feedName: string, client?: Client): Promise<void> {
+export async function updateFeed(
+  feedName: string,
+  client?: Client,
+): Promise<void> {
   try {
     const feed = await getRSSFeed(feedName);
     if (!feed) return;
@@ -152,15 +155,21 @@ export async function displayNewItems(
     );
   } catch (error: unknown) {
     if (error instanceof Error) {
-      console.error(`Failed to display items for feed ${feedName}: ${error.message}`);
+      console.error(
+        `Failed to display items for feed ${feedName}: ${error.message}`,
+      );
     } else {
-      console.error(`Failed to display items for feed ${feedName}: ${String(error)}`);
+      console.error(
+        `Failed to display items for feed ${feedName}: ${String(error)}`,
+      );
     }
   }
 }
 
 // Display all unprocessed items for all feeds
-export async function displayAllUnprocessedItems(client: Client): Promise<void> {
+export async function displayAllUnprocessedItems(
+  client: Client,
+): Promise<void> {
   try {
     const feeds = await getAllRSSFeeds();
     for (const feed of feeds) {

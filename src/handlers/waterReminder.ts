@@ -6,11 +6,11 @@ import * as trackerDb from "../utils/trackingDatabase";
 const MAX_REACTION_TIME_MS = 3600000; // 60 minutes
 const TRACKING_TYPES = {
   WATER: "water",
-  WATER_REACTION_TIME: "water_reaction_time"
+  WATER_REACTION_TIME: "water_reaction_time",
 };
 const TRACKING_UNITS = {
   MILLILITERS: "ml",
-  MILLISECONDS: "ms"
+  MILLISECONDS: "ms",
 };
 
 const REMINDER_MESSAGES = [
@@ -69,12 +69,13 @@ export const waterReminderHandler: ReminderHandler = {
 
     // Store the timestamp when the reminder was sent
     const reminderSentTime = Date.now();
-    console.log(`[DEBUG] Sent reminder message to user ${userId} at ${reminderSentTime}`);
+    console.log(
+      `[DEBUG] Sent reminder message to user ${userId} at ${reminderSentTime}`,
+    );
 
     // Start collecting reactions but don't await it
     // Create a filter for the collector
-    const filter = (reaction: any, reactUser: any) =>
-      reactUser.id === userId; // Accept any reaction from the user
+    const filter = (reaction: any, reactUser: any) => reactUser.id === userId; // Accept any reaction from the user
 
     // Set up the collector without awaiting it
     const collector = message.createReactionCollector({
@@ -84,10 +85,12 @@ export const waterReminderHandler: ReminderHandler = {
     });
 
     // Handle reactions asynchronously
-    collector.on('collect', async (reaction) => {
+    collector.on("collect", async (reaction) => {
       // Calculate reaction time in milliseconds
       const reactionTime = Date.now() - reminderSentTime;
-      console.log(`[DEBUG] User ${userId} reacted in ${reactionTime}ms with ${reaction.emoji.name}`);
+      console.log(
+        `[DEBUG] User ${userId} reacted in ${reactionTime}ms with ${reaction.emoji.name}`,
+      );
 
       // Track the reaction time regardless of reaction type
       await trackerDb.addEntry(
@@ -95,7 +98,7 @@ export const waterReminderHandler: ReminderHandler = {
         TRACKING_TYPES.WATER_REACTION_TIME,
         reactionTime,
         TRACKING_UNITS.MILLISECONDS,
-        `Reaction: ${reaction.emoji.name}`
+        `Reaction: ${reaction.emoji.name}`,
       );
 
       if (reaction.emoji.name === "👍") {
@@ -115,21 +118,27 @@ export const waterReminderHandler: ReminderHandler = {
         await message.reply(getRandomFromArray(ENCOURAGEMENT_MESSAGES));
       } else {
         // User reacted with something else
-        console.log(`[DEBUG] User ${userId} reacted with ${reaction.emoji.name}`);
-        await message.reply("Thanks for acknowledging the reminder! Remember to stay hydrated!");
+        console.log(
+          `[DEBUG] User ${userId} reacted with ${reaction.emoji.name}`,
+        );
+        await message.reply(
+          "Thanks for acknowledging the reminder! Remember to stay hydrated!",
+        );
       }
     });
 
-    collector.on('end', async (collected) => {
+    collector.on("end", async (collected) => {
       if (collected.size === 0) {
-        console.log(`[DEBUG] No reaction received from user ${userId} after timeout`);
+        console.log(
+          `[DEBUG] No reaction received from user ${userId} after timeout`,
+        );
         // Track no reaction at max time
         await trackerDb.addEntry(
           userId,
           TRACKING_TYPES.WATER_REACTION_TIME,
           MAX_REACTION_TIME_MS,
           TRACKING_UNITS.MILLISECONDS,
-          "No reaction"
+          "No reaction",
         );
       }
     });

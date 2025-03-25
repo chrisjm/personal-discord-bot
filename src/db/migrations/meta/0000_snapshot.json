@@ -244,12 +244,8 @@
           "name": "rss_items_feed_name_rss_feeds_name_fk",
           "tableFrom": "rss_items",
           "tableTo": "rss_feeds",
-          "columnsFrom": [
-            "feed_name"
-          ],
-          "columnsTo": [
-            "name"
-          ],
+          "columnsFrom": ["feed_name"],
+          "columnsTo": ["name"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

@@ -128,10 +128,7 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "reminder_preferences_user_id_reminder_type_pk": {
-          "columns": [
-            "user_id",
-            "reminder_type"
-          ],
+          "columns": ["user_id", "reminder_type"],
           "name": "reminder_preferences_user_id_reminder_type_pk"
         }
       },
@@ -252,22 +249,15 @@
           "name": "rss_items_feed_name_rss_feeds_name_fk",
           "tableFrom": "rss_items",
           "tableTo": "rss_feeds",
-          "columnsFrom": [
-            "feed_name"
-          ],
-          "columnsTo": [
-            "name"
-          ],
+          "columnsFrom": ["feed_name"],
+          "columnsTo": ["name"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "rss_items_feed_name_guid_pk": {
-          "columns": [
-            "feed_name",
-            "guid"
-          ],
+          "columns": ["feed_name", "guid"],
           "name": "rss_items_feed_name_guid_pk"
         }
       },

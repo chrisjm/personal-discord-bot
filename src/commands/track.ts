@@ -84,7 +84,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (amount !== null) {
       // Direct amount provided
       try {
-        const message = await trackingDb.addEntry(interaction.user.id, type, amount, unit, note);
+        const message = await trackingDb.addEntry(
+          interaction.user.id,
+          type,
+          amount,
+          unit,
+          note,
+        );
         await interaction.reply(message);
       } catch (e) {
         console.error(e);

@@ -90,7 +90,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       };
 
       await reminderDb.setPreferences(prefs);
-      
+
       // Send immediate reminder and start the chain
       await reminderScheduler.startReminders(userId, "water");
 

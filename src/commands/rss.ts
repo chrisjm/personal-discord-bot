@@ -40,7 +40,9 @@ export const data = new SlashCommandBuilder()
       .addChannelOption((option) =>
         option
           .setName("channel")
-          .setDescription("Channel to post updates to (defaults to RSS channel)"),
+          .setDescription(
+            "Channel to post updates to (defaults to RSS channel)",
+          ),
       )
       .addIntegerOption((option) =>
         option
@@ -51,9 +53,7 @@ export const data = new SlashCommandBuilder()
       ),
   )
   .addSubcommand((subcommand) =>
-    subcommand
-      .setName("list")
-      .setDescription("List all RSS feeds"),
+    subcommand.setName("list").setDescription("List all RSS feeds"),
   )
   .addSubcommand((subcommand) =>
     subcommand
@@ -84,23 +84,28 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   switch (subcommand) {
     case "add": {
       await interaction.deferReply();
-      
+
       const name = interaction.options.getString("name", true);
       const url = interaction.options.getString("url", true);
       const channel = interaction.options.getChannel("channel");
-      const frequencyMinutes = interaction.options.getInteger("frequency") || 60;
+      const frequencyMinutes =
+        interaction.options.getInteger("frequency") || 60;
 
       try {
         const existingFeed = await getRSSFeed(name);
         if (existingFeed) {
-          await interaction.editReply(`A feed with the name "${name}" already exists.`);
+          await interaction.editReply(
+            `A feed with the name "${name}" already exists.`,
+          );
           return;
         }
 
         // Use default channel if none specified
         const channelId = channel?.id || DEFAULT_RSS_CHANNEL;
         if (!channelId) {
-          await interaction.editReply("No channel specified and no default RSS channel configured. Please specify a channel or set DEFAULT_RSS_CHANNEL_ID in your environment.");
+          await interaction.editReply(
+            "No channel specified and no default RSS channel configured. Please specify a channel or set DEFAULT_RSS_CHANNEL_ID in your environment.",
+          );
           return;
         }
 
@@ -118,14 +123,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             { name: "Name", value: name, inline: true },
             { name: "URL", value: url, inline: true },
             { name: "Channel", value: `<#${channelId}>`, inline: true },
-            { name: "Update Frequency", value: `${frequencyMinutes} minutes`, inline: true },
+            {
+              name: "Update Frequency",
+              value: `${frequencyMinutes} minutes`,
+              inline: true,
+            },
           );
 
         await interaction.editReply({ embeds: [embed] });
       } catch (error) {
-        const errorMessage = error instanceof Error 
-          ? error.message 
-          : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         await interaction.editReply(`Failed to add RSS feed: ${errorMessage}`);
       }
       break;
@@ -136,7 +144,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
       try {
         const feeds = await getAllRSSFeeds();
-        
+
         if (feeds.length === 0) {
           await interaction.editReply("No RSS feeds configured.");
           return;
@@ -155,10 +163,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         await interaction.editReply({ embeds: [embed] });
       } catch (error) {
-        const errorMessage = error instanceof Error 
-          ? error.message 
-          : String(error);
-        await interaction.editReply(`Failed to list RSS feeds: ${errorMessage}`);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await interaction.editReply(
+          `Failed to list RSS feeds: ${errorMessage}`,
+        );
       }
       break;
     }
@@ -177,13 +186,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         stopUpdateInterval(name);
         await deleteFeed(name);
-        
+
         await interaction.editReply(`Removed RSS feed "${name}".`);
       } catch (error) {
-        const errorMessage = error instanceof Error 
-          ? error.message 
-          : String(error);
-        await interaction.editReply(`Failed to remove RSS feed: ${errorMessage}`);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await interaction.editReply(
+          `Failed to remove RSS feed: ${errorMessage}`,
+        );
       }
       break;
     }
@@ -205,9 +215,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           `Force updated "${name}". Found ${items.length} new items.`,
         );
       } catch (error) {
-        const errorMessage = error instanceof Error 
-          ? error.message 
-          : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         await interaction.editReply(`Failed to force update: ${errorMessage}`);
       }
       break;

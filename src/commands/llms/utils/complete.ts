@@ -20,7 +20,7 @@ export interface CompletionOptions {
 export async function complete(
   prompt: string,
   provider: LLMProvider,
-  options: CompletionOptions = {}
+  options: CompletionOptions = {},
 ): Promise<CompletionResult> {
   try {
     // Get completion from provider
@@ -32,17 +32,17 @@ export async function complete(
         options.userId,
         provider.name,
         options.config?.model || provider.getDefaultConfig().model,
-        result.usage
+        result.usage,
       );
     }
 
     return {
       content: result.content,
       usage: result.usage,
-      metadata: options.metadata
+      metadata: options.metadata,
     };
   } catch (error) {
-    console.error('Error in LLM completion:', error);
+    console.error("Error in LLM completion:", error);
     throw error;
   }
 }

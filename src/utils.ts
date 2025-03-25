@@ -16,23 +16,24 @@ export const formatDate = (date: Date) =>
 
 export function formatDateHumanReadable(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short'
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
   });
 }
 
 export const getChangeColor = function (change: number): number {
   // First check if it's already in 0-1 range
-  const normalizedValue = (change >= 0 && change <= 1)
-    ? change
-    : (change >= -1 && change <= 1)
-      ? (change + 1) / 2
-      : change;
+  const normalizedValue =
+    change >= 0 && change <= 1
+      ? change
+      : change >= -1 && change <= 1
+        ? (change + 1) / 2
+        : change;
 
   const roundedChange = Math.round(normalizedValue * 100) / 100;
 
@@ -67,4 +68,4 @@ export const getChangeColor = function (change: number): number {
   const normalizedChange = (0.5 - roundedChange) * 2;
   const index = Math.min(Math.floor(normalizedChange * 5), 4);
   return redShades[index];
-}
+};

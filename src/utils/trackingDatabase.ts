@@ -54,17 +54,18 @@ export async function getEntriesInRange(
     const startTimestamp = new Date(startDate).getTime();
     const endTimestamp = new Date(endDate).getTime();
 
-    const entries = await db.select()
+    const entries = await db
+      .select()
       .from(tracking)
       .where(
         and(
           eq(tracking.userId, userId),
           eq(tracking.type, type),
-          between(tracking.timestamp, startTimestamp, endTimestamp)
-        )
+          between(tracking.timestamp, startTimestamp, endTimestamp),
+        ),
       );
 
-    return entries.map(entry => {
+    return entries.map((entry) => {
       const value = JSON.parse(entry.value);
       return {
         entry_datetime: value.entry_datetime,
@@ -91,17 +92,18 @@ export async function getEntriesForDay(
     const startTimestamp = new Date(date + "T00:00:00.000Z").getTime();
     const endTimestamp = new Date(date + "T23:59:59.999Z").getTime();
 
-    const entries = await db.select()
+    const entries = await db
+      .select()
       .from(tracking)
       .where(
         and(
           eq(tracking.userId, userId),
           eq(tracking.type, type),
-          between(tracking.timestamp, startTimestamp, endTimestamp)
-        )
+          between(tracking.timestamp, startTimestamp, endTimestamp),
+        ),
       );
 
-    return entries.map(entry => {
+    return entries.map((entry) => {
       const value = JSON.parse(entry.value);
       return {
         entry_datetime: value.entry_datetime,
