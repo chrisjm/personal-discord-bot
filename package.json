@@ -43,7 +43,7 @@
     "@libsql/client": "^0.14.0",
     "@types/node-fetch": "^2.6.12",
     "coingecko-api-v3": "^0.0.29",
-    "drizzle-kit": "^0.30.4",
+    "drizzle-kit": "^0.30.5",
     "drizzle-orm": "^0.39.2",
     "libsodium-wrappers": "^0.7.15",
     "nanoid": "^5.0.9",
