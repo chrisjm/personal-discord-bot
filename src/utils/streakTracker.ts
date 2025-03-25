@@ -17,13 +17,14 @@ export const STREAK_LEVELS = {
 };
 
 export const STREAK_THRESHOLDS = {
-  BRONZE: 3,   // 3 days
-  SILVER: 7,   // 7 days
-  GOLD: 14,    // 14 days
-  DIAMOND: 30, // 30 days
+  BRONZE: 3,   // 3 consecutive quick responses
+  SILVER: 7,   // 7 consecutive quick responses
+  GOLD: 14,    // 14 consecutive quick responses
+  DIAMOND: 30, // 30 consecutive quick responses
 };
 
 export const QUICK_RESPONSE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+export const MAX_REACTION_TIME_MS = 60 * 60 * 1000; // 60 minutes
 export const STREAK_PROTECTION_COOLDOWN_DAYS = 7; // Can use protection once per week
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -103,38 +104,38 @@ export async function updateStreak(
     let protectionUsed = false;
     let newLevel = null;
 
-    // Check if this is a quick response
+    // Check if this is a quick response (within the threshold)
     const isQuickResponse = reactionTimeMs <= QUICK_RESPONSE_THRESHOLD_MS;
-
+    
     // Default update values
     let updatedStreak = streakData.currentStreak;
-
-    // Check if we need to update the streak
-    if (daysSinceLastUpdate > 1) {
-      // More than 1 day has passed, check if we can use streak protection
+    
+    // Check if the response is within the maximum allowed time
+    const isWithinMaxTime = reactionTimeMs <= MAX_REACTION_TIME_MS;
+    
+    if (!isWithinMaxTime) {
+      // Response is too slow, check if we can use streak protection
       const canUseProtection =
         (streakData.lastProtectionUsed === undefined ||
          streakData.lastProtectionUsed === null ||
          (now - streakData.lastProtectionUsed) >= STREAK_PROTECTION_COOLDOWN_DAYS * MS_PER_DAY);
-
+      
       if (canUseProtection && streakData.currentStreak > 0) {
         // Use streak protection
         protectionUsed = true;
         // Streak remains the same, just update protection usage
       } else {
         // Break streak
-        updatedStreak = isQuickResponse ? 1 : 0; // Start new streak if quick response
+        updatedStreak = 0;
         streakBroken = true;
       }
-    } else if (daysSinceLastUpdate === 1 || streakData.currentStreak === 0) {
-      // Exactly 1 day has passed or starting a new streak
-      if (isQuickResponse) {
-        updatedStreak = streakData.currentStreak + 1;
-        streakIncreased = true;
-      }
-    } else if (daysSinceLastUpdate === 0) {
-      // Same day, no streak update needed
-      // This prevents multiple reminders in the same day from increasing the streak
+    } else if (isQuickResponse) {
+      // Quick response, increase streak
+      updatedStreak = streakData.currentStreak + 1;
+      streakIncreased = true;
+    } else {
+      // Response is within max time but not quick enough
+      // Don't increase streak, but don't break it either
     }
 
     // Calculate new streak level if streak increased
@@ -233,10 +234,10 @@ export async function getStreakData(userId: string, streakType: string): Promise
  */
 export function getStreakStatusMessage(streakData: StreakData): string {
   const streakEmoji = getStreakEmoji(streakData.streakLevel);
-  const daysText = streakData.currentStreak === 1 ? "day" : "days";
+  const responsesText = streakData.currentStreak === 1 ? "response" : "responses";
 
-  let message = `${streakEmoji} **Current streak**: ${streakData.currentStreak} ${daysText}\n`;
-  message += `🏆 **Longest streak**: ${streakData.longestStreak} days\n`;
+  let message = `${streakEmoji} **Current streak**: ${streakData.currentStreak} quick ${responsesText}\n`;
+  message += `🏆 **Longest streak**: ${streakData.longestStreak} quick responses\n`;
 
   if (streakData.streakLevel !== STREAK_LEVELS.NONE) {
     message += `🎖️ **Current level**: ${capitalizeFirstLetter(streakData.streakLevel)}\n`;
@@ -245,9 +246,9 @@ export function getStreakStatusMessage(streakData: StreakData): string {
   // Show next level info if applicable
   const nextLevel = getNextLevel(streakData.streakLevel);
   if (nextLevel) {
-    const daysToNextLevel = getStreakThreshold(nextLevel) - streakData.currentStreak;
-    if (daysToNextLevel > 0) {
-      message += `⬆️ **Next level**: ${capitalizeFirstLetter(nextLevel)} (${daysToNextLevel} more ${daysToNextLevel === 1 ? 'day' : 'days'})\n`;
+    const responsesToNextLevel = getStreakThreshold(nextLevel) - streakData.currentStreak;
+    if (responsesToNextLevel > 0) {
+      message += `⬆️ **Next level**: ${capitalizeFirstLetter(nextLevel)} (${responsesToNextLevel} more quick ${responsesToNextLevel === 1 ? 'response' : 'responses'})\n`;
     }
   }
 

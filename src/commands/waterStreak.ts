@@ -21,7 +21,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       .setTitle("💧 Water Reminder Streak Status")
       .setDescription(streakTracker.getStreakStatusMessage(streakData))
       .setFooter({ 
-        text: `Quick responses are under ${streakTracker.QUICK_RESPONSE_THRESHOLD_MS / 60000} minutes` 
+        text: `Quick responses are under ${streakTracker.QUICK_RESPONSE_THRESHOLD_MS / 60000} minutes. Max time allowed: ${streakTracker.MAX_REACTION_TIME_MS / 60000} minutes.` 
       })
       .setTimestamp();
 
