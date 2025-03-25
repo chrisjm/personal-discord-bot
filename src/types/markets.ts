@@ -1,3 +1,5 @@
+// NOTE: Keep this for future use even though it's not currently used.
+
 export interface MarketState {
   marketState?: "PRE" | "REGULAR" | "POST" | "CLOSED";
   regularMarketPrice: number;

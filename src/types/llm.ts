@@ -1,5 +1,3 @@
-import { ChatInputCommandInteraction } from "discord.js";
-
 /**
  * Interface for LLM provider configuration
  */

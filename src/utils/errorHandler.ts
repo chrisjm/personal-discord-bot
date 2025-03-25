@@ -2,7 +2,6 @@ import { logger } from "./logger";
 import {
   ChatInputCommandInteraction,
   InteractionReplyOptions,
-  MessageCreateOptions,
 } from "discord.js";
 
 /**
