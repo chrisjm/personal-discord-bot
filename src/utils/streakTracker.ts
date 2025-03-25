@@ -327,3 +327,55 @@ function getStreakThreshold(level: string): number {
 function capitalizeFirstLetter(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
+
+/**
+ * Format reaction time in a user-friendly way with a rating
+ * @param reactionTimeMs Reaction time in milliseconds
+ * @returns Formatted string with time and rating
+ */
+export function formatReactionTime(reactionTimeMs: number): { formatted: string; rating: string; emoji: string } {
+  let formatted: string;
+  let rating: string;
+  let emoji: string;
+  
+  // Format the time
+  if (reactionTimeMs < 1000) {
+    // Under a second
+    formatted = `${reactionTimeMs}ms`;
+  } else if (reactionTimeMs < 60000) {
+    // Under a minute
+    const seconds = (reactionTimeMs / 1000).toFixed(1);
+    formatted = `${seconds}s`;
+  } else {
+    // Over a minute
+    const minutes = Math.floor(reactionTimeMs / 60000);
+    const seconds = Math.floor((reactionTimeMs % 60000) / 1000);
+    formatted = `${minutes}m ${seconds}s`;
+  }
+  
+  // Determine rating based on reaction time
+  if (reactionTimeMs < 3000) {
+    rating = "Lightning Fast";
+    emoji = "⚡";
+  } else if (reactionTimeMs < 10000) {
+    rating = "Super Quick";
+    emoji = "🚀";
+  } else if (reactionTimeMs < 30000) {
+    rating = "Very Fast";
+    emoji = "💨";
+  } else if (reactionTimeMs < 60000) {
+    rating = "Fast";
+    emoji = "🏃";
+  } else if (reactionTimeMs < 5 * 60000) {
+    rating = "Good";
+    emoji = "👍";
+  } else if (reactionTimeMs < 10 * 60000) {
+    rating = "Decent";
+    emoji = "👌";
+  } else {
+    rating = "Slow & Steady";
+    emoji = "🐢";
+  }
+  
+  return { formatted, rating, emoji };
+}
