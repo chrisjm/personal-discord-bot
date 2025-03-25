@@ -111,10 +111,10 @@ export const waterReminderHandler: ReminderHandler = {
 
       // Format the reaction time with rating
       const { formatted, rating, emoji } = streakTracker.formatReactionTime(reactionTime);
-      
+
       // Create reaction time and streak message
       let streakMessage = `${emoji} **Response time**: ${formatted} (${rating})`;
-      
+
       // Add streak update information if applicable
       if (streakResult.streakUpdated) {
         if (streakResult.protectionUsed) {
@@ -124,7 +124,7 @@ export const waterReminderHandler: ReminderHandler = {
         } else if (streakResult.streakIncreased) {
           const isQuickResponse = reactionTime <= streakTracker.QUICK_RESPONSE_THRESHOLD_MS;
           if (isQuickResponse) {
-            streakMessage += `\n🔥 **Quick response streak: ${streakResult.newStreak}** day${streakResult.newStreak !== 1 ? 's' : ''}!`;
+            streakMessage += `\n🔥 **Quick response streak: ${streakResult.newStreak}** quick response${streakResult.newStreak !== 1 ? 's' : ''}!`;
 
             // Add level up message if applicable
             if (streakResult.newLevel) {
