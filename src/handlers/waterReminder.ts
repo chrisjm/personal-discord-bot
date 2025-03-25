@@ -2,31 +2,52 @@ import { Client } from "discord.js";
 import { ReminderHandler } from "../types/reminder";
 import * as trackerDb from "../utils/trackingDatabase";
 
+// Constants for tracking
+const MAX_REACTION_TIME_MS = 3600000; // 60 minutes
+const TRACKING_TYPES = {
+  WATER: "water",
+  WATER_REACTION_TIME: "water_reaction_time"
+};
+const TRACKING_UNITS = {
+  MILLILITERS: "ml",
+  MILLISECONDS: "ms"
+};
+
 const REMINDER_MESSAGES = [
-  "💧 Time for a water break! Stay hydrated!",
-  "🚰 Hey there! Remember to drink some water!",
-  "💦 Hydration check! Take a moment to drink some water.",
-  "🌊 Your body needs water to function at its best. Time for a drink!",
-  "💧 Did you know? Staying hydrated helps improve focus and energy. Drink up!",
-  "🚰 Quick reminder to take care of yourself - have some water!",
-  "💦 Water break time! Your future self will thank you.",
-  "🌊 Stay awesome, stay hydrated! Time for some H2O!",
+  "💧 H2O alert! Your cells are sending an SOS for hydration!",
+  "🚰 Splash time! Your body's internal plants need watering.",
+  "💦 Hydration station calling! Time to refuel your liquid levels.",
+  "🌊 Water wizard says: Cast the spell of hydration upon thyself!",
+  "💧 Brain fog? Water is the windshield wiper for your mind!",
+  "🚰 Attention! Your personal ecosystem requires precipitation.",
+  "💦 Psst... your kidneys just texted: 'Send water!'",
+  "🌊 Mission: Hydration. Status: Pending. Action required!",
+  "💧 Water o'clock! The universal time for quenching thirst.",
+  "🚰 Friendly reminder: Humans are basically cucumbers with anxiety. Water yourself!",
+  "💦 Plot twist: The hero of your story is... water! Drink up!",
+  "🌊 Hydration vacation! Take a trip to Watertown, population: you.",
 ];
 
 const CONGRATULATORY_MESSAGES = [
-  "🎉 Great job staying hydrated!",
-  "💪 Your body thanks you for that water!",
-  "⭐ Keep up the great hydration habits!",
-  "🌟 Awesome! Your future self will thank you for staying hydrated!",
-  "🎊 That's the spirit! Stay hydrated, stay healthy!",
+  "🎉 Hydration achievement unlocked! +10 to all human stats!",
+  "💪 Water victory! Your cells are doing a happy dance right now.",
+  "⭐ Splash-tastic! You're officially a hydro-homie!",
+  "🌟 Magnificent moisturizing move! Your organs are applauding.",
+  "🎊 H2-Whoa! You're absolutely crushing this water game!",
+  "🏆 Liquid legend status achieved! Hydration hall of fame material.",
+  "🚀 Cellular celebration in progress! Thanks to your hydration heroics.",
+  "🌈 Brilliant! Your body's thirst sensors are doing a victory lap.",
 ];
 
 const ENCOURAGEMENT_MESSAGES = [
-  "💭 No worries! Remember, staying hydrated helps you feel more energetic!",
-  "🌱 Maybe next time! Water is your body's best friend.",
-  "💪 You've got this! Try to get some water when you can.",
-  "🌟 That's okay! Just remember to drink water when you get the chance.",
-  "💧 Take care of yourself! Even small sips throughout the day help.",
+  "💭 That's alright! Your next glass of water is your comeback story.",
+  "🌱 No pressure! Your hydration journey has many chapters ahead.",
+  "💪 Water you waiting for? Just kidding! Whenever you're ready.",
+  "🌟 The path to peak hydration isn't always straight! You'll get there.",
+  "💧 Even ocean waves take breaks! Grab some H2O when you can.",
+  "🌿 Plot twist: Even cacti need water sometimes. You're doing great!",
+  "🧠 Your future hydrated self is patiently waiting in the wings.",
+  "🔮 I foresee a glass of water in your near future! The stars (and your cells) will thank you.",
 ];
 
 const WATER_AMOUNT_ML = 250; // Assuming one glass of water is about 250ml
@@ -45,43 +66,71 @@ export const waterReminderHandler: ReminderHandler = {
     console.log(`[DEBUG] Water reminder handler started for user ${userId}`);
     const user = await client.users.fetch(userId);
     const message = await user.send(getRandomFromArray(REMINDER_MESSAGES));
-    console.log(`[DEBUG] Sent reminder message to user ${userId}`);
+
+    // Store the timestamp when the reminder was sent
+    const reminderSentTime = Date.now();
+    console.log(`[DEBUG] Sent reminder message to user ${userId} at ${reminderSentTime}`);
 
     // Start collecting reactions but don't await it
     // Create a filter for the collector
     const filter = (reaction: any, reactUser: any) =>
-      ["👍", "👎"].includes(reaction.emoji.name) && reactUser.id === userId;
+      reactUser.id === userId; // Accept any reaction from the user
 
     // Set up the collector without awaiting it
     const collector = message.createReactionCollector({
       filter,
       max: 1,
-      time: 300000, // 5 minutes timeout
+      time: MAX_REACTION_TIME_MS,
     });
 
     // Handle reactions asynchronously
     collector.on('collect', async (reaction) => {
+      // Calculate reaction time in milliseconds
+      const reactionTime = Date.now() - reminderSentTime;
+      console.log(`[DEBUG] User ${userId} reacted in ${reactionTime}ms with ${reaction.emoji.name}`);
+
+      // Track the reaction time regardless of reaction type
+      await trackerDb.addEntry(
+        userId,
+        TRACKING_TYPES.WATER_REACTION_TIME,
+        reactionTime,
+        TRACKING_UNITS.MILLISECONDS,
+        `Reaction: ${reaction.emoji.name}`
+      );
+
       if (reaction.emoji.name === "👍") {
         // User drank water
         console.log(`[DEBUG] User ${userId} confirmed drinking water`);
         await trackerDb.addEntry(
           userId,
-          "water",
+          TRACKING_TYPES.WATER,
           WATER_AMOUNT_ML,
-          "ml",
+          TRACKING_UNITS.MILLILITERS,
           "Water reminder",
         );
         await message.reply(getRandomFromArray(CONGRATULATORY_MESSAGES));
-      } else {
+      } else if (reaction.emoji.name === "👎") {
         // User didn't drink water
         console.log(`[DEBUG] User ${userId} declined drinking water`);
         await message.reply(getRandomFromArray(ENCOURAGEMENT_MESSAGES));
+      } else {
+        // User reacted with something else
+        console.log(`[DEBUG] User ${userId} reacted with ${reaction.emoji.name}`);
+        await message.reply("Thanks for acknowledging the reminder! Remember to stay hydrated!");
       }
     });
 
-    collector.on('end', (collected) => {
+    collector.on('end', async (collected) => {
       if (collected.size === 0) {
         console.log(`[DEBUG] No reaction received from user ${userId} after timeout`);
+        // Track no reaction at max time
+        await trackerDb.addEntry(
+          userId,
+          TRACKING_TYPES.WATER_REACTION_TIME,
+          MAX_REACTION_TIME_MS,
+          TRACKING_UNITS.MILLISECONDS,
+          "No reaction"
+        );
       }
     });
   },
