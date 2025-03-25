@@ -1,11 +1,10 @@
 # personal-discord-bot
 
-A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot includes various capabilities such as GPT integration, meditation sessions, news tracking, financial tools, time management, and more.
+A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot includes various capabilities such as GPT integration, news tracking, financial tools, time management, and more.
 
 ## Features
 
 - **GPT Integration**: Interact with GPT models for intelligent conversations
-- **Meditation**: Start meditation sessions with timer and ambient sounds
 - **News Tracking**: Follow and get updates from RSS feeds
 - **Financial Tools**: Track cryptocurrency prices and stock market data
 - **Time Management**: Handle timezone conversions and scheduling
@@ -73,11 +72,13 @@ These are initial steps to get things running:
 ### 4. Run the Bot
 
 1. Deploy slash commands (only needed once or when commands change):
+
    ```bash
    npm run deploy-commands
    ```
 
 2. Start the bot:
+
    ```bash
    # For production
    npm start
@@ -89,17 +90,17 @@ These are initial steps to get things running:
 ## Available Commands
 
 ### General
+
 - `/ping` - Check bot's latency, API latency, and uptime
 - `/server` - Get detailed server information including member count and boost tier
 - `/user` - Get user information
 
 ### AI & Chat
+
 - `/gpt [prompt]` - Interact with GPT-4 model for intelligent conversations
 
 ### Wellness & Health
-- `/meditate start [duration]` - Start a meditation session with ambient sounds (requires Meditation role)
-  - Duration format: e.g., "5min"
-- `/meditate stop` - Stop the current meditation session
+
 - `/track-water [action]` - Track your daily water intake
   - Actions: add, today, range
 - `/water-reminder [action]` - Set up automated water drinking reminders
@@ -107,6 +108,7 @@ These are initial steps to get things running:
   - `/water-reminder stop` - Stop receiving reminders
 
 ### Markets & Finance
+
 - `/markets` - Get a comprehensive overview of global markets including:
   - US Markets (S&P 500, Dow Jones, NASDAQ)
   - European Markets (DAX, FTSE 100, CAC 40)
@@ -116,8 +118,9 @@ These are initial steps to get things running:
   - Cryptocurrency prices
 
 ### News & Information
+
 - `/news [action]` - Get news updates from trusted sources
-  - Actions: 
+  - Actions:
     - `top` - Get top headlines
     - `yesterday` - Get popular news from yesterday
 
