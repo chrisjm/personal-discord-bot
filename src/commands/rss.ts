@@ -123,7 +123,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         await interaction.editReply({ embeds: [embed] });
       } catch (error) {
-        await interaction.editReply(`Failed to add RSS feed: ${error.message}`);
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : String(error);
+        await interaction.editReply(`Failed to add RSS feed: ${errorMessage}`);
       }
       break;
     }
@@ -145,14 +148,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           .addFields(
             feeds.map((feed) => ({
               name: feed.name,
-              value: `URL: ${feed.url}\nChannel: <#${feed.channelId}>\nFrequency: ${Math.floor(feed.updateFrequency / 60)} minutes`,
+              value: `URL: ${feed.url}\nChannel: <#${feed.channelId}>\nFrequency: ${Math.floor((feed.updateFrequency ?? 3600) / 60)} minutes`,
               inline: false,
             })),
           );
 
         await interaction.editReply({ embeds: [embed] });
       } catch (error) {
-        await interaction.editReply("Failed to list RSS feeds.");
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : String(error);
+        await interaction.editReply(`Failed to list RSS feeds: ${errorMessage}`);
       }
       break;
     }
@@ -174,7 +180,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         
         await interaction.editReply(`Removed RSS feed "${name}".`);
       } catch (error) {
-        await interaction.editReply(`Failed to remove RSS feed: ${error.message}`);
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : String(error);
+        await interaction.editReply(`Failed to remove RSS feed: ${errorMessage}`);
       }
       break;
     }
@@ -196,7 +205,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           `Force updated "${name}". Found ${items.length} new items.`,
         );
       } catch (error) {
-        await interaction.editReply(`Failed to force update: ${error.message}`);
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : String(error);
+        await interaction.editReply(`Failed to force update: ${errorMessage}`);
       }
       break;
     }
