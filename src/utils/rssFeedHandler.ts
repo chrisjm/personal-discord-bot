@@ -97,8 +97,10 @@ export async function updateFeed(feedName: string, client?: Client): Promise<voi
     }));
 
     // Store items in database
-    await addRSSItems(items);
-    await updateLastUpdateTime(feedName);
+    if (items.length > 0) {
+      await addRSSItems(items);
+      await updateLastUpdateTime(feedName);
+    }
 
     // Display new items if client is provided
     if (client) {
@@ -166,9 +168,9 @@ export async function displayAllUnprocessedItems(client: Client): Promise<void> 
     }
   } catch (error: unknown) {
     if (error instanceof Error) {
-      console.error("Failed to display unprocessed items: ${error.message}");
+      console.error(`Failed to display unprocessed items: ${error.message}`);
     } else {
-      console.error("Failed to display unprocessed items: ${String(error)}");
+      console.error(`Failed to display unprocessed items: ${String(error)}`);
     }
   }
 }

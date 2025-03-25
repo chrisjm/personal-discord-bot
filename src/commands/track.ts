@@ -84,7 +84,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (amount !== null) {
       // Direct amount provided
       try {
-        const message = await trackingDb.addEntry(type, amount, unit, note);
+        const message = await trackingDb.addEntry(interaction.user.id, type, amount, unit, note);
         await interaction.reply(message);
       } catch (e) {
         console.error(e);
@@ -161,6 +161,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
           try {
             const message = await trackingDb.addEntry(
+              interaction.user.id,
               trackType as TrackingType,
               trackAmount,
               TRACKING_TYPES[trackType as TrackingType].defaultUnit,
@@ -193,6 +194,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const endOfDay = now.endOf("day").toNativeDate().toISOString();
 
       const entries = await trackingDb.getEntriesInRange(
+        interaction.user.id,
         type,
         startOfDay,
         endOfDay,
@@ -236,6 +238,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const endOfWeek = now.endOf("week").toNativeDate().toISOString();
 
       const entries = await trackingDb.getEntriesInRange(
+        interaction.user.id,
         type,
         startOfWeek,
         endOfWeek,

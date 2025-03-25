@@ -65,6 +65,7 @@ export const waterReminderHandler: ReminderHandler = {
         // User drank water
         console.log(`[DEBUG] User ${userId} confirmed drinking water`);
         await trackerDb.addEntry(
+          userId,
           "water",
           WATER_AMOUNT_ML,
           "ml",
