@@ -1,6 +1,7 @@
 import { Client } from "discord.js";
 import { ReminderHandler } from "../types/reminder";
 import * as trackerDb from "../utils/trackingDatabase";
+import * as streakTracker from "../utils/streakTracker";
 
 // Constants for tracking
 const MAX_REACTION_TIME_MS = 3600000; // 60 minutes
@@ -101,6 +102,38 @@ export const waterReminderHandler: ReminderHandler = {
         `Reaction: ${reaction.emoji.name}`,
       );
 
+      // Update streak based on reaction time
+      const streakResult = await streakTracker.updateStreak(
+        userId,
+        streakTracker.STREAK_TYPES.WATER_QUICK_RESPONSE,
+        reactionTime
+      );
+
+      // Format the reaction time with rating
+      const { formatted, rating, emoji } = streakTracker.formatReactionTime(reactionTime);
+      
+      // Create reaction time and streak message
+      let streakMessage = `${emoji} **Response time**: ${formatted} (${rating})`;
+      
+      // Add streak update information if applicable
+      if (streakResult.streakUpdated) {
+        if (streakResult.protectionUsed) {
+          streakMessage += "\n🛡️ **Streak Protection Used!** Your streak continues!";
+        } else if (streakResult.streakBroken) {
+          streakMessage += "\n⚠️ Your quick response streak was reset. Starting a new streak!";
+        } else if (streakResult.streakIncreased) {
+          const isQuickResponse = reactionTime <= streakTracker.QUICK_RESPONSE_THRESHOLD_MS;
+          if (isQuickResponse) {
+            streakMessage += `\n🔥 **Quick response streak: ${streakResult.newStreak}** day${streakResult.newStreak !== 1 ? 's' : ''}!`;
+
+            // Add level up message if applicable
+            if (streakResult.newLevel) {
+              streakMessage += `\n🎖️ **LEVEL UP!** You've reached **${streakResult.newLevel.charAt(0).toUpperCase() + streakResult.newLevel.slice(1)}** level!`;
+            }
+          }
+        }
+      }
+
       if (reaction.emoji.name === "👍") {
         // User drank water
         console.log(`[DEBUG] User ${userId} confirmed drinking water`);
@@ -111,19 +144,35 @@ export const waterReminderHandler: ReminderHandler = {
           TRACKING_UNITS.MILLILITERS,
           "Water reminder",
         );
-        await message.reply(getRandomFromArray(CONGRATULATORY_MESSAGES));
+
+        // Combine congratulatory message with streak message if applicable
+        let replyMessage = getRandomFromArray(CONGRATULATORY_MESSAGES);
+        if (streakMessage) {
+          replyMessage += "\n\n" + streakMessage;
+        }
+        await message.reply(replyMessage);
       } else if (reaction.emoji.name === "👎") {
         // User didn't drink water
         console.log(`[DEBUG] User ${userId} declined drinking water`);
-        await message.reply(getRandomFromArray(ENCOURAGEMENT_MESSAGES));
+
+        // Combine encouragement message with streak message if applicable
+        let replyMessage = getRandomFromArray(ENCOURAGEMENT_MESSAGES);
+        if (streakMessage) {
+          replyMessage += "\n\n" + streakMessage;
+        }
+        await message.reply(replyMessage);
       } else {
         // User reacted with something else
         console.log(
           `[DEBUG] User ${userId} reacted with ${reaction.emoji.name}`,
         );
-        await message.reply(
-          "Thanks for acknowledging the reminder! Remember to stay hydrated!",
-        );
+
+        // Combine acknowledgment message with streak message if applicable
+        let replyMessage = "Thanks for acknowledging the reminder! Remember to stay hydrated!";
+        if (streakMessage) {
+          replyMessage += "\n\n" + streakMessage;
+        }
+        await message.reply(replyMessage);
       }
     });
 
@@ -139,6 +188,13 @@ export const waterReminderHandler: ReminderHandler = {
           MAX_REACTION_TIME_MS,
           TRACKING_UNITS.MILLISECONDS,
           "No reaction",
+        );
+
+        // Update streak with max reaction time (will likely break streak)
+        await streakTracker.updateStreak(
+          userId,
+          streakTracker.STREAK_TYPES.WATER_QUICK_RESPONSE,
+          MAX_REACTION_TIME_MS
         );
       }
     });
