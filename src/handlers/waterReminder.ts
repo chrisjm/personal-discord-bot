@@ -1,7 +1,9 @@
 import { Client } from "discord.js";
 import { ReminderHandler } from "../types/reminder";
 import * as trackerDb from "../utils/trackingDatabase";
-import * as streakTracker from "../utils/streakTracker";
+import * as streakService from "../utils/streakService";
+import * as streakFormatter from "../utils/streakFormatter";
+import { STREAK_TYPES } from "../constants/streaks";
 
 // Constants for tracking
 const MAX_REACTION_TIME_MS = 3600000; // 60 minutes
@@ -103,14 +105,14 @@ export const waterReminderHandler: ReminderHandler = {
       );
 
       // Update streak based on reaction time
-      const streakResult = await streakTracker.updateStreak(
+      const streakResult = await streakService.updateStreak(
         userId,
-        streakTracker.STREAK_TYPES.WATER_QUICK_RESPONSE,
+        STREAK_TYPES.WATER_QUICK_RESPONSE,
         reactionTime
       );
 
       // Format the reaction time and streak message using the new helper function
-      const streakMessage = streakTracker.formatStreakUpdateMessage(
+      const streakMessage = streakFormatter.formatStreakUpdateMessage(
         reactionTime,
         streakResult
       );
@@ -172,9 +174,9 @@ export const waterReminderHandler: ReminderHandler = {
         );
 
         // Update streak with max reaction time (will likely break streak)
-        await streakTracker.updateStreak(
+        await streakService.updateStreak(
           userId,
-          streakTracker.STREAK_TYPES.WATER_QUICK_RESPONSE,
+          STREAK_TYPES.WATER_QUICK_RESPONSE,
           MAX_REACTION_TIME_MS
         );
       }
