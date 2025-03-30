@@ -91,10 +91,22 @@ export async function updateStreak(
     let newLevel: string | null = null;
     let updatedStreak = streakData.currentStreak;
     let needsDbUpdate = false;
+    let finalLevel = streakData.streakLevel; // Start with current level
 
-    if (currentDayNumber > lastUpdateDayNumber) {
-      // Interaction is on a different day than the last update
-      needsDbUpdate = true; // Need to update at least the lastUpdated timestamp
+    // --- Check 1: Is this the very first interaction for this streak period? ---
+    if (streakData.currentStreak === 0) {
+      updatedStreak = 1;
+      streakIncreased = true;
+      needsDbUpdate = true;
+      finalLevel = STREAK_LEVELS.BRONZE;
+      if (finalLevel !== streakData.streakLevel) {
+        newLevel = finalLevel;
+      }
+      console.log(`[Streak] User ${userId} (${streakType}): Streak started! Set to ${updatedStreak}`);
+    }
+    // --- Check 2: Interaction on a different day, and streak was already active ---
+    else if (currentDayNumber > lastUpdateDayNumber) {
+      needsDbUpdate = true;
 
       if (currentDayNumber === lastUpdateDayNumber + 1) {
         // Interaction is on the consecutive day, increase streak
@@ -103,28 +115,40 @@ export async function updateStreak(
         console.log(`[Streak] User ${userId} (${streakType}): Consecutive day interaction. Streak increased to ${updatedStreak}`);
       } else {
         // Interaction is more than one day after the last update, streak broken
-        updatedStreak = 1; // Reset streak to 1 for today's interaction
+        updatedStreak = 1;
         streakBroken = true;
-        streakIncreased = false; // Resetting to 1 isn't considered an "increase" in the typical sense
+        streakIncreased = false;
+        finalLevel = STREAK_LEVELS.BRONZE;
         console.log(`[Streak] User ${userId} (${streakType}): Missed day(s). Streak reset to 1.`);
       }
 
-      // Check for new level if streak changed
-      if (updatedStreak >= STREAK_THRESHOLDS.DIAMOND && streakData.streakLevel !== STREAK_LEVELS.DIAMOND) {
-        newLevel = STREAK_LEVELS.DIAMOND;
-      } else if (updatedStreak >= STREAK_THRESHOLDS.GOLD && streakData.streakLevel !== STREAK_LEVELS.GOLD) {
-        newLevel = STREAK_LEVELS.GOLD;
-      } else if (updatedStreak >= STREAK_THRESHOLDS.SILVER && streakData.streakLevel !== STREAK_LEVELS.SILVER) {
-        newLevel = STREAK_LEVELS.SILVER;
-      } else if (updatedStreak >= STREAK_THRESHOLDS.BRONZE && streakData.streakLevel !== STREAK_LEVELS.BRONZE) {
-        newLevel = STREAK_LEVELS.BRONZE;
+      // Check for new level if streak changed (only if not already reset to Bronze)
+      if (!streakBroken) {
+        if (updatedStreak >= STREAK_THRESHOLDS.DIAMOND && streakData.streakLevel !== STREAK_LEVELS.DIAMOND) {
+          finalLevel = STREAK_LEVELS.DIAMOND;
+        } else if (updatedStreak >= STREAK_THRESHOLDS.GOLD && streakData.streakLevel !== STREAK_LEVELS.GOLD) {
+          finalLevel = STREAK_LEVELS.GOLD;
+        } else if (updatedStreak >= STREAK_THRESHOLDS.SILVER && streakData.streakLevel !== STREAK_LEVELS.SILVER) {
+          finalLevel = STREAK_LEVELS.SILVER;
+        } else if (updatedStreak >= STREAK_THRESHOLDS.BRONZE && streakData.streakLevel !== STREAK_LEVELS.BRONZE) {
+          finalLevel = STREAK_LEVELS.BRONZE;
+        }
       }
-    } else {
-      // Interaction is on the same day as the last update. Do nothing to the streak.
+
+      // Record if the level actually changed
+      if (finalLevel !== streakData.streakLevel) {
+        newLevel = finalLevel;
+      }
+
+    }
+    // --- Check 3: Interaction on the same day, and streak was already active ---
+    else if (currentDayNumber === lastUpdateDayNumber && streakData.currentStreak > 0) {
+      // Interaction is on the same day as the last update, and streak > 0. Do nothing.
       console.log(`[Streak] User ${userId} (${streakType}): Same day interaction. Streak remains ${updatedStreak}`);
+      needsDbUpdate = false;
     }
 
-    // Update streak in database only if something changed (streak value or it's a new day)
+    // Update streak in database only if something changed
     if (needsDbUpdate) {
       await db
         .update(streaks)
@@ -132,10 +156,7 @@ export async function updateStreak(
           currentStreak: updatedStreak,
           longestStreak: Math.max(updatedStreak, streakData.longestStreak),
           lastUpdated: now,
-          // Reset level if streak broken (and not starting fresh at 1), otherwise update if new level reached
-          streakLevel: streakBroken
-            ? (updatedStreak === 1 ? STREAK_LEVELS.NONE : streakData.streakLevel) // Keep level if reset to 1? No, reset to NONE.
-            : newLevel || streakData.streakLevel,
+          streakLevel: finalLevel,
         })
         .where(
           and(
@@ -143,14 +164,14 @@ export async function updateStreak(
             eq(streaks.streakType, streakType)
           )
         );
-      console.log(`[Streak] User ${userId} (${streakType}): DB updated. New Streak: ${updatedStreak}, Level: ${newLevel || streakData.streakLevel}, Last Updated: ${new Date(now).toISOString()}`);
+      console.log(`[Streak] User ${userId} (${streakType}): DB updated. New Streak: ${updatedStreak}, Level: ${finalLevel}, Last Updated: ${new Date(now).toISOString()}`);
 
     } else {
       console.log(`[Streak] User ${userId} (${streakType}): No DB update needed.`);
     }
 
     return {
-      streakUpdated: needsDbUpdate, // Indicates if *any* change occurred (streak value or lastUpdated)
+      streakUpdated: needsDbUpdate,
       streakIncreased,
       newStreak: updatedStreak,
       newLevel,
