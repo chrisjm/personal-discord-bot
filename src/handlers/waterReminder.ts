@@ -1,4 +1,4 @@
-import { Client } from "discord.js";
+import { Client, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction, MessageComponentInteraction, ButtonInteraction, ModalSubmitInteraction } from "discord.js";
 import { ReminderHandler } from "../types/reminder";
 import * as trackerDb from "../utils/trackingDatabase";
 import * as streakService from "../utils/streakService";
@@ -58,6 +58,58 @@ const WATER_AMOUNT_ML = 250; // Assuming one glass of water is about 250ml
 const getRandomFromArray = (arr: string[]): string =>
   arr[Math.floor(Math.random() * arr.length)];
 
+// Button Custom IDs
+const BUTTON_ID_LOG_250 = "log_water_250";
+const BUTTON_ID_LOG_500 = "log_water_500";
+const BUTTON_ID_LOG_CUSTOM = "log_water_custom";
+
+// Modal Custom ID
+const MODAL_ID_LOG_CUSTOM = "modal_log_water_custom";
+const INPUT_ID_CUSTOM_AMOUNT = "input_custom_water_amount";
+
+// --- Export necessary items for interactionCreate handler ---
+export { logWaterEntry, MODAL_ID_LOG_CUSTOM, INPUT_ID_CUSTOM_AMOUNT, STREAK_TYPES, MAX_REACTION_TIME_MS };
+// --- End Exports ---
+
+// Helper function to log water entry
+async function logWaterEntry(
+  userId: string,
+  amountMl: number,
+  interaction: ButtonInteraction | ModalSubmitInteraction // Can be triggered by button or modal
+) {
+  try {
+    await trackerDb.addEntry(
+      userId,
+      TRACKING_TYPES.WATER,
+      amountMl,
+      TRACKING_UNITS.MILLILITERS,
+      `Logged via button/modal`
+    );
+    console.log(`[DEBUG] User ${userId} logged ${amountMl}ml of water.`);
+
+    // Provide feedback to the user
+    const replyOptions = { content: `💧 Logged ${amountMl}ml of water! Stay hydrated!`, ephemeral: true };
+    if (interaction.isRepliable()) {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp(replyOptions);
+      } else {
+        await interaction.reply(replyOptions);
+      }
+    }
+  } catch (err) {
+    console.error("Error logging water entry:", err);
+    // Inform user about the error
+    const errorReplyOptions = { content: "❌ Sorry, there was an error logging your water intake.", ephemeral: true };
+    if (interaction.isRepliable()) {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp(errorReplyOptions);
+      } else {
+        await interaction.reply(errorReplyOptions);
+      }
+    }
+  }
+}
+
 export const waterReminderHandler: ReminderHandler = {
   type: "water",
   defaultMessages: REMINDER_MESSAGES,
@@ -68,117 +120,220 @@ export const waterReminderHandler: ReminderHandler = {
   onReminder: async (client: Client, userId: string) => {
     console.log(`[DEBUG] Water reminder handler started for user ${userId}`);
     const user = await client.users.fetch(userId);
-    const message = await user.send(getRandomFromArray(REMINDER_MESSAGES));
 
-    // Store the timestamp when the reminder was sent
+    // Create buttons
+    const log250Button = new ButtonBuilder()
+      .setCustomId(BUTTON_ID_LOG_250)
+      .setLabel("Log 250ml")
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji("💧"); // Optional emoji
+
+    const log500Button = new ButtonBuilder()
+      .setCustomId(BUTTON_ID_LOG_500)
+      .setLabel("Log 500ml")
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji("🌊"); // Optional emoji
+
+    const logCustomButton = new ButtonBuilder()
+      .setCustomId(BUTTON_ID_LOG_CUSTOM)
+      .setLabel("Log Custom...")
+      .setStyle(ButtonStyle.Secondary);
+
+    // Create action row
+    const row = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(log250Button, log500Button, logCustomButton);
+
+    // Send message with buttons
+    const message = await user.send({
+      content: getRandomFromArray(REMINDER_MESSAGES),
+      components: [row], // Add the buttons
+    });
+
     const reminderSentTime = Date.now();
-    console.log(
-      `[DEBUG] Sent reminder message to user ${userId} at ${reminderSentTime}`,
-    );
+    let streakUpdatedThisCycle = false; // Flag to ensure streak is updated only once
 
-    // Start collecting reactions but don't await it
-    // Create a filter for the collector
-    const filter = (reaction: any, reactUser: any) => reactUser.id === userId; // Accept any reaction from the user
-
-    // Set up the collector without awaiting it
-    const collector = message.createReactionCollector({
-      filter,
+    // --- Reaction Collector (for consistency streak) ---
+    const reactionCollector = message.createReactionCollector({
+      filter: (reaction: any, reactUser: any) => reactUser.id === userId,
       max: 1,
       time: MAX_REACTION_TIME_MS,
     });
 
-    // Handle reactions asynchronously
-    collector.on("collect", async (reaction) => {
-      // Calculate reaction time in milliseconds
-      const reactionTime = Date.now() - reminderSentTime;
-      console.log(
-        `[DEBUG] User ${userId} reacted in ${reactionTime}ms with ${reaction.emoji.name}`,
-      );
+    reactionCollector.on("collect", async (reaction) => {
+      if (streakUpdatedThisCycle) return; // Already handled by button
+      streakUpdatedThisCycle = true;
+      buttonCollector.stop(); // Stop listening for button clicks
 
-      // Track the reaction time regardless of reaction type
+      const reactionTime = Date.now() - reminderSentTime;
+      console.log(`[DEBUG] User ${userId} reacted in ${reactionTime}ms`);
+
+      // Track reaction time
       await trackerDb.addEntry(
         userId,
         TRACKING_TYPES.WATER_REACTION_TIME,
         reactionTime,
         TRACKING_UNITS.MILLISECONDS,
-        `Reaction: ${reaction.emoji.name}`,
+        `Reaction: ${reaction.emoji.name}`
       );
 
-      // Update streak based on reaction time
+      // Update daily consistency streak
       const streakResult = await streakService.updateStreak(
         userId,
-        STREAK_TYPES.WATER_QUICK_RESPONSE,
-        reactionTime
+        STREAK_TYPES.WATER_DAILY_CONSISTENCY
       );
 
-      // Format the reaction time and streak message using the new helper function
-      const streakMessage = streakFormatter.formatStreakUpdateMessage(
-        reactionTime,
-        streakResult
-      );
-
-      if (reaction.emoji.name === "👍") {
-        // User drank water
-        console.log(`[DEBUG] User ${userId} confirmed drinking water`);
-        await trackerDb.addEntry(
-          userId,
-          TRACKING_TYPES.WATER,
-          WATER_AMOUNT_ML,
-          TRACKING_UNITS.MILLILITERS,
-          "Water reminder",
-        );
-
-        // Combine congratulatory message with streak message if applicable
-        let replyMessage = getRandomFromArray(CONGRATULATORY_MESSAGES);
-        if (streakMessage) {
-          replyMessage += "\n\n" + streakMessage;
+      // Format and potentially send streak message (only if significant change)
+      const streakMessage = streakFormatter.formatStreakUpdateMessage(reactionTime, streakResult);
+      if (streakMessage) {
+        // Send streak update in a separate message or followup
+        try {
+          await message.reply(streakMessage);
+        } catch (err) {
+          console.warn("Could not reply to original message for streak update (likely deleted):", err);
+          try {
+            await user.send(streakMessage); // Send as new DM if reply fails
+          } catch (dmErr) {
+            console.error("Failed to send streak update as DM:", dmErr);
+          }
         }
-        await message.reply(replyMessage);
-      } else if (reaction.emoji.name === "👎") {
-        // User didn't drink water
-        console.log(`[DEBUG] User ${userId} declined drinking water`);
+      }
 
-        // Combine encouragement message with streak message if applicable
-        let replyMessage = getRandomFromArray(ENCOURAGEMENT_MESSAGES);
-        if (streakMessage) {
-          replyMessage += "\n\n" + streakMessage;
-        }
-        await message.reply(replyMessage);
-      } else {
-        // User reacted with something else
-        console.log(
-          `[DEBUG] User ${userId} reacted with ${reaction.emoji.name}`,
-        );
-
-        // Combine acknowledgment message with streak message if applicable
-        let replyMessage = "Thanks for acknowledging the reminder! Remember to stay hydrated!";
-        if (streakMessage) {
-          replyMessage += "\n\n" + streakMessage;
-        }
-        await message.reply(replyMessage);
+      // Disable buttons after interaction
+      row.components.forEach((button) => button.setDisabled(true));
+      try {
+        await message.edit({ components: [row] });
+      } catch (editErr) {
+        console.warn("Could not edit message to disable buttons (likely deleted):", editErr);
       }
     });
 
-    collector.on("end", async (collected) => {
-      if (collected.size === 0) {
-        console.log(
-          `[DEBUG] No reaction received from user ${userId} after timeout`,
-        );
+    // --- Button Interaction Collector ---
+    const buttonCollector = message.createMessageComponentCollector({
+      filter: (i: MessageComponentInteraction) =>
+        i.user.id === userId &&
+        [BUTTON_ID_LOG_250, BUTTON_ID_LOG_500, BUTTON_ID_LOG_CUSTOM].includes(i.customId),
+      max: 1, // Only collect one button interaction
+      time: MAX_REACTION_TIME_MS,
+    });
+
+    buttonCollector.on("collect", async (interaction: ButtonInteraction) => {
+      if (streakUpdatedThisCycle) return; // Already handled by reaction
+      streakUpdatedThisCycle = true;
+      reactionCollector.stop(); // Stop listening for reactions
+
+      const interactionTime = Date.now() - reminderSentTime;
+      console.log(`[DEBUG] User ${userId} interacted with button ${interaction.customId} after ${interactionTime}ms`);
+
+      // Track interaction time (similar to reaction time)
+      await trackerDb.addEntry(
+        userId,
+        TRACKING_TYPES.WATER_REACTION_TIME,
+        interactionTime,
+        TRACKING_UNITS.MILLISECONDS,
+        `Button interaction: ${interaction.customId}`
+      );
+
+      // Update daily consistency streak
+      const streakResult = await streakService.updateStreak(
+        userId,
+        STREAK_TYPES.WATER_DAILY_CONSISTENCY
+      );
+
+      // Handle specific button
+      try {
+        if (interaction.customId === BUTTON_ID_LOG_250) {
+          await logWaterEntry(userId, 250, interaction);
+        } else if (interaction.customId === BUTTON_ID_LOG_500) {
+          await logWaterEntry(userId, 500, interaction);
+        } else if (interaction.customId === BUTTON_ID_LOG_CUSTOM) {
+          // Show Modal
+          const modal = new ModalBuilder()
+            .setCustomId(MODAL_ID_LOG_CUSTOM)
+            .setTitle("Log Custom Water Amount");
+
+          const amountInput = new TextInputBuilder()
+            .setCustomId(INPUT_ID_CUSTOM_AMOUNT)
+            .setLabel("Amount (in ml)")
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder("e.g., 750")
+            .setRequired(true);
+
+          const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(amountInput);
+          modal.addComponents(firstActionRow);
+
+          await interaction.showModal(modal);
+          // Modal submission is handled separately (see Step 6)
+        }
+      } catch (error) {
+        console.error("Error handling button interaction:", error);
+        if (interaction.isRepliable()) {
+          const opts = { content: "An error occurred while processing your request.", ephemeral: true };
+          if (interaction.replied || interaction.deferred) await interaction.followUp(opts);
+          else await interaction.reply(opts);
+        }
+      }
+
+      // Format and potentially send streak message
+      const streakMessage = streakFormatter.formatStreakUpdateMessage(interactionTime, streakResult);
+      if (streakMessage) {
+        // Use interaction followup if possible, otherwise reply/send
+        const streakReplyOptions = { content: streakMessage, ephemeral: false }; // Show streak update publicly
+        try {
+          if (interaction.customId !== BUTTON_ID_LOG_CUSTOM) {
+            // Don't followup modal interaction here
+            if (interaction.replied || interaction.deferred) {
+              await interaction.followUp(streakReplyOptions);
+            } else {
+              // This case is tricky, replying might fail if modal was shown.
+              // Let's try sending a new message instead for simplicity after button clicks.
+              await user.send(streakMessage);
+            }
+          }
+          // If it was the custom button, the modal handler should send the streak update.
+        } catch (streakErr) {
+          console.warn("Could not send streak update after button interaction:", streakErr);
+          try {
+            await user.send(streakMessage); // Fallback to DM
+          } catch (dmErr) {
+            console.error("Failed to send streak update as DM after button:", dmErr);
+          }
+        }
+      }
+
+      // Disable buttons after interaction (unless it was the modal trigger)
+      if (interaction.customId !== BUTTON_ID_LOG_CUSTOM) {
+        row.components.forEach((button) => button.setDisabled(true));
+        try {
+          await message.edit({ components: [row] });
+        } catch (editErr) {
+          console.warn("Could not edit message to disable buttons (likely deleted):", editErr);
+        }
+      }
+    });
+
+    // --- Handle Collector End (Timeout) ---
+    // Combine logic: use the reaction collector's end event, but check the flag
+    reactionCollector.on("end", async (collected) => {
+      if (!streakUpdatedThisCycle && collected.size === 0) {
+        // Only run if no reaction AND no button was pressed
+        console.log(`[DEBUG] No reaction or button press from user ${userId} within timeout`);
+
+        // Ensure button collector is also stopped
+        if (!buttonCollector.ended) buttonCollector.stop();
+
         // Track no reaction at max time
         await trackerDb.addEntry(
           userId,
           TRACKING_TYPES.WATER_REACTION_TIME,
           MAX_REACTION_TIME_MS,
           TRACKING_UNITS.MILLISECONDS,
-          "No reaction",
+          "No interaction (timeout)"
         );
 
-        // Update streak with max reaction time (will likely break streak)
-        await streakService.updateStreak(
-          userId,
-          STREAK_TYPES.WATER_QUICK_RESPONSE,
-          MAX_REACTION_TIME_MS
-        );
+        // Update streak (will likely break streak or reset to 1)
+        await streakService.updateStreak(userId, STREAK_TYPES.WATER_DAILY_CONSISTENCY);
+
+        // Potentially inform user about timeout/streak break via DM?
       }
     });
   },

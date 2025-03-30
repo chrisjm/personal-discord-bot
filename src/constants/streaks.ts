@@ -1,6 +1,9 @@
 // Constants for streak system
 export const STREAK_TYPES = {
-  WATER_QUICK_RESPONSE: "water_quick_response",
+  // Deprecated for gamification, kept for potential data analysis
+  // WATER_QUICK_RESPONSE: "water_quick_response",
+  WATER_DAILY_CONSISTENCY: "water_daily_consistency",
+  // Add other streak types here if needed
 };
 
 export const STREAK_LEVELS = {
@@ -18,7 +21,6 @@ export const STREAK_THRESHOLDS = {
   DIAMOND: 30, // 30 consecutive quick responses
 };
 
-export const QUICK_RESPONSE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-export const MAX_REACTION_TIME_MS = 60 * 60 * 1000; // 60 minutes
-export const STREAK_PROTECTION_COOLDOWN_DAYS = 7; // Can use protection once per week
+export const MAX_REACTION_TIME_MS = 3600000; // 60 minutes (keep for tracking reaction timeout)
+
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;

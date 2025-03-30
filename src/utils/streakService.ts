@@ -5,9 +5,6 @@ import { randomUUID } from "crypto";
 import {
   STREAK_LEVELS,
   STREAK_THRESHOLDS,
-  QUICK_RESPONSE_THRESHOLD_MS,
-  MAX_REACTION_TIME_MS,
-  STREAK_PROTECTION_COOLDOWN_DAYS,
   MS_PER_DAY,
 } from "../constants/streaks";
 
@@ -16,9 +13,7 @@ export interface StreakRecord {
   currentStreak: number;
   longestStreak: number;
   streakLevel: string;
-  protectionUsed: number;
   lastUpdated: number;
-  lastProtectionUsed: number | null;
 }
 
 /**
@@ -46,7 +41,6 @@ export async function initializeStreak(userId: string, streakType: string): Prom
         currentStreak: 0,
         longestStreak: 0,
         lastUpdated: Date.now(),
-        protectionUsed: 0,
         streakLevel: STREAK_LEVELS.NONE,
       });
     }
@@ -63,17 +57,23 @@ export type UpdateStreakResult = {
   newStreak: number;
   newLevel: string | null;
   streakBroken: boolean;
-  protectionUsed: boolean;
+};
+
+// Helper function to get the day number (days since epoch)
+const getDayNumber = (timestamp: number): number => {
+  return Math.floor(timestamp / MS_PER_DAY);
 };
 
 /**
- * Update a user's streak based on their reaction time
- * Returns information about streak changes
+ * Update a user's **daily consistency** streak.
+ * Increases if the update is on the day after the last update.
+ * Resets to 1 if the update is more than one day after the last update.
+ * Does nothing if the update is on the same day as the last update.
+ * Returns information about streak changes.
  */
 export async function updateStreak(
   userId: string,
-  streakType: string,
-  reactionTimeMs: number
+  streakType: string
 ): Promise<UpdateStreakResult> {
   try {
     // Ensure streak record exists
@@ -83,49 +83,33 @@ export async function updateStreak(
     const streakData = await getStreakData(userId, streakType);
 
     const now = Date.now();
-    const daysSinceLastUpdate = Math.floor((now - streakData.lastUpdated) / MS_PER_DAY);
+    const currentDayNumber = getDayNumber(now);
+    const lastUpdateDayNumber = getDayNumber(streakData.lastUpdated);
 
     let streakIncreased = false;
     let streakBroken = false;
-    let protectionUsed = false;
-    let newLevel = null;
-
-    // Check if this is a quick response (within the threshold)
-    const isQuickResponse = reactionTimeMs <= QUICK_RESPONSE_THRESHOLD_MS;
-
-    // Default update values
+    let newLevel: string | null = null;
     let updatedStreak = streakData.currentStreak;
+    let needsDbUpdate = false;
 
-    // Check if the response is within the maximum allowed time
-    const isWithinMaxTime = reactionTimeMs <= MAX_REACTION_TIME_MS;
+    if (currentDayNumber > lastUpdateDayNumber) {
+      // Interaction is on a different day than the last update
+      needsDbUpdate = true; // Need to update at least the lastUpdated timestamp
 
-    if (!isWithinMaxTime) {
-      // Response is too slow, check if we can use streak protection
-      const canUseProtection =
-        (streakData.lastProtectionUsed === undefined ||
-          streakData.lastProtectionUsed === null ||
-          (now - streakData.lastProtectionUsed) >= STREAK_PROTECTION_COOLDOWN_DAYS * MS_PER_DAY);
-
-      if (canUseProtection && streakData.currentStreak > 0) {
-        // Use streak protection
-        protectionUsed = true;
-        // Streak remains the same, just update protection usage
+      if (currentDayNumber === lastUpdateDayNumber + 1) {
+        // Interaction is on the consecutive day, increase streak
+        updatedStreak = streakData.currentStreak + 1;
+        streakIncreased = true;
+        console.log(`[Streak] User ${userId} (${streakType}): Consecutive day interaction. Streak increased to ${updatedStreak}`);
       } else {
-        // Break streak
-        updatedStreak = 0;
+        // Interaction is more than one day after the last update, streak broken
+        updatedStreak = 1; // Reset streak to 1 for today's interaction
         streakBroken = true;
+        streakIncreased = false; // Resetting to 1 isn't considered an "increase" in the typical sense
+        console.log(`[Streak] User ${userId} (${streakType}): Missed day(s). Streak reset to 1.`);
       }
-    } else if (isQuickResponse) {
-      // Quick response, increase streak
-      updatedStreak = streakData.currentStreak + 1;
-      streakIncreased = true;
-    } else {
-      // Response is within max time but not quick enough
-      // Don't increase streak, but don't break it either
-    }
 
-    // Calculate new streak level if streak increased
-    if (streakIncreased) {
+      // Check for new level if streak changed
       if (updatedStreak >= STREAK_THRESHOLDS.DIAMOND && streakData.streakLevel !== STREAK_LEVELS.DIAMOND) {
         newLevel = STREAK_LEVELS.DIAMOND;
       } else if (updatedStreak >= STREAK_THRESHOLDS.GOLD && streakData.streakLevel !== STREAK_LEVELS.GOLD) {
@@ -135,36 +119,42 @@ export async function updateStreak(
       } else if (updatedStreak >= STREAK_THRESHOLDS.BRONZE && streakData.streakLevel !== STREAK_LEVELS.BRONZE) {
         newLevel = STREAK_LEVELS.BRONZE;
       }
+    } else {
+      // Interaction is on the same day as the last update. Do nothing to the streak.
+      console.log(`[Streak] User ${userId} (${streakType}): Same day interaction. Streak remains ${updatedStreak}`);
     }
 
-    // Update streak in database
-    await db
-      .update(streaks)
-      .set({
-        currentStreak: updatedStreak,
-        longestStreak: Math.max(updatedStreak, streakData.longestStreak),
-        lastUpdated: now,
-        protectionUsed: protectionUsed ? streakData.protectionUsed + 1 : streakData.protectionUsed,
-        lastProtectionUsed: protectionUsed ? now : streakData.lastProtectionUsed,
-        // Reset level if streak broken, otherwise update if new level reached
-        streakLevel: streakBroken
-          ? STREAK_LEVELS.NONE
-          : newLevel || streakData.streakLevel,
-      })
-      .where(
-        and(
-          eq(streaks.userId, userId),
-          eq(streaks.streakType, streakType)
-        )
-      );
+    // Update streak in database only if something changed (streak value or it's a new day)
+    if (needsDbUpdate) {
+      await db
+        .update(streaks)
+        .set({
+          currentStreak: updatedStreak,
+          longestStreak: Math.max(updatedStreak, streakData.longestStreak),
+          lastUpdated: now,
+          // Reset level if streak broken (and not starting fresh at 1), otherwise update if new level reached
+          streakLevel: streakBroken
+            ? (updatedStreak === 1 ? STREAK_LEVELS.NONE : streakData.streakLevel) // Keep level if reset to 1? No, reset to NONE.
+            : newLevel || streakData.streakLevel,
+        })
+        .where(
+          and(
+            eq(streaks.userId, userId),
+            eq(streaks.streakType, streakType)
+          )
+        );
+      console.log(`[Streak] User ${userId} (${streakType}): DB updated. New Streak: ${updatedStreak}, Level: ${newLevel || streakData.streakLevel}, Last Updated: ${new Date(now).toISOString()}`);
+
+    } else {
+      console.log(`[Streak] User ${userId} (${streakType}): No DB update needed.`);
+    }
 
     return {
-      streakUpdated: streakIncreased || streakBroken || protectionUsed,
+      streakUpdated: needsDbUpdate, // Indicates if *any* change occurred (streak value or lastUpdated)
       streakIncreased,
       newStreak: updatedStreak,
       newLevel,
       streakBroken,
-      protectionUsed,
     };
   } catch (err) {
     console.error("Database error in updateStreak:", err);
@@ -200,14 +190,12 @@ export async function getStreakData(userId: string, streakType: string): Promise
 
     const data = results[0];
 
-    // Return the raw data; calculation of protection availability is moved to callers/formatters
+    // Return a mapped object matching StreakRecord, excluding removed fields
     return {
       currentStreak: data.currentStreak,
       longestStreak: data.longestStreak,
-      streakLevel: data.streakLevel,
-      protectionUsed: data.protectionUsed,
+      streakLevel: data.streakLevel || STREAK_LEVELS.NONE, // Ensure level is never null/undefined
       lastUpdated: data.lastUpdated,
-      lastProtectionUsed: data.lastProtectionUsed,
     };
   } catch (err) {
     console.error("Database error in getStreakData:", err);

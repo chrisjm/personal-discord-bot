@@ -4,13 +4,12 @@ import { getStreakStatusMessage } from "../utils/streakFormatter";
 import { 
   STREAK_TYPES, 
   STREAK_LEVELS, 
-  QUICK_RESPONSE_THRESHOLD_MS, 
   MAX_REACTION_TIME_MS 
 } from "../constants/streaks"; 
 
 export const data = new SlashCommandBuilder()
   .setName("water-streak")
-  .setDescription("View your water reminder quick response streak status");
+  .setDescription("View your daily water logging streak status");
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   const userId = interaction.user.id;
@@ -19,7 +18,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Get streak data for the user using the new service
     const streakData: StreakRecord | null = await getStreakData(
       userId,
-      STREAK_TYPES.WATER_QUICK_RESPONSE
+      STREAK_TYPES.WATER_DAILY_CONSISTENCY
     );
 
     // Create an embed for streak status
@@ -31,7 +30,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         .setTitle("💧 Water Reminder Streak Status")
         .setDescription(getStreakStatusMessage(streakData))
         .setFooter({ 
-          text: `Quick responses are under ${QUICK_RESPONSE_THRESHOLD_MS / (60 * 1000)} minutes. Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
+          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
         })
         .setTimestamp();
     } else {
@@ -40,7 +39,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         .setTitle("💧 Water Reminder Streak Status")
         .setDescription("You haven't started tracking your water reminder streaks yet!")
         .setFooter({ 
-          text: `Quick responses are under ${QUICK_RESPONSE_THRESHOLD_MS / (60 * 1000)} minutes. Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
+          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
         })
         .setTimestamp();
     }
