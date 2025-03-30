@@ -3,7 +3,7 @@ import { ReminderHandler } from "../types/reminder";
 import * as trackerDb from "../utils/trackingDatabase";
 import * as streakService from "../utils/streakService";
 import * as streakFormatter from "../utils/streakFormatter";
-import { STREAK_TYPES } from "../constants/streaks";
+import { STREAK_TYPES, DEFAULT_DAILY_WATER_TARGET_ML } from "../constants/streaks";
 
 // Constants for tracking
 const MAX_REACTION_TIME_MS = 3600000; // 60 minutes
@@ -86,16 +86,6 @@ async function logWaterEntry(
       `Logged via button/modal`
     );
     console.log(`[DEBUG] User ${userId} logged ${amountMl}ml of water.`);
-
-    // Provide feedback to the user
-    const replyOptions = { content: `💧 Logged ${amountMl}ml of water! Stay hydrated!`, ephemeral: true };
-    if (interaction.isRepliable()) {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.followUp(replyOptions);
-      } else {
-        await interaction.reply(replyOptions);
-      }
-    }
   } catch (err) {
     console.error("Error logging water entry:", err);
     // Inform user about the error
@@ -182,8 +172,16 @@ export const waterReminderHandler: ReminderHandler = {
         STREAK_TYPES.WATER_DAILY_CONSISTENCY
       );
 
-      // Format and potentially send streak message (only if significant change)
-      const streakMessage = streakFormatter.formatStreakUpdateMessage(reactionTime, streakResult);
+      // Fetch daily water total
+      const todayDateStr = new Date().toISOString().split('T')[0];
+      const dailyIntake = await trackerDb.getTotalForDay(userId, TRACKING_TYPES.WATER, todayDateStr);
+
+      // Format and potentially send streak message
+      const streakMessage = streakFormatter.formatStreakUpdateMessage(
+        streakResult,
+        dailyIntake,
+        DEFAULT_DAILY_WATER_TARGET_ML
+      );
       if (streakMessage) {
         // Send streak update in a separate message or followup
         try {
@@ -239,6 +237,25 @@ export const waterReminderHandler: ReminderHandler = {
         STREAK_TYPES.WATER_DAILY_CONSISTENCY
       );
 
+      // Fetch daily water total (needed for formatter)
+      const todayDateStr = new Date().toISOString().split('T')[0];
+      const dailyIntake = await trackerDb.getTotalForDay(userId, TRACKING_TYPES.WATER, todayDateStr);
+
+      // Format and potentially send streak message
+      const streakMessage = streakFormatter.formatStreakUpdateMessage(
+        streakResult,
+        dailyIntake,
+        DEFAULT_DAILY_WATER_TARGET_ML
+      );
+      if (streakMessage) {
+        // Send streak update as a new DM instead of follow-up
+        try {
+          await user.send(streakMessage);
+        } catch (dmErr) {
+          console.error(`Failed to send streak update DM to user ${userId}:`, dmErr);
+        }
+      }
+
       // Handle specific button
       try {
         if (interaction.customId === BUTTON_ID_LOG_250) {
@@ -270,33 +287,6 @@ export const waterReminderHandler: ReminderHandler = {
           const opts = { content: "An error occurred while processing your request.", ephemeral: true };
           if (interaction.replied || interaction.deferred) await interaction.followUp(opts);
           else await interaction.reply(opts);
-        }
-      }
-
-      // Format and potentially send streak message
-      const streakMessage = streakFormatter.formatStreakUpdateMessage(interactionTime, streakResult);
-      if (streakMessage) {
-        // Use interaction followup if possible, otherwise reply/send
-        const streakReplyOptions = { content: streakMessage, ephemeral: false }; // Show streak update publicly
-        try {
-          if (interaction.customId !== BUTTON_ID_LOG_CUSTOM) {
-            // Don't followup modal interaction here
-            if (interaction.replied || interaction.deferred) {
-              await interaction.followUp(streakReplyOptions);
-            } else {
-              // This case is tricky, replying might fail if modal was shown.
-              // Let's try sending a new message instead for simplicity after button clicks.
-              await user.send(streakMessage);
-            }
-          }
-          // If it was the custom button, the modal handler should send the streak update.
-        } catch (streakErr) {
-          console.warn("Could not send streak update after button interaction:", streakErr);
-          try {
-            await user.send(streakMessage); // Fallback to DM
-          } catch (dmErr) {
-            console.error("Failed to send streak update as DM after button:", dmErr);
-          }
         }
       }
 

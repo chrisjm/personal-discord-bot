@@ -118,3 +118,26 @@ export async function getEntriesForDay(
     throw err;
   }
 }
+
+/**
+ * Get the total amount for a specific tracking type on a given day.
+ * @param userId The user ID.
+ * @param type The tracking type (e.g., "water").
+ * @param date The date string in YYYY-MM-DD format.
+ * @returns The sum of amounts for that day.
+ */
+export async function getTotalForDay(
+  userId: string,
+  type: string,
+  date: string
+): Promise<number> {
+  try {
+    const entries = await getEntriesForDay(userId, type, date);
+    const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+    console.log(`[DB] Total ${type} for user ${userId} on ${date}: ${total}`);
+    return total;
+  } catch (err) {
+    console.error("Database error in getTotalForDay:", err);
+    throw err;
+  }
+}
