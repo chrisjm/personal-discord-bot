@@ -380,3 +380,49 @@ export function formatReactionTime(reactionTimeMs: number): { formatted: string;
   
   return { formatted, rating, emoji };
 }
+
+// Helper type for the result of updateStreak
+type UpdateStreakResult = Awaited<ReturnType<typeof updateStreak>>;
+
+/**
+ * Format the streak update message based on reaction time and update results.
+ * @param reactionTimeMs The time taken to react in milliseconds.
+ * @param streakResult The result object from the updateStreak function.
+ * @returns A formatted string describing the reaction time and streak status.
+ */
+export function formatStreakUpdateMessage(
+  reactionTimeMs: number,
+  streakResult: UpdateStreakResult
+): string {
+  const { formatted, rating, emoji } = formatReactionTime(reactionTimeMs);
+  let message = `${emoji} **Response time**: ${formatted} (${rating})`;
+
+  // Add streak update information if applicable
+  if (streakResult.streakUpdated) {
+    if (streakResult.protectionUsed) {
+      message += `\n🛡️ **Streak Protection Used!** Your streak (${streakResult.newStreak}) continues!`;
+    } else if (streakResult.streakBroken) {
+      message += "\n⚠️ Your quick response streak was reset.";
+    } else if (streakResult.streakIncreased) {
+      // Only add positive streak info if it actually increased
+      message += `\n🔥 **Quick response streak: ${
+        streakResult.newStreak
+      }** quick response${streakResult.newStreak !== 1 ? "s" : ""}!`;
+
+      // Add level up message if applicable
+      if (streakResult.newLevel) {
+        message += `\n🎖️ **LEVEL UP!** You've reached **${
+          streakResult.newLevel.charAt(0).toUpperCase() +
+          streakResult.newLevel.slice(1)
+        }** level!`;
+      }
+    }
+  } else {
+      // If streak didn't update (and wasn't broken), it means it was maintained (valid response but not quick)
+      if (streakResult.newStreak > 0) { // Only show if there's an active streak
+          message += `\n✅ Streak maintained at ${streakResult.newStreak} quick response${streakResult.newStreak !== 1 ? 's' : ''}.`;
+      }
+  }
+
+  return message;
+}

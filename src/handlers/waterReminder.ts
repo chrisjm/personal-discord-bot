@@ -109,30 +109,11 @@ export const waterReminderHandler: ReminderHandler = {
         reactionTime
       );
 
-      // Format the reaction time with rating
-      const { formatted, rating, emoji } = streakTracker.formatReactionTime(reactionTime);
-
-      // Create reaction time and streak message
-      let streakMessage = `${emoji} **Response time**: ${formatted} (${rating})`;
-
-      // Add streak update information if applicable
-      if (streakResult.streakUpdated) {
-        if (streakResult.protectionUsed) {
-          streakMessage += "\n🛡️ **Streak Protection Used!** Your streak continues!";
-        } else if (streakResult.streakBroken) {
-          streakMessage += "\n⚠️ Your quick response streak was reset. Starting a new streak!";
-        } else if (streakResult.streakIncreased) {
-          const isQuickResponse = reactionTime <= streakTracker.QUICK_RESPONSE_THRESHOLD_MS;
-          if (isQuickResponse) {
-            streakMessage += `\n🔥 **Quick response streak: ${streakResult.newStreak}** quick response${streakResult.newStreak !== 1 ? 's' : ''}!`;
-
-            // Add level up message if applicable
-            if (streakResult.newLevel) {
-              streakMessage += `\n🎖️ **LEVEL UP!** You've reached **${streakResult.newLevel.charAt(0).toUpperCase() + streakResult.newLevel.slice(1)}** level!`;
-            }
-          }
-        }
-      }
+      // Format the reaction time and streak message using the new helper function
+      const streakMessage = streakTracker.formatStreakUpdateMessage(
+        reactionTime,
+        streakResult
+      );
 
       if (reaction.emoji.name === "👍") {
         // User drank water
