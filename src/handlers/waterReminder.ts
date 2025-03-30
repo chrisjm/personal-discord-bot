@@ -86,6 +86,20 @@ async function logWaterEntry(
       `Logged via button/modal`
     );
     console.log(`[DEBUG] User ${userId} logged ${amountMl}ml of water.`);
+
+    // Provide feedback to the user - reply directly
+    const replyOptions = { content: `💧 Logged ${amountMl}ml of water! Stay hydrated!` };
+    if (interaction.isRepliable()) {
+      // Check if deferred from modal submission or already replied (shouldn't happen often here)
+      if (interaction.deferred || interaction.replied) {
+        // If already deferred/replied (e.g., by modal system), follow up
+        // Using followUp here as a safety, though direct reply is typical for logWaterEntry
+        await interaction.followUp(replyOptions);
+      } else {
+        // Otherwise, reply directly
+        await interaction.reply(replyOptions);
+      }
+    }
   } catch (err) {
     console.error("Error logging water entry:", err);
     // Inform user about the error
