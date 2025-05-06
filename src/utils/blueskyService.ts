@@ -4,28 +4,41 @@ import { blueskyFeedCache } from '../db/schema/blueskyCache';
 import { BlueskyConfig, BlueskyPost, Summary } from '../types/bluesky';
 import fs from 'fs';
 import path from 'path';
-
-// Theme keywords mapping
-const THEME_KEYWORDS: Record<string, string[]> = {
-  'tech': ['coding', 'programming', 'developer', 'software', 'tech', 'ai', 'machine learning'],
-  'crypto': ['bitcoin', 'ethereum', 'crypto', 'blockchain', 'web3', 'nft'],
-  'news': ['breaking', 'news', 'today', 'announced', 'launches'],
-  'other': [] // Default theme
-};
+import { openaiProvider } from '../commands/llms/providers/openai';
 
 /**
- * Determines the theme of a post based on its content
+ * Processes a batch of posts using GPT-4.1-mini to categorize and summarize them
+ * @param posts Array of Bluesky posts to process
+ * @returns An array of objects containing post URI, theme, and summary
  */
-function determineTheme(post: BlueskyPost): string {
-  const text = post.record.text.toLowerCase();
+async function summarizePosts(posts: BlueskyPost[]): Promise<string> {
+  if (posts.length === 0) return '';
 
-  for (const [theme, keywords] of Object.entries(THEME_KEYWORDS)) {
-    if (keywords.some(keyword => text.includes(keyword.toLowerCase()))) {
-      return theme;
-    }
+  try {
+    // Format the posts for the prompt
+    const postsText = posts.map((post, index) => {
+      const authorName = post.author.displayName || post.author.handle;
+      return `POST ${index + 1}: [${post.uri}] ${authorName}: "${post.record.text}"`;
+    }).join('\n\n');
+
+    const prompt = `
+      Analyze the following social media posts, group them into themes, and summarize each theme. Feel free to use emojis and Discord formatting.
+
+      Here are the posts to analyze:
+      ${postsText}
+    `;
+
+    const result = await openaiProvider.complete(prompt, {
+      model: "gpt-4o-mini",
+      maxTokens: 5000,
+      temperature: 0.3
+    });
+
+    return result.content;
+  } catch (error) {
+    console.error('Error processing posts with GPT-4.1-mini:', error);
+    return '';
   }
-
-  return 'other';
 }
 
 // Path to store session data
@@ -269,30 +282,40 @@ const getCronSchedule = (): string => {
 };
 
 /**
- * Fetches and summarizes the Bluesky feed
+ * Fetches and summarizes the Bluesky feed for a specific time period
+ * @param startTime Optional start time in ISO format; defaults to 1 hour ago
+ * @param endTime Optional end time in ISO format; defaults to now
  */
-const fetchAndSummarize = async (): Promise<Summary> => {
+const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<string> => {
   if (!await init()) {
-    return {};
+    return '';
   }
 
   try {
     if (!agent) {
       console.error('Bluesky agent not initialized');
-      return {};
+      return '';
     }
 
-    // Get timeline (either home or user's feed based on config)
+    // Default time range: last hour
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    const start = startTime ? new Date(startTime) : oneHourAgo;
+    const end = endTime ? new Date(endTime) : now;
+
+    console.log(`Fetching Bluesky posts from ${start.toISOString()} to ${end.toISOString()}`);
+
+    // Get timeline with a higher limit to capture the full hour
     const timeline = await agent.api.app.bsky.feed.getTimeline({
-      limit: 50,
-      cursor: cursor
+      limit: 100 // Increased from 50
     });
 
     // Update cursor for next fetch
     cursor = timeline.data.cursor;
 
     // Transform to our BlueskyPost type
-    const posts: BlueskyPost[] = timeline.data.feed.map(item => ({
+    let posts: BlueskyPost[] = timeline.data.feed.map(item => ({
       uri: item.post.uri,
       cid: item.post.cid,
       author: {
@@ -308,31 +331,33 @@ const fetchAndSummarize = async (): Promise<Summary> => {
       replyCount: item.post.replyCount
     }));
 
-    // Group by themes
-    const summary: Summary = {};
+    // Filter posts by time range
+    posts = posts.filter(post => {
+      const postDate = new Date(post.indexedAt);
+      return postDate >= start && postDate <= end;
+    });
 
-    for (const post of posts) {
-      const theme = determineTheme(post);
+    console.log(`Found ${posts.length} posts in the specified time range`);
 
-      if (!summary[theme]) {
-        summary[theme] = [];
-      }
-
-      summary[theme].push(post);
-
-      // Store in cache
-      await db.insert(blueskyFeedCache).values({
-        record_uri: post.uri,
-        fetched_at: Date.now(),
-        theme,
-        content: post.record.text
-      }).onConflictDoNothing();
+    if (posts.length === 0) {
+      return '';
     }
 
-    return summary;
+    // Store posts in cache
+    await db.insert(blueskyFeedCache).values(posts.map(post => ({
+      record_uri: post.uri,
+      fetched_at: Date.now(),
+      theme: '',
+      content: post.record.text
+    })));
+
+    // Summarize posts
+    const summarizedPosts = await summarizePosts(posts);
+
+    return summarizedPosts;
   } catch (error) {
     console.error('Error fetching Bluesky feed:', error);
-    return {};
+    return '';
   }
 };
 

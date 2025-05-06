@@ -1,80 +1,74 @@
 import cron from 'node-cron';
 import { fetchAndSummarize, getChannelId, getCronSchedule } from '../utils/blueskyService';
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
-import { BlueskyPost, Summary } from '../types/bluesky';
+import { Client, TextChannel } from 'discord.js';
 
 /**
- * Formats a Bluesky post for Discord embed
+ * Fetches Bluesky posts and sends the AI-generated summary to a Discord channel
  */
-function formatPost(post: BlueskyPost): string {
-  const author = post.author.displayName || post.author.handle;
-  const text = post.record.text.length > 200 
-    ? post.record.text.substring(0, 197) + '...' 
-    : post.record.text;
+async function fetchAndSendSummary(client: Client, timeRangeMinutes = 60): Promise<void> {
+  const channelId = getChannelId();
   
-  return `**${author}**: ${text}\n`;
+  if (!channelId) {
+    console.warn('Bluesky summary not sent: missing channel ID');
+    return;
+  }
+  
+  try {
+    // Calculate the time range
+    const now = new Date();
+    const startTime = new Date(now.getTime() - timeRangeMinutes * 60 * 1000);
+    
+    console.log(`Fetching Bluesky feed summary for the past ${timeRangeMinutes} minutes (${startTime.toISOString()} to ${now.toISOString()})...`);
+    
+    // Get the AI-generated summary
+    const summary = await fetchAndSummarize(startTime.toISOString(), now.toISOString());
+    
+    if (!summary) {
+      console.log(`No Bluesky posts to summarize for the past ${timeRangeMinutes} minutes`);
+      return;
+    }
+    
+    // Get the channel and send the summary
+    const channel = client.channels.cache.get(channelId) as TextChannel;
+    if (!channel) {
+      console.error(`Could not find channel with ID ${channelId}`);
+      return;
+    }
+    
+    // Send the AI-generated summary directly to the channel
+    await channel.send(summary);
+    console.log('Bluesky summary posted successfully');
+  } catch (error) {
+    console.error('Error posting Bluesky summary:', error);
+  }
 }
 
 /**
- * Creates a Discord embed for a theme and its posts
- */
-function createThemeEmbed(theme: string, posts: BlueskyPost[]): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(`📱 Bluesky ${theme.charAt(0).toUpperCase() + theme.slice(1)} Summary`)
-    .setColor(theme === 'tech' ? '#3498db' : 
-              theme === 'crypto' ? '#f1c40f' : 
-              theme === 'news' ? '#e74c3c' : '#95a5a6')
-    .setTimestamp()
-    .setFooter({ text: `${posts.length} posts in this category` });
-  
-  // Add up to 10 posts to the embed
-  const content = posts.slice(0, 10).map(formatPost).join('\n');
-  embed.setDescription(content);
-  
-  return embed;
-}
-
-/**
- * Schedules hourly Bluesky feed summaries
+ * Schedules Bluesky feed summaries and runs on startup
  */
 export function scheduleBlueskySummaries(client: Client) {
   const channelId = getChannelId();
-  const cronExpression = getCronSchedule();
   
   if (!channelId) {
     console.warn('Bluesky summaries not scheduled: missing channel ID');
     return;
   }
   
-  console.log(`Scheduling Bluesky summaries with cron: ${cronExpression}`);
+  // Testing: Use a 5-minute schedule instead of the configured one
+  const testingSchedule = '*/5 * * * *'; // Every 5 minutes
+  console.log(`Scheduling Bluesky summaries to run every 5 minutes for testing`);
   
-  cron.schedule(cronExpression, async () => {
-    try {
-      console.log('Fetching Bluesky feed summary...');
-      const summary: Summary = await fetchAndSummarize();
-      
-      if (Object.keys(summary).length === 0) {
-        console.log('No Bluesky posts to summarize');
-        return;
-      }
-      
-      const channel = client.channels.cache.get(channelId) as TextChannel;
-      if (!channel) {
-        console.error(`Could not find channel with ID ${channelId}`);
-        return;
-      }
-      
-      // Send a message for each theme that has posts
-      for (const [theme, posts] of Object.entries(summary)) {
-        if (posts.length > 0) {
-          const embed = createThemeEmbed(theme, posts);
-          await channel.send({ embeds: [embed] });
-        }
-      }
-      
-      console.log('Bluesky summary posted successfully');
-    } catch (error) {
-      console.error('Error posting Bluesky summary:', error);
-    }
+  // Schedule the recurring task
+  cron.schedule(testingSchedule, async () => {
+    // Use a 5-minute window for testing
+    await fetchAndSendSummary(client, 5);
   });
+  
+  // Run immediately on startup with a 30-minute window
+  console.log('Running initial Bluesky summary on startup...');
+  setTimeout(() => {
+    fetchAndSendSummary(client, 30).catch(error => {
+      console.error('Error running initial Bluesky summary:', error);
+    });
+  }, 5000); // Wait 5 seconds after bot startup before running
 }
