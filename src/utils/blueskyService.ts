@@ -9,27 +9,37 @@ import { openaiProvider } from '../commands/llms/providers/openai';
 /**
  * Processes a batch of posts using GPT-4.1-mini to categorize and summarize them
  * @param posts Array of Bluesky posts to process
- * @returns An array of objects containing post URI, theme, and summary
+ * @returns A concise summary of the posts grouped by themes
  */
 async function summarizePosts(posts: BlueskyPost[]): Promise<string> {
   if (posts.length === 0) return '';
 
   try {
-    // Format the posts for the prompt
+    // Format the posts for the prompt, including reposts
     const postsText = posts.map((post, index) => {
       const authorName = post.author.displayName || post.author.handle;
-      return `POST ${index + 1}: [${post.uri}] ${authorName}: "${post.record.text}"`;
+      let postText = `${authorName}: "${post.record.text}"`;
+
+      // Include repost information if available
+      if (post.repost) {
+        const repostAuthor = post.repost.author.displayName || post.repost.author.handle;
+        postText += `\n[Reposting ${repostAuthor}: "${post.repost.text}"]`;
+      }
+
+      return postText;
     }).join('\n\n');
 
     const prompt = `
-      Analyze the following social media posts, group them into themes, and summarize each theme. Feel free to use emojis and Discord formatting.
+      Analyze these social media posts and create a concise summary grouped by themes. Use emojis and Discord formatting to make it engaging.
 
-      Here are the posts to analyze:
+      Focus on the most interesting conversations and trends. Don't mention post IDs or that this is an automated summary.
+
+      Posts to analyze:
       ${postsText}
     `;
 
     const result = await openaiProvider.complete(prompt, {
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       maxTokens: 5000,
       temperature: 0.3
     });
@@ -67,7 +77,7 @@ const initConfig = (): BlueskyConfig => {
   return {
     apiUrl: process.env.BLUESKY_API_URL || 'https://bsky.social',
     handle: process.env.BLUESKY_ACCOUNT_HANDLE || '',
-    appPassword: process.env.BLUESKY_API_TOKEN || '',
+    appPassword: process.env.BLUESKY_APP_PASSWORD || '',
     channelId: process.env.BLUESKY_CHANNEL_ID || '',
     cronSchedule: process.env.CRON_SCHEDULE || '0 * * * *'
   };
@@ -314,22 +324,81 @@ const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<
     // Update cursor for next fetch
     cursor = timeline.data.cursor;
 
-    // Transform to our BlueskyPost type
-    let posts: BlueskyPost[] = timeline.data.feed.map(item => ({
-      uri: item.post.uri,
-      cid: item.post.cid,
-      author: {
-        did: item.post.author.did,
-        handle: item.post.author.handle,
-        displayName: item.post.author.displayName,
-        avatar: item.post.author.avatar
-      },
-      record: item.post.record as any,
-      indexedAt: item.post.indexedAt,
-      likeCount: item.post.likeCount,
-      repostCount: item.post.repostCount,
-      replyCount: item.post.replyCount
-    }));
+    // Transform to our BlueskyPost type and extract repost data
+    let posts: BlueskyPost[] = [];
+
+    for (const item of timeline.data.feed) {
+      const post: BlueskyPost = {
+        uri: item.post.uri,
+        cid: item.post.cid,
+        author: {
+          did: item.post.author.did,
+          handle: item.post.author.handle,
+          displayName: item.post.author.displayName,
+          avatar: item.post.author.avatar
+        },
+        record: item.post.record as any,
+        indexedAt: item.post.indexedAt,
+        likeCount: item.post.likeCount,
+        repostCount: item.post.repostCount,
+        replyCount: item.post.replyCount
+      };
+
+      // Check if this is a repost and extract the reposted content
+      if (item.post.record.$type === 'app.bsky.feed.repost' &&
+          item.post.record.subject &&
+          typeof item.post.record.subject === 'object' &&
+          'uri' in item.post.record.subject) {
+        try {
+          // Get the original post details if this is a repost
+          const originalPost = await agent.api.app.bsky.feed.getPostThread({
+            uri: item.post.record.subject.uri as string
+          });
+
+          // Check if thread has a valid post property with the expected structure
+          if (originalPost.data.thread &&
+              typeof originalPost.data.thread === 'object' &&
+              'post' in originalPost.data.thread &&
+              originalPost.data.thread.post &&
+              typeof originalPost.data.thread.post === 'object' &&
+              'uri' in originalPost.data.thread.post &&
+              'cid' in originalPost.data.thread.post &&
+              'record' in originalPost.data.thread.post &&
+              'author' in originalPost.data.thread.post) {
+
+            const original = originalPost.data.thread.post;
+            const recordText = typeof original.record === 'object' &&
+                              original.record !== null &&
+                              'text' in original.record ?
+                              String(original.record.text) : '';
+
+            post.repost = {
+              uri: String(original.uri),
+              cid: String(original.cid),
+              text: recordText,
+              author: {
+                did: typeof original.author === 'object' &&
+                     original.author !== null &&
+                     'did' in original.author ?
+                     String(original.author.did) : '',
+                handle: typeof original.author === 'object' &&
+                        original.author !== null &&
+                        'handle' in original.author ?
+                        String(original.author.handle) : '',
+                displayName: typeof original.author === 'object' &&
+                             original.author !== null &&
+                             'displayName' in original.author ?
+                             String(original.author.displayName) : undefined
+              }
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching reposted content:', error);
+        }
+      }
+
+      posts.push(post);
+    }
 
     // Filter posts by time range
     posts = posts.filter(post => {
@@ -343,13 +412,30 @@ const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<
       return '';
     }
 
-    // Store posts in cache
-    await db.insert(blueskyFeedCache).values(posts.map(post => ({
-      record_uri: post.uri,
-      fetched_at: Date.now(),
-      theme: '',
-      content: post.record.text
-    })));
+    // Store posts in cache with conflict handling
+    try {
+      await db.insert(blueskyFeedCache)
+        .values(
+          posts.map(post => ({
+            record_uri: post.uri,
+            fetched_at: Date.now(),
+            content: post.record.text,
+            author_did: post.author.did,
+            author_handle: post.author.handle,
+            repost_of_uri: post.repost ? post.repost.uri : null,
+            repost_of_content: post.repost ? post.repost.text : null,
+            repost_author_did: post.repost ? post.repost.author.did : null,
+            repost_author_handle: post.repost ? post.repost.author.handle : null
+          }))
+        )
+        .onConflictDoNothing() // Handle duplicate entries gracefully
+        .execute();
+
+      console.log('Successfully cached Bluesky posts');
+    } catch (error) {
+      console.error('Error caching Bluesky posts:', error);
+      // Continue execution even if caching fails
+    }
 
     // Summarize posts
     const summarizedPosts = await summarizePosts(posts);

@@ -135,3 +135,5 @@ dist
 # Sqlite
 *.db
 data/sqlite
+
+.bluesky-session.json

@@ -28,10 +28,19 @@ export interface BlueskyPost {
   likeCount?: number;
   repostCount?: number;
   replyCount?: number;
+  repost?: {
+    uri: string;
+    cid: string;
+    text: string;
+    author: {
+      did: string;
+      handle: string;
+      displayName?: string;
+    };
+  };
 }
 
-export type Theme = string;
-export type Summary = Record<Theme, BlueskyPost[]>;
+export type Summary = BlueskyPost[];
 
 export interface BlueskyConfig {
   apiUrl: string;
