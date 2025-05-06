@@ -28,7 +28,7 @@ export interface BlueskyPost {
   likeCount?: number;
   repostCount?: number;
   replyCount?: number;
-  repost?: {
+  quote?: {
     uri: string;
     cid: string;
     text: string;

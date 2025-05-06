@@ -1,10 +1,10 @@
-import { AtpAgent } from '@atproto/api';
-import { db } from '../db';
-import { blueskyFeedCache } from '../db/schema/blueskyCache';
-import { BlueskyConfig, BlueskyPost, Summary } from '../types/bluesky';
-import fs from 'fs';
-import path from 'path';
-import { openaiProvider } from '../commands/llms/providers/openai';
+import { AtpAgent } from "@atproto/api";
+import { db } from "../db";
+import { blueskyFeedCache } from "../db/schema/blueskyCache";
+import { BlueskyConfig, BlueskyPost } from "../types/bluesky";
+import fs from "fs";
+import path from "path";
+import { openaiProvider } from "../commands/llms/providers/openai";
 
 /**
  * Processes a batch of posts using GPT-4.1-mini to categorize and summarize them
@@ -12,47 +12,56 @@ import { openaiProvider } from '../commands/llms/providers/openai';
  * @returns A concise summary of the posts grouped by themes
  */
 async function summarizePosts(posts: BlueskyPost[]): Promise<string> {
-  if (posts.length === 0) return '';
+  if (posts.length === 0) return "";
 
   try {
     // Format the posts for the prompt, including reposts
-    const postsText = posts.map((post, index) => {
-      const authorName = post.author.displayName || post.author.handle;
-      let postText = `${authorName}: "${post.record.text}"`;
+    const postsText = posts
+      .map((post, index) => {
+        const authorName = post.author.displayName || post.author.handle;
+        let postText = `${authorName}: "${post.record.text}"`;
 
-      // Include repost information if available
-      if (post.repost) {
-        const repostAuthor = post.repost.author.displayName || post.repost.author.handle;
-        postText += `\n[Reposting ${repostAuthor}: "${post.repost.text}"]`;
-      }
+        // Include quote information if available
+        if (post.quote) {
+          const quoteAuthor =
+            post.quote.author.displayName || post.quote.author.handle;
+          postText += `\n[Quoting ${quoteAuthor}: "${post.quote.text}"]`;
+        }
 
-      return postText;
-    }).join('\n\n');
+        return postText;
+      })
+      .join("\n\n");
 
     const prompt = `
-      Analyze these social media posts and create a concise summary grouped by themes. Use emojis and Discord formatting to make it engaging.
+      Analyze the following social media posts and identify general themes across them. For each theme:
 
-      Focus on the most interesting conversations and trends. Don't mention post IDs or that this is an automated summary.
+- Provide a concise, original summary that captures the core ideas without just rephrasing individual posts.
+- Determine the overall sentiment of the theme and include a quick sentiment emoji indicator (e.g. :thumbsup: positive, :thumbsdown: negative, :neutral_face: neutral).
+- List the authors’ handles in parentheses to show who contributed to that theme.
 
-      Posts to analyze:
+Use engaging Discord formatting and emojis to highlight themes and sentiments. Focus on the most interesting conversations and trends.
+
+Do not mention post IDs or that this is an automated summary. No final summary needed. Keep the response under 2000 characters.
+
+Posts to analyze:
       ${postsText}
     `;
 
     const result = await openaiProvider.complete(prompt, {
       model: "gpt-4.1-mini",
-      maxTokens: 5000,
-      temperature: 0.3
+      maxTokens: 2000,
+      temperature: 0.3,
     });
 
     return result.content;
   } catch (error) {
-    console.error('Error processing posts with GPT-4.1-mini:', error);
-    return '';
+    console.error("Error processing posts with GPT-4.1-mini:", error);
+    return "";
   }
 }
 
 // Path to store session data
-const SESSION_FILE_PATH = path.join(process.cwd(), '.bluesky-session.json');
+const SESSION_FILE_PATH = path.join(process.cwd(), ".bluesky-session.json");
 
 // Session data interface
 interface SessionData {
@@ -75,11 +84,11 @@ let sessionRefreshTimer: NodeJS.Timeout | undefined = undefined;
  */
 const initConfig = (): BlueskyConfig => {
   return {
-    apiUrl: process.env.BLUESKY_API_URL || 'https://bsky.social',
-    handle: process.env.BLUESKY_ACCOUNT_HANDLE || '',
-    appPassword: process.env.BLUESKY_APP_PASSWORD || '',
-    channelId: process.env.BLUESKY_CHANNEL_ID || '',
-    cronSchedule: process.env.CRON_SCHEDULE || '0 * * * *'
+    apiUrl: process.env.BLUESKY_API_URL || "https://bsky.social",
+    handle: process.env.BLUESKY_ACCOUNT_HANDLE || "",
+    appPassword: process.env.BLUESKY_APP_PASSWORD || "",
+    channelId: process.env.BLUESKY_CHANNEL_ID || "",
+    cronSchedule: process.env.CRON_SCHEDULE || "0 * * * *",
   };
 };
 
@@ -89,7 +98,7 @@ const initConfig = (): BlueskyConfig => {
 const loadSession = async (): Promise<void> => {
   try {
     if (fs.existsSync(SESSION_FILE_PATH)) {
-      const data = fs.readFileSync(SESSION_FILE_PATH, 'utf8');
+      const data = fs.readFileSync(SESSION_FILE_PATH, "utf8");
       sessionData = JSON.parse(data);
 
       // Check if we have valid session data
@@ -101,7 +110,7 @@ const loadSession = async (): Promise<void> => {
       }
     }
   } catch (error) {
-    console.error('Failed to load Bluesky session:', error);
+    console.error("Failed to load Bluesky session:", error);
     sessionData = undefined;
   }
 };
@@ -115,12 +124,12 @@ const saveSession = (): void => {
       fs.writeFileSync(
         SESSION_FILE_PATH,
         JSON.stringify(sessionData, null, 2),
-        'utf8'
+        "utf8",
       );
-      console.log('Bluesky session saved');
+      console.log("Bluesky session saved");
     }
   } catch (error) {
-    console.error('Failed to save Bluesky session:', error);
+    console.error("Failed to save Bluesky session:", error);
   }
 };
 
@@ -141,7 +150,9 @@ const scheduleRefresh = (): void => {
     // Calculate time until refresh (5 minutes before expiry)
     const refreshIn = Math.max(0, expiresAt - now - 5 * 60 * 1000);
 
-    console.log(`Scheduling Bluesky token refresh in ${Math.round(refreshIn / 60000)} minutes`);
+    console.log(
+      `Scheduling Bluesky token refresh in ${Math.round(refreshIn / 60000)} minutes`,
+    );
 
     sessionRefreshTimer = setTimeout(() => {
       refreshSession();
@@ -155,20 +166,20 @@ const scheduleRefresh = (): void => {
 const login = async (): Promise<boolean> => {
   try {
     if (!config || !config.handle || !config.appPassword) {
-      console.error('Bluesky credentials not configured');
+      console.error("Bluesky credentials not configured");
       return false;
     }
 
     console.log(`Logging in to Bluesky as ${config.handle}`);
 
     if (!agent) {
-      console.error('Bluesky agent not initialized');
+      console.error("Bluesky agent not initialized");
       return false;
     }
 
     const result = await agent.com.atproto.server.createSession({
       identifier: config.handle,
-      password: config.appPassword
+      password: config.appPassword,
     });
 
     // Store the session data
@@ -178,12 +189,12 @@ const login = async (): Promise<boolean> => {
       handle: result.data.handle,
       did: result.data.did,
       // Set expiry to 2 hours from now (typical JWT expiry)
-      expiresAt: Date.now() + 2 * 60 * 60 * 1000
+      expiresAt: Date.now() + 2 * 60 * 60 * 1000,
     };
 
     // Update agent's auth header with the access token
     if (agent && sessionData) {
-      agent.setHeader('authorization', `Bearer ${sessionData.accessJwt}`);
+      agent.setHeader("authorization", `Bearer ${sessionData.accessJwt}`);
     }
 
     // Save the session
@@ -194,7 +205,7 @@ const login = async (): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error('Failed to login to Bluesky:', error);
+    console.error("Failed to login to Bluesky:", error);
     return false;
   }
 };
@@ -205,11 +216,11 @@ const login = async (): Promise<boolean> => {
 const refreshSession = async (): Promise<boolean> => {
   try {
     if (!sessionData?.refreshJwt) {
-      console.log('No refresh token available, performing full login');
+      console.log("No refresh token available, performing full login");
       return login();
     }
 
-    console.log('Refreshing Bluesky session token');
+    console.log("Refreshing Bluesky session token");
 
     try {
       if (!agent) {
@@ -218,7 +229,7 @@ const refreshSession = async (): Promise<boolean> => {
 
       // Use the refresh token to get a new session
       // Note: The AtpAgent expects refreshJwt in the auth header for this call
-      agent.setHeader('authorization', `Bearer ${sessionData.refreshJwt}`);
+      agent.setHeader("authorization", `Bearer ${sessionData.refreshJwt}`);
       const result = await agent.com.atproto.server.refreshSession();
 
       // Update session data with new tokens
@@ -227,12 +238,12 @@ const refreshSession = async (): Promise<boolean> => {
         accessJwt: result.data.accessJwt,
         refreshJwt: result.data.refreshJwt,
         // Set expiry to 2 hours from now (typical JWT expiry)
-        expiresAt: Date.now() + 2 * 60 * 60 * 1000
+        expiresAt: Date.now() + 2 * 60 * 60 * 1000,
       };
 
       // Update agent's auth header with the access token
       if (agent && sessionData) {
-        agent.setHeader('authorization', `Bearer ${sessionData.accessJwt}`);
+        agent.setHeader("authorization", `Bearer ${sessionData.accessJwt}`);
       }
 
       // Save the updated session
@@ -243,11 +254,11 @@ const refreshSession = async (): Promise<boolean> => {
 
       return true;
     } catch (error) {
-      console.log('Session refresh failed, attempting full login');
+      console.log("Session refresh failed, attempting full login");
       return login();
     }
   } catch (error) {
-    console.error('Failed to refresh Bluesky session:', error);
+    console.error("Failed to refresh Bluesky session:", error);
 
     // Try a full login as fallback
     return login();
@@ -262,7 +273,7 @@ const init = async (): Promise<boolean> => {
   if (!agent) {
     config = initConfig();
     agent = new AtpAgent({
-      service: config.apiUrl
+      service: config.apiUrl,
     });
 
     // Try to load saved session
@@ -281,14 +292,14 @@ const init = async (): Promise<boolean> => {
  * Gets the channel ID for posting summaries
  */
 const getChannelId = (): string => {
-  return config?.channelId || '';
+  return config?.channelId || "";
 };
 
 /**
  * Gets the cron schedule expression
  */
 const getCronSchedule = (): string => {
-  return config?.cronSchedule || '0 * * * *';
+  return config?.cronSchedule || "0 * * * *";
 };
 
 /**
@@ -296,15 +307,18 @@ const getCronSchedule = (): string => {
  * @param startTime Optional start time in ISO format; defaults to 1 hour ago
  * @param endTime Optional end time in ISO format; defaults to now
  */
-const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<string> => {
-  if (!await init()) {
-    return '';
+const fetchAndSummarize = async (
+  startTime?: string,
+  endTime?: string,
+): Promise<string> => {
+  if (!(await init())) {
+    return "";
   }
 
   try {
     if (!agent) {
-      console.error('Bluesky agent not initialized');
-      return '';
+      console.error("Bluesky agent not initialized");
+      return "";
     }
 
     // Default time range: last hour
@@ -314,11 +328,13 @@ const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<
     const start = startTime ? new Date(startTime) : oneHourAgo;
     const end = endTime ? new Date(endTime) : now;
 
-    console.log(`Fetching Bluesky posts from ${start.toISOString()} to ${end.toISOString()}`);
+    console.log(
+      `Fetching Bluesky posts from ${start.toISOString()} to ${end.toISOString()}`,
+    );
 
     // Get timeline with a higher limit to capture the full hour
     const timeline = await agent.api.app.bsky.feed.getTimeline({
-      limit: 100 // Increased from 50
+      limit: 100, // Increased from 50
     });
 
     // Update cursor for next fetch
@@ -335,73 +351,105 @@ const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<
           did: item.post.author.did,
           handle: item.post.author.handle,
           displayName: item.post.author.displayName,
-          avatar: item.post.author.avatar
+          avatar: item.post.author.avatar,
         },
         record: item.post.record as any,
         indexedAt: item.post.indexedAt,
         likeCount: item.post.likeCount,
         repostCount: item.post.repostCount,
-        replyCount: item.post.replyCount
+        replyCount: item.post.replyCount,
       };
 
-      // Check if this is a repost and extract the reposted content
-      if (item.post.record.$type === 'app.bsky.feed.repost' &&
+      // Check for quotes (either reposts or embeds)
+      try {
+        let quoteUri: string | null = null;
+
+        // Case 1: Standard Repost (app.bsky.feed.repost)
+        if (
+          item.post.record.$type === "app.bsky.feed.repost" &&
           item.post.record.subject &&
-          typeof item.post.record.subject === 'object' &&
-          'uri' in item.post.record.subject) {
-        try {
-          // Get the original post details if this is a repost
-          const originalPost = await agent.api.app.bsky.feed.getPostThread({
-            uri: item.post.record.subject.uri as string
+          typeof item.post.record.subject === "object" &&
+          "uri" in item.post.record.subject
+        ) {
+          quoteUri = item.post.record.subject.uri as string;
+        }
+        // Case 2: Quote Post (app.bsky.feed.post with embed)
+        else if (
+          item.post.record.$type === "app.bsky.feed.post" &&
+          item.post.record.embed &&
+          typeof item.post.record.embed === "object" &&
+          "$type" in item.post.record.embed &&
+          item.post.record.embed.$type === "app.bsky.embed.record" &&
+          "record" in item.post.record.embed &&
+          item.post.record.embed.record !== null &&
+          typeof item.post.record.embed.record === "object" &&
+          "uri" in item.post.record.embed.record
+        ) {
+          quoteUri = item.post.record.embed.record.uri as string;
+        }
+
+        // If we found a quote URI, fetch and process it
+        if (quoteUri) {
+          const quotedPost = await agent.api.app.bsky.feed.getPostThread({
+            uri: quoteUri,
           });
 
-          // Check if thread has a valid post property with the expected structure
-          if (originalPost.data.thread &&
-              typeof originalPost.data.thread === 'object' &&
-              'post' in originalPost.data.thread &&
-              originalPost.data.thread.post &&
-              typeof originalPost.data.thread.post === 'object' &&
-              'uri' in originalPost.data.thread.post &&
-              'cid' in originalPost.data.thread.post &&
-              'record' in originalPost.data.thread.post &&
-              'author' in originalPost.data.thread.post) {
+          // Extract the quoted post content
+          if (
+            quotedPost.data.thread &&
+            typeof quotedPost.data.thread === "object" &&
+            "post" in quotedPost.data.thread &&
+            quotedPost.data.thread.post &&
+            typeof quotedPost.data.thread.post === "object" &&
+            "uri" in quotedPost.data.thread.post &&
+            "cid" in quotedPost.data.thread.post &&
+            "record" in quotedPost.data.thread.post &&
+            "author" in quotedPost.data.thread.post
+          ) {
+            const quoted = quotedPost.data.thread.post;
+            const quotedText =
+              typeof quoted.record === "object" &&
+                quoted.record !== null &&
+                "text" in quoted.record
+                ? String(quoted.record.text)
+                : "";
 
-            const original = originalPost.data.thread.post;
-            const recordText = typeof original.record === 'object' &&
-                              original.record !== null &&
-                              'text' in original.record ?
-                              String(original.record.text) : '';
-
-            post.repost = {
-              uri: String(original.uri),
-              cid: String(original.cid),
-              text: recordText,
+            post.quote = {
+              uri: String(quoted.uri),
+              cid: String(quoted.cid),
+              text: quotedText,
               author: {
-                did: typeof original.author === 'object' &&
-                     original.author !== null &&
-                     'did' in original.author ?
-                     String(original.author.did) : '',
-                handle: typeof original.author === 'object' &&
-                        original.author !== null &&
-                        'handle' in original.author ?
-                        String(original.author.handle) : '',
-                displayName: typeof original.author === 'object' &&
-                             original.author !== null &&
-                             'displayName' in original.author ?
-                             String(original.author.displayName) : undefined
-              }
+                did:
+                  typeof quoted.author === "object" &&
+                    quoted.author !== null &&
+                    "did" in quoted.author
+                    ? String(quoted.author.did)
+                    : "",
+                handle:
+                  typeof quoted.author === "object" &&
+                    quoted.author !== null &&
+                    "handle" in quoted.author
+                    ? String(quoted.author.handle)
+                    : "",
+                displayName:
+                  typeof quoted.author === "object" &&
+                    quoted.author !== null &&
+                    "displayName" in quoted.author
+                    ? String(quoted.author.displayName)
+                    : undefined,
+              },
             };
           }
-        } catch (error) {
-          console.error('Error fetching reposted content:', error);
         }
+      } catch (error) {
+        console.error("Error fetching quoted content:", error);
       }
 
       posts.push(post);
     }
 
     // Filter posts by time range
-    posts = posts.filter(post => {
+    posts = posts.filter((post) => {
       const postDate = new Date(post.indexedAt);
       return postDate >= start && postDate <= end;
     });
@@ -409,31 +457,32 @@ const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<
     console.log(`Found ${posts.length} posts in the specified time range`);
 
     if (posts.length === 0) {
-      return '';
+      return "";
     }
 
     // Store posts in cache with conflict handling
     try {
-      await db.insert(blueskyFeedCache)
+      await db
+        .insert(blueskyFeedCache)
         .values(
-          posts.map(post => ({
+          posts.map((post) => ({
             record_uri: post.uri,
             fetched_at: Date.now(),
             content: post.record.text,
             author_did: post.author.did,
             author_handle: post.author.handle,
-            repost_of_uri: post.repost ? post.repost.uri : null,
-            repost_of_content: post.repost ? post.repost.text : null,
-            repost_author_did: post.repost ? post.repost.author.did : null,
-            repost_author_handle: post.repost ? post.repost.author.handle : null
-          }))
+            quote_of_uri: post.quote ? post.quote.uri : null,
+            quote_of_content: post.quote ? post.quote.text : null,
+            quote_author_did: post.quote ? post.quote.author.did : null,
+            quote_author_handle: post.quote ? post.quote.author.handle : null,
+          })),
         )
         .onConflictDoNothing() // Handle duplicate entries gracefully
         .execute();
 
-      console.log('Successfully cached Bluesky posts');
+      console.log("Successfully cached Bluesky posts");
     } catch (error) {
-      console.error('Error caching Bluesky posts:', error);
+      console.error("Error caching Bluesky posts:", error);
       // Continue execution even if caching fails
     }
 
@@ -442,23 +491,21 @@ const fetchAndSummarize = async (startTime?: string, endTime?: string): Promise<
 
     return summarizedPosts;
   } catch (error) {
-    console.error('Error fetching Bluesky feed:', error);
-    return '';
+    console.error("Error fetching Bluesky feed:", error);
+    return "";
   }
 };
 
 // Initialize the service
-init().catch(error => console.error('Failed to initialize Bluesky service:', error));
+init().catch((error) =>
+  console.error("Failed to initialize Bluesky service:", error),
+);
 
 // Export the functions
-export {
-  fetchAndSummarize,
-  getChannelId,
-  getCronSchedule
-};
+export { fetchAndSummarize, getChannelId, getCronSchedule };
 
 // Ensure clean shutdown
-process.on('SIGINT', () => {
+process.on("SIGINT", () => {
   if (sessionRefreshTimer) {
     clearTimeout(sessionRefreshTimer);
   }

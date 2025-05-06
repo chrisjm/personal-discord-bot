@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "55746435-71c5-4e2e-b95b-b8fb5368901a",
-  "prevId": "c5a91105-8533-42a1-9aa5-30c41a296736",
+  "id": "7340ff94-55d0-4b7e-b549-57ad52eb3fd3",
+  "prevId": "55746435-71c5-4e2e-b95b-b8fb5368901a",
   "tables": {
     "bluesky_feed_cache": {
       "name": "bluesky_feed_cache",
@@ -49,29 +49,29 @@
           "notNull": false,
           "autoincrement": false
         },
-        "repost_of_uri": {
-          "name": "repost_of_uri",
+        "quote_of_uri": {
+          "name": "quote_of_uri",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "repost_of_content": {
-          "name": "repost_of_content",
+        "quote_of_content": {
+          "name": "quote_of_content",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "repost_author_did": {
-          "name": "repost_author_did",
+        "quote_author_did": {
+          "name": "quote_author_did",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "repost_author_handle": {
-          "name": "repost_author_handle",
+        "quote_author_handle": {
+          "name": "quote_author_handle",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -81,7 +81,9 @@
       "indexes": {
         "bluesky_feed_cache_record_uri_unique": {
           "name": "bluesky_feed_cache_record_uri_unique",
-          "columns": ["record_uri"],
+          "columns": [
+            "record_uri"
+          ],
           "isUnique": true
         }
       },
@@ -214,7 +216,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "reminder_preferences_user_id_reminder_type_pk": {
-          "columns": ["user_id", "reminder_type"],
+          "columns": [
+            "user_id",
+            "reminder_type"
+          ],
           "name": "reminder_preferences_user_id_reminder_type_pk"
         }
       },
@@ -335,15 +340,22 @@
           "name": "rss_items_feed_name_rss_feeds_name_fk",
           "tableFrom": "rss_items",
           "tableTo": "rss_feeds",
-          "columnsFrom": ["feed_name"],
-          "columnsTo": ["name"],
+          "columnsFrom": [
+            "feed_name"
+          ],
+          "columnsTo": [
+            "name"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "rss_items_feed_name_guid_pk": {
-          "columns": ["feed_name", "guid"],
+          "columns": [
+            "feed_name",
+            "guid"
+          ],
           "name": "rss_items_feed_name_guid_pk"
         }
       },
@@ -478,7 +490,12 @@
   "_meta": {
     "schemas": {},
     "tables": {},
-    "columns": {}
+    "columns": {
+      "\"bluesky_feed_cache\".\"repost_of_uri\"": "\"bluesky_feed_cache\".\"quote_of_uri\"",
+      "\"bluesky_feed_cache\".\"repost_of_content\"": "\"bluesky_feed_cache\".\"quote_of_content\"",
+      "\"bluesky_feed_cache\".\"repost_author_did\"": "\"bluesky_feed_cache\".\"quote_author_did\"",
+      "\"bluesky_feed_cache\".\"repost_author_handle\"": "\"bluesky_feed_cache\".\"quote_author_handle\""
+    }
   },
   "internal": {
     "indexes": {}

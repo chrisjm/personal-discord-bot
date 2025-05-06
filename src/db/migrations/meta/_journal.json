@@ -36,6 +36,13 @@
       "when": 1746505623440,
       "tag": "0004_jittery_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1746507497664,
+      "tag": "0005_square_blindfold",
+      "breakpoints": true
     }
   ]
 }
