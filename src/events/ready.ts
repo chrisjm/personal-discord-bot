@@ -8,6 +8,7 @@ import {
   cleanup as cleanupRSSFeeds,
   displayAllUnprocessedItems,
 } from "../utils/rssFeedHandler";
+import { scheduleBlueskySummaries } from "../cron/blueskyCron";
 
 // Load environment variables
 config();
@@ -42,6 +43,9 @@ export default {
     reminderScheduler.setClient(client);
     reminderScheduler.registerHandler(waterReminderHandler);
     await reminderScheduler.initializeReminders();
+
+    // Initialize Bluesky feed summaries
+    scheduleBlueskySummaries(client);
 
     // Clean up on process exit
     process.on("SIGINT", () => {

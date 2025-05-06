@@ -6,6 +6,7 @@ A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot in
 
 - **GPT Integration**: Interact with GPT models for intelligent conversations
 - **News Tracking**: Follow and get updates from RSS feeds
+- **Bluesky Feed**: Get hourly summaries of Bluesky posts grouped by themes
 - **Financial Tools**: Track cryptocurrency prices and stock market data
 - **Time Management**: Handle timezone conversions and scheduling
 - **Server & User Info**: Get information about servers and users
@@ -30,6 +31,7 @@ A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot in
   - CoinGecko (cryptocurrency data)
   - Yahoo Finance (stock market data)
   - RSS Parser (news feeds)
+  - AT Protocol (Bluesky)
 
 ## Getting Started
 
@@ -44,7 +46,8 @@ These are initial steps to get things running:
    ```
 3. Create environment file:
    ```bash
-   echo "DISCORD_TOKEN=\nOPENAI_API_KEY=" >> .env
+   cp .env.example .env
+   # Then edit .env with your credentials
    ```
 4. Build the TypeScript code:
    ```bash
@@ -123,6 +126,17 @@ These are initial steps to get things running:
   - Actions:
     - `top` - Get top headlines
     - `yesterday` - Get popular news from yesterday
+
+### Bluesky Feed
+
+The bot automatically posts hourly summaries of Bluesky posts to a designated channel, grouped by themes such as tech, crypto, news, and others. Configure the following in your `.env` file:
+
+```
+BLUESKY_CHANNEL_ID=your_channel_id
+BLUESKY_ACCOUNT_HANDLE=your_bluesky_handle
+BLUESKY_API_TOKEN=your_app_password
+CRON_SCHEDULE="0 * * * *"  # Hourly by default
+```
 
 ## Development
 
