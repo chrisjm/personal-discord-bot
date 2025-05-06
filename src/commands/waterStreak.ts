@@ -1,11 +1,15 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} from "discord.js";
 import { getStreakData, StreakRecord } from "../utils/streakService";
 import { getStreakStatusMessage } from "../utils/streakFormatter";
-import { 
-  STREAK_TYPES, 
-  STREAK_LEVELS, 
-  MAX_REACTION_TIME_MS 
-} from "../constants/streaks"; 
+import {
+  STREAK_TYPES,
+  STREAK_LEVELS,
+  MAX_REACTION_TIME_MS,
+} from "../constants/streaks";
 
 export const data = new SlashCommandBuilder()
   .setName("water-streak")
@@ -18,7 +22,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Get streak data for the user using the new service
     const streakData: StreakRecord | null = await getStreakData(
       userId,
-      STREAK_TYPES.WATER_DAILY_CONSISTENCY
+      STREAK_TYPES.WATER_DAILY_CONSISTENCY,
     );
 
     // Create an embed for streak status
@@ -29,17 +33,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         .setColor(getStreakColor(streakData.streakLevel))
         .setTitle("💧 Water Reminder Streak Status")
         .setDescription(getStreakStatusMessage(streakData))
-        .setFooter({ 
-          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
+        .setFooter({
+          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`,
         })
         .setTimestamp();
     } else {
       embed
-        .setColor(0x2B65EC)
+        .setColor(0x2b65ec)
         .setTitle("💧 Water Reminder Streak Status")
-        .setDescription("You haven't started tracking your water reminder streaks yet!")
-        .setFooter({ 
-          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
+        .setDescription(
+          "You haven't started tracking your water reminder streaks yet!",
+        )
+        .setFooter({
+          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`,
         })
         .setTimestamp();
     }
@@ -51,7 +57,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   } catch (error) {
     console.error("Error getting streak status:", error);
     await interaction.reply({
-      content: "There was an error getting your streak status. Please try again.",
+      content:
+        "There was an error getting your streak status. Please try again.",
       ephemeral: true,
     });
   }
@@ -63,14 +70,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 function getStreakColor(level: string): number {
   switch (level) {
     case STREAK_LEVELS.DIAMOND:
-      return 0x9EDDFF;
+      return 0x9eddff;
     case STREAK_LEVELS.GOLD:
-      return 0xFFD700;
+      return 0xffd700;
     case STREAK_LEVELS.SILVER:
-      return 0xC0C0C0;
+      return 0xc0c0c0;
     case STREAK_LEVELS.BRONZE:
-      return 0xCD7F32;
+      return 0xcd7f32;
     default:
-      return 0x2B65EC;
+      return 0x2b65ec;
   }
 }

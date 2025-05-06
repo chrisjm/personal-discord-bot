@@ -1,9 +1,24 @@
-import { Client, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction, MessageComponentInteraction, ButtonInteraction, ModalSubmitInteraction } from "discord.js";
+import {
+  Client,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  Interaction,
+  MessageComponentInteraction,
+  ButtonInteraction,
+  ModalSubmitInteraction,
+} from "discord.js";
 import { ReminderHandler } from "../types/reminder";
 import * as trackerDb from "../utils/trackingDatabase";
 import * as streakService from "../utils/streakService";
 import * as streakFormatter from "../utils/streakFormatter";
-import { STREAK_TYPES, DEFAULT_DAILY_WATER_TARGET_ML } from "../constants/streaks";
+import {
+  STREAK_TYPES,
+  DEFAULT_DAILY_WATER_TARGET_ML,
+} from "../constants/streaks";
 
 // Constants for tracking
 const MAX_REACTION_TIME_MS = 3600000; // 60 minutes
@@ -68,14 +83,20 @@ const MODAL_ID_LOG_CUSTOM = "modal_log_water_custom";
 const INPUT_ID_CUSTOM_AMOUNT = "input_custom_water_amount";
 
 // --- Export necessary items for interactionCreate handler ---
-export { logWaterEntry, MODAL_ID_LOG_CUSTOM, INPUT_ID_CUSTOM_AMOUNT, STREAK_TYPES, MAX_REACTION_TIME_MS };
+export {
+  logWaterEntry,
+  MODAL_ID_LOG_CUSTOM,
+  INPUT_ID_CUSTOM_AMOUNT,
+  STREAK_TYPES,
+  MAX_REACTION_TIME_MS,
+};
 // --- End Exports ---
 
 // Helper function to log water entry
 async function logWaterEntry(
   userId: string,
   amountMl: number,
-  interaction: ButtonInteraction | ModalSubmitInteraction // Can be triggered by button or modal
+  interaction: ButtonInteraction | ModalSubmitInteraction, // Can be triggered by button or modal
 ) {
   try {
     await trackerDb.addEntry(
@@ -83,12 +104,14 @@ async function logWaterEntry(
       TRACKING_TYPES.WATER,
       amountMl,
       TRACKING_UNITS.MILLILITERS,
-      `Logged via button/modal`
+      `Logged via button/modal`,
     );
     console.log(`[DEBUG] User ${userId} logged ${amountMl}ml of water.`);
 
     // Provide feedback to the user - reply directly
-    const replyOptions = { content: `💧 Logged ${amountMl}ml of water! Stay hydrated!` };
+    const replyOptions = {
+      content: `💧 Logged ${amountMl}ml of water! Stay hydrated!`,
+    };
     if (interaction.isRepliable()) {
       // Check if deferred from modal submission or already replied (shouldn't happen often here)
       if (interaction.deferred || interaction.replied) {
@@ -103,7 +126,10 @@ async function logWaterEntry(
   } catch (err) {
     console.error("Error logging water entry:", err);
     // Inform user about the error
-    const errorReplyOptions = { content: "❌ Sorry, there was an error logging your water intake.", ephemeral: true };
+    const errorReplyOptions = {
+      content: "❌ Sorry, there was an error logging your water intake.",
+      ephemeral: true,
+    };
     if (interaction.isRepliable()) {
       if (interaction.deferred || interaction.replied) {
         await interaction.followUp(errorReplyOptions);
@@ -144,8 +170,11 @@ export const waterReminderHandler: ReminderHandler = {
       .setStyle(ButtonStyle.Secondary);
 
     // Create action row
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(log250Button, log500Button, logCustomButton);
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      log250Button,
+      log500Button,
+      logCustomButton,
+    );
 
     // Send message with buttons
     const message = await user.send({
@@ -177,31 +206,38 @@ export const waterReminderHandler: ReminderHandler = {
         TRACKING_TYPES.WATER_REACTION_TIME,
         reactionTime,
         TRACKING_UNITS.MILLISECONDS,
-        `Reaction: ${reaction.emoji.name}`
+        `Reaction: ${reaction.emoji.name}`,
       );
 
       // Update daily consistency streak
       const streakResult = await streakService.updateStreak(
         userId,
-        STREAK_TYPES.WATER_DAILY_CONSISTENCY
+        STREAK_TYPES.WATER_DAILY_CONSISTENCY,
       );
 
       // Fetch daily water total
-      const todayDateStr = new Date().toISOString().split('T')[0];
-      const dailyIntake = await trackerDb.getTotalForDay(userId, TRACKING_TYPES.WATER, todayDateStr);
+      const todayDateStr = new Date().toISOString().split("T")[0];
+      const dailyIntake = await trackerDb.getTotalForDay(
+        userId,
+        TRACKING_TYPES.WATER,
+        todayDateStr,
+      );
 
       // Format and potentially send streak message
       const streakMessage = streakFormatter.formatStreakUpdateMessage(
         streakResult,
         dailyIntake,
-        DEFAULT_DAILY_WATER_TARGET_ML
+        DEFAULT_DAILY_WATER_TARGET_ML,
       );
       if (streakMessage) {
         // Send streak update in a separate message or followup
         try {
           await message.reply(streakMessage);
         } catch (err) {
-          console.warn("Could not reply to original message for streak update (likely deleted):", err);
+          console.warn(
+            "Could not reply to original message for streak update (likely deleted):",
+            err,
+          );
           try {
             await user.send(streakMessage); // Send as new DM if reply fails
           } catch (dmErr) {
@@ -215,7 +251,10 @@ export const waterReminderHandler: ReminderHandler = {
       try {
         await message.edit({ components: [row] });
       } catch (editErr) {
-        console.warn("Could not edit message to disable buttons (likely deleted):", editErr);
+        console.warn(
+          "Could not edit message to disable buttons (likely deleted):",
+          editErr,
+        );
       }
     });
 
@@ -223,7 +262,9 @@ export const waterReminderHandler: ReminderHandler = {
     const buttonCollector = message.createMessageComponentCollector({
       filter: (i: MessageComponentInteraction) =>
         i.user.id === userId &&
-        [BUTTON_ID_LOG_250, BUTTON_ID_LOG_500, BUTTON_ID_LOG_CUSTOM].includes(i.customId),
+        [BUTTON_ID_LOG_250, BUTTON_ID_LOG_500, BUTTON_ID_LOG_CUSTOM].includes(
+          i.customId,
+        ),
       max: 1, // Only collect one button interaction
       time: MAX_REACTION_TIME_MS,
     });
@@ -234,7 +275,9 @@ export const waterReminderHandler: ReminderHandler = {
       reactionCollector.stop(); // Stop listening for reactions
 
       const interactionTime = Date.now() - reminderSentTime;
-      console.log(`[DEBUG] User ${userId} interacted with button ${interaction.customId} after ${interactionTime}ms`);
+      console.log(
+        `[DEBUG] User ${userId} interacted with button ${interaction.customId} after ${interactionTime}ms`,
+      );
 
       // Track interaction time (similar to reaction time)
       await trackerDb.addEntry(
@@ -242,31 +285,38 @@ export const waterReminderHandler: ReminderHandler = {
         TRACKING_TYPES.WATER_REACTION_TIME,
         interactionTime,
         TRACKING_UNITS.MILLISECONDS,
-        `Button interaction: ${interaction.customId}`
+        `Button interaction: ${interaction.customId}`,
       );
 
       // Update daily consistency streak
       const streakResult = await streakService.updateStreak(
         userId,
-        STREAK_TYPES.WATER_DAILY_CONSISTENCY
+        STREAK_TYPES.WATER_DAILY_CONSISTENCY,
       );
 
       // Fetch daily water total (needed for formatter)
-      const todayDateStr = new Date().toISOString().split('T')[0];
-      const dailyIntake = await trackerDb.getTotalForDay(userId, TRACKING_TYPES.WATER, todayDateStr);
+      const todayDateStr = new Date().toISOString().split("T")[0];
+      const dailyIntake = await trackerDb.getTotalForDay(
+        userId,
+        TRACKING_TYPES.WATER,
+        todayDateStr,
+      );
 
       // Format and potentially send streak message
       const streakMessage = streakFormatter.formatStreakUpdateMessage(
         streakResult,
         dailyIntake,
-        DEFAULT_DAILY_WATER_TARGET_ML
+        DEFAULT_DAILY_WATER_TARGET_ML,
       );
       if (streakMessage) {
         // Send streak update as a new DM instead of follow-up
         try {
           await user.send(streakMessage);
         } catch (dmErr) {
-          console.error(`Failed to send streak update DM to user ${userId}:`, dmErr);
+          console.error(
+            `Failed to send streak update DM to user ${userId}:`,
+            dmErr,
+          );
         }
       }
 
@@ -289,7 +339,8 @@ export const waterReminderHandler: ReminderHandler = {
             .setPlaceholder("e.g., 750")
             .setRequired(true);
 
-          const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(amountInput);
+          const firstActionRow =
+            new ActionRowBuilder<TextInputBuilder>().addComponents(amountInput);
           modal.addComponents(firstActionRow);
 
           await interaction.showModal(modal);
@@ -298,8 +349,12 @@ export const waterReminderHandler: ReminderHandler = {
       } catch (error) {
         console.error("Error handling button interaction:", error);
         if (interaction.isRepliable()) {
-          const opts = { content: "An error occurred while processing your request.", ephemeral: true };
-          if (interaction.replied || interaction.deferred) await interaction.followUp(opts);
+          const opts = {
+            content: "An error occurred while processing your request.",
+            ephemeral: true,
+          };
+          if (interaction.replied || interaction.deferred)
+            await interaction.followUp(opts);
           else await interaction.reply(opts);
         }
       }
@@ -310,7 +365,10 @@ export const waterReminderHandler: ReminderHandler = {
         try {
           await message.edit({ components: [row] });
         } catch (editErr) {
-          console.warn("Could not edit message to disable buttons (likely deleted):", editErr);
+          console.warn(
+            "Could not edit message to disable buttons (likely deleted):",
+            editErr,
+          );
         }
       }
     });
@@ -320,7 +378,9 @@ export const waterReminderHandler: ReminderHandler = {
     reactionCollector.on("end", async (collected) => {
       if (!streakUpdatedThisCycle && collected.size === 0) {
         // Only run if no reaction AND no button was pressed
-        console.log(`[DEBUG] No reaction or button press from user ${userId} within timeout`);
+        console.log(
+          `[DEBUG] No reaction or button press from user ${userId} within timeout`,
+        );
 
         // Ensure button collector is also stopped
         if (!buttonCollector.ended) buttonCollector.stop();
@@ -331,11 +391,14 @@ export const waterReminderHandler: ReminderHandler = {
           TRACKING_TYPES.WATER_REACTION_TIME,
           MAX_REACTION_TIME_MS,
           TRACKING_UNITS.MILLISECONDS,
-          "No interaction (timeout)"
+          "No interaction (timeout)",
         );
 
         // Update streak (will likely break streak or reset to 1)
-        await streakService.updateStreak(userId, STREAK_TYPES.WATER_DAILY_CONSISTENCY);
+        await streakService.updateStreak(
+          userId,
+          STREAK_TYPES.WATER_DAILY_CONSISTENCY,
+        );
 
         // Potentially inform user about timeout/streak break via DM?
       }

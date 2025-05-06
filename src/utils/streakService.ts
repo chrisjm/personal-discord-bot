@@ -19,17 +19,17 @@ export interface StreakRecord {
 /**
  * Initialize a streak record for a user if it doesn't exist
  */
-export async function initializeStreak(userId: string, streakType: string): Promise<void> {
+export async function initializeStreak(
+  userId: string,
+  streakType: string,
+): Promise<void> {
   try {
     // Check if streak record already exists
     const existingStreak = await db
       .select()
       .from(streaks)
       .where(
-        and(
-          eq(streaks.userId, userId),
-          eq(streaks.streakType, streakType)
-        )
+        and(eq(streaks.userId, userId), eq(streaks.streakType, streakType)),
       );
 
     if (existingStreak.length === 0) {
@@ -73,7 +73,7 @@ const getDayNumber = (timestamp: number): number => {
  */
 export async function updateStreak(
   userId: string,
-  streakType: string
+  streakType: string,
 ): Promise<UpdateStreakResult> {
   try {
     // Ensure streak record exists
@@ -102,7 +102,9 @@ export async function updateStreak(
       if (finalLevel !== streakData.streakLevel) {
         newLevel = finalLevel;
       }
-      console.log(`[Streak] User ${userId} (${streakType}): Streak started! Set to ${updatedStreak}`);
+      console.log(
+        `[Streak] User ${userId} (${streakType}): Streak started! Set to ${updatedStreak}`,
+      );
     }
     // --- Check 2: Interaction on a different day, and streak was already active ---
     else if (currentDayNumber > lastUpdateDayNumber) {
@@ -112,25 +114,41 @@ export async function updateStreak(
         // Interaction is on the consecutive day, increase streak
         updatedStreak = streakData.currentStreak + 1;
         streakIncreased = true;
-        console.log(`[Streak] User ${userId} (${streakType}): Consecutive day interaction. Streak increased to ${updatedStreak}`);
+        console.log(
+          `[Streak] User ${userId} (${streakType}): Consecutive day interaction. Streak increased to ${updatedStreak}`,
+        );
       } else {
         // Interaction is more than one day after the last update, streak broken
         updatedStreak = 1;
         streakBroken = true;
         streakIncreased = false;
         finalLevel = STREAK_LEVELS.BRONZE;
-        console.log(`[Streak] User ${userId} (${streakType}): Missed day(s). Streak reset to 1.`);
+        console.log(
+          `[Streak] User ${userId} (${streakType}): Missed day(s). Streak reset to 1.`,
+        );
       }
 
       // Check for new level if streak changed (only if not already reset to Bronze)
       if (!streakBroken) {
-        if (updatedStreak >= STREAK_THRESHOLDS.DIAMOND && streakData.streakLevel !== STREAK_LEVELS.DIAMOND) {
+        if (
+          updatedStreak >= STREAK_THRESHOLDS.DIAMOND &&
+          streakData.streakLevel !== STREAK_LEVELS.DIAMOND
+        ) {
           finalLevel = STREAK_LEVELS.DIAMOND;
-        } else if (updatedStreak >= STREAK_THRESHOLDS.GOLD && streakData.streakLevel !== STREAK_LEVELS.GOLD) {
+        } else if (
+          updatedStreak >= STREAK_THRESHOLDS.GOLD &&
+          streakData.streakLevel !== STREAK_LEVELS.GOLD
+        ) {
           finalLevel = STREAK_LEVELS.GOLD;
-        } else if (updatedStreak >= STREAK_THRESHOLDS.SILVER && streakData.streakLevel !== STREAK_LEVELS.SILVER) {
+        } else if (
+          updatedStreak >= STREAK_THRESHOLDS.SILVER &&
+          streakData.streakLevel !== STREAK_LEVELS.SILVER
+        ) {
           finalLevel = STREAK_LEVELS.SILVER;
-        } else if (updatedStreak >= STREAK_THRESHOLDS.BRONZE && streakData.streakLevel !== STREAK_LEVELS.BRONZE) {
+        } else if (
+          updatedStreak >= STREAK_THRESHOLDS.BRONZE &&
+          streakData.streakLevel !== STREAK_LEVELS.BRONZE
+        ) {
           finalLevel = STREAK_LEVELS.BRONZE;
         }
       }
@@ -139,12 +157,16 @@ export async function updateStreak(
       if (finalLevel !== streakData.streakLevel) {
         newLevel = finalLevel;
       }
-
     }
     // --- Check 3: Interaction on the same day, and streak was already active ---
-    else if (currentDayNumber === lastUpdateDayNumber && streakData.currentStreak > 0) {
+    else if (
+      currentDayNumber === lastUpdateDayNumber &&
+      streakData.currentStreak > 0
+    ) {
       // Interaction is on the same day as the last update, and streak > 0. Do nothing.
-      console.log(`[Streak] User ${userId} (${streakType}): Same day interaction. Streak remains ${updatedStreak}`);
+      console.log(
+        `[Streak] User ${userId} (${streakType}): Same day interaction. Streak remains ${updatedStreak}`,
+      );
       needsDbUpdate = false;
     }
 
@@ -159,15 +181,15 @@ export async function updateStreak(
           streakLevel: finalLevel,
         })
         .where(
-          and(
-            eq(streaks.userId, userId),
-            eq(streaks.streakType, streakType)
-          )
+          and(eq(streaks.userId, userId), eq(streaks.streakType, streakType)),
         );
-      console.log(`[Streak] User ${userId} (${streakType}): DB updated. New Streak: ${updatedStreak}, Level: ${finalLevel}, Last Updated: ${new Date(now).toISOString()}`);
-
+      console.log(
+        `[Streak] User ${userId} (${streakType}): DB updated. New Streak: ${updatedStreak}, Level: ${finalLevel}, Last Updated: ${new Date(now).toISOString()}`,
+      );
     } else {
-      console.log(`[Streak] User ${userId} (${streakType}): No DB update needed.`);
+      console.log(
+        `[Streak] User ${userId} (${streakType}): No DB update needed.`,
+      );
     }
 
     return {
@@ -187,7 +209,10 @@ export async function updateStreak(
  * Get a user's streak data
  * Note: This returns the raw record. Availability of protection should be checked where needed.
  */
-export async function getStreakData(userId: string, streakType: string): Promise<StreakRecord> {
+export async function getStreakData(
+  userId: string,
+  streakType: string,
+): Promise<StreakRecord> {
   try {
     // Ensure streak record exists
     await initializeStreak(userId, streakType);
@@ -196,17 +221,18 @@ export async function getStreakData(userId: string, streakType: string): Promise
       .select()
       .from(streaks)
       .where(
-        and(
-          eq(streaks.userId, userId),
-          eq(streaks.streakType, streakType)
-        )
+        and(eq(streaks.userId, userId), eq(streaks.streakType, streakType)),
       );
 
     if (results.length === 0) {
       // This case should ideally be handled by initializeStreak, but good to check
-      console.error(`No streak data found for user ${userId} after initialization attempt.`);
+      console.error(
+        `No streak data found for user ${userId} after initialization attempt.`,
+      );
       // Consider returning a default StreakRecord or throwing a more specific error
-      throw new Error(`No streak data found for user ${userId} and type ${streakType}`);
+      throw new Error(
+        `No streak data found for user ${userId} and type ${streakType}`,
+      );
     }
 
     const data = results[0];

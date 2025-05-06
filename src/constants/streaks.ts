@@ -13,9 +13,9 @@ export const STREAK_LEVELS = {
 };
 
 export const STREAK_THRESHOLDS = {
-  BRONZE: 3,   // 3 consecutive quick responses
-  SILVER: 7,   // 7 consecutive quick responses
-  GOLD: 14,    // 14 consecutive quick responses
+  BRONZE: 3, // 3 consecutive quick responses
+  SILVER: 7, // 7 consecutive quick responses
+  GOLD: 14, // 14 consecutive quick responses
   DIAMOND: 30, // 30 consecutive quick responses
 };
 

@@ -45,7 +45,7 @@ export interface NextLevelInfo {
  * @returns An object containing the next level name and days needed, or null if at max level.
  */
 export function getDaysToNextLevelInfo(
-  currentStreak: number
+  currentStreak: number,
 ): NextLevelInfo | null {
   if (currentStreak >= STREAK_THRESHOLDS.DIAMOND) {
     return null; // Already at max level
@@ -83,49 +83,64 @@ export function getDaysToNextLevelInfo(
 export function formatStreakUpdateMessage(
   streakResult: UpdateStreakResult,
   dailyIntakeMl: number,
-  dailyTargetMl: number
+  dailyTargetMl: number,
 ): string | null {
   const { streakIncreased, newStreak, newLevel, streakBroken } = streakResult;
   const messageParts: string[] = [];
 
   if (streakIncreased) {
-    if (newStreak === 1) { // Started a new streak
+    if (newStreak === 1) {
+      // Started a new streak
       messageParts.push(`🔥 **New Streak Started!** You're on day 1!`);
     } else {
-      messageParts.push(`🚀 **Streak Increased!** You're now on a **${newStreak}-day** streak!`);
+      messageParts.push(
+        `🚀 **Streak Increased!** You're now on a **${newStreak}-day** streak!`,
+      );
     }
 
     // Check for new level unlocked
     if (newLevel) {
       const levelEmoji = getStreakEmoji(newLevel);
-      messageParts.push(`🎉 ${levelEmoji} **Level Unlocked:** ${capitalizeFirstLetter(newLevel)}!`);
+      messageParts.push(
+        `🎉 ${levelEmoji} **Level Unlocked:** ${capitalizeFirstLetter(newLevel)}!`,
+      );
     }
 
     // Add info about next level
     const nextLevelInfo = getDaysToNextLevelInfo(newStreak);
     if (nextLevelInfo) {
       const daysText = nextLevelInfo.daysToNextLevel === 1 ? "day" : "days";
-      messageParts.push(`➡️ Keep it up for **${nextLevelInfo.daysToNextLevel}** more ${daysText} to reach **${nextLevelInfo.nextLevelName}**!`);
+      messageParts.push(
+        `➡️ Keep it up for **${nextLevelInfo.daysToNextLevel}** more ${daysText} to reach **${nextLevelInfo.nextLevelName}**!`,
+      );
     } else {
       // At Diamond level or beyond
-      messageParts.push(`💎 You've reached the highest level! Incredible consistency!`);
+      messageParts.push(
+        `💎 You've reached the highest level! Incredible consistency!`,
+      );
     }
-
   } else if (streakBroken) {
-    messageParts.push(`😢 **Streak Broken.** Don't worry, a new streak starts now (day 1)!`);
+    messageParts.push(
+      `😢 **Streak Broken.** Don't worry, a new streak starts now (day 1)!`,
+    );
     const nextLevelInfo = getDaysToNextLevelInfo(1); // Info for getting back to Bronze
     if (nextLevelInfo) {
-       const daysText = nextLevelInfo.daysToNextLevel === 1 ? "day" : "days";
-       messageParts.push(`➡️ Keep it up for **${nextLevelInfo.daysToNextLevel}** more ${daysText} to reach **${nextLevelInfo.nextLevelName}**!`);
+      const daysText = nextLevelInfo.daysToNextLevel === 1 ? "day" : "days";
+      messageParts.push(
+        `➡️ Keep it up for **${nextLevelInfo.daysToNextLevel}** more ${daysText} to reach **${nextLevelInfo.nextLevelName}**!`,
+      );
     }
-
   } else {
     // Streak didn't increase or break (e.g., same day interaction)
     const remainingMl = dailyTargetMl - dailyIntakeMl;
     if (remainingMl > 0) {
-      messageParts.push(`💧 Keep going! Just **${remainingMl}ml** more water to hit your daily goal of ${dailyTargetMl}ml!`);
+      messageParts.push(
+        `💧 Keep going! Just **${remainingMl}ml** more water to hit your daily goal of ${dailyTargetMl}ml!`,
+      );
     } else {
-      messageParts.push(`✅ Great job! You've hit your daily water goal of ${dailyTargetMl}ml! (${dailyIntakeMl}ml logged)`);
+      messageParts.push(
+        `✅ Great job! You've hit your daily water goal of ${dailyTargetMl}ml! (${dailyIntakeMl}ml logged)`,
+      );
     }
   }
 

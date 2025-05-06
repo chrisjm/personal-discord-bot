@@ -129,7 +129,7 @@ export async function getEntriesForDay(
 export async function getTotalForDay(
   userId: string,
   type: string,
-  date: string
+  date: string,
 ): Promise<number> {
   try {
     const entries = await getEntriesForDay(userId, type, date);
