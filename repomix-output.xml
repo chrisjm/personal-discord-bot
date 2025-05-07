@@ -1,0 +1,5945 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+src/
+  commands/
+    llms/
+      providers/
+        openai.ts
+      utils/
+        complete.ts
+        stats.ts
+      index.ts
+    gpt.ts
+    llm.ts
+    ping.ts
+    rss.ts
+    server.ts
+    track.ts
+    user.ts
+    waterReminder.ts
+    waterStreak.ts
+  constants/
+    streaks.ts
+  db/
+    migrations/
+      meta/
+        _journal.json
+        0000_snapshot.json
+        0001_snapshot.json
+        0002_snapshot.json
+      0000_icy_bushwacker.sql
+      0001_busy_vance_astro.sql
+      0002_funny_changeling.sql
+    schema/
+      cache.ts
+      index.ts
+      reminderPreferences.ts
+      rss.ts
+      streaks.ts
+      tracking.ts
+    index.ts
+  events/
+    interactionCreate.ts
+    messageCreate.ts
+    ready.ts
+  handlers/
+    waterReminder.ts
+  types/
+    global.ts
+    interfaces.ts
+    llm.ts
+    markets.ts
+    reminder.ts
+  utils/
+    errorHandler.ts
+    logger.ts
+    reminderDatabase.ts
+    reminderScheduler.ts
+    rssDatabase.ts
+    rssDisplay.ts
+    rssFeedHandler.ts
+    streakFormatter.ts
+    streakService.ts
+    timezoneService.ts
+    trackingDatabase.ts
+    validation.ts
+  deploy-commands.ts
+  index.ts
+  utils.ts
+.gitignore
+.prettierignore
+.prettierrc
+drizzle.config.ts
+LICENSE
+package.json
+README.md
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/utils/timezoneService.ts">
+// Import spacetime dynamically to handle ESM modules
+const spacetimeImport = import('spacetime');
+
+export interface UserTimezone {
+  userId: string;
+  timezone: string;
+}
+
+// Default timezone if none is set
+const DEFAULT_TIMEZONE = 'UTC';
+
+// In-memory cache of user timezones
+// In a production environment, this should be stored in a database
+const userTimezones: Map<string, string> = new Map();
+
+/**
+ * Set a user's timezone preference
+ * @param userId The Discord user ID
+ * @param timezone The timezone string (e.g., 'America/Los_Angeles')
+ */
+export function setUserTimezone(userId: string, timezone: string): void {
+  userTimezones.set(userId, timezone);
+}
+
+/**
+ * Get a user's timezone preference
+ * @param userId The Discord user ID
+ * @returns The user's timezone or DEFAULT_TIMEZONE if not set
+ */
+export function getUserTimezone(userId: string): string {
+  return userTimezones.get(userId) || DEFAULT_TIMEZONE;
+}
+
+/**
+ * Get the current date in the user's timezone
+ * @param userId The Discord user ID
+ * @returns The current date in YYYY-MM-DD format in the user's timezone
+ */
+export async function getCurrentDateInUserTimezone(userId: string): Promise<string> {
+  const timezone = getUserTimezone(userId);
+  const spacetime = (await spacetimeImport).default;
+  return spacetime.now(timezone).format('iso-short');
+}
+
+/**
+ * Get the start of the current day in the user's timezone
+ * @param userId The Discord user ID
+ * @returns The start of the day timestamp in UTC
+ */
+export async function getStartOfDayInUTC(userId: string): Promise<number> {
+  const timezone = getUserTimezone(userId);
+  const spacetime = (await spacetimeImport).default;
+  return spacetime.now(timezone).startOf('day').toNativeDate().getTime();
+}
+
+/**
+ * Get the end of the current day in the user's timezone
+ * @param userId The Discord user ID
+ * @returns The end of the day timestamp in UTC
+ */
+export async function getEndOfDayInUTC(userId: string): Promise<number> {
+  const timezone = getUserTimezone(userId);
+  const spacetime = (await spacetimeImport).default;
+  return spacetime.now(timezone).endOf('day').toNativeDate().getTime();
+}
+
+/**
+ * Format a timestamp to a localized time string
+ * @param timestamp The UTC timestamp
+ * @param userId The Discord user ID
+ * @returns Formatted time string in the user's timezone
+ */
+export async function formatTimeInUserTimezone(timestamp: number, userId: string): Promise<string> {
+  const timezone = getUserTimezone(userId);
+  const spacetime = (await spacetimeImport).default;
+  return spacetime(timestamp, timezone).format('time');
+}
+
+/**
+ * Convert a local time string to UTC timestamp
+ * @param timeString Time string in HH:mm format
+ * @param userId The Discord user ID
+ * @returns UTC timestamp
+ */
+export async function localTimeToUTC(timeString: string, userId: string): Promise<number> {
+  const timezone = getUserTimezone(userId);
+  const spacetime = (await spacetimeImport).default;
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return spacetime.now(timezone)
+    .hour(hours)
+    .minute(minutes)
+    .toNativeDate()
+    .getTime();
+}
+</file>
+
+<file path="src/commands/llm.ts">
+export { data, execute } from "./llms";
+</file>
+
+<file path="src/db/migrations/0000_icy_bushwacker.sql">
+CREATE TABLE `generic_cache` (
+	`key` text PRIMARY KEY NOT NULL,
+	`value` text NOT NULL,
+	`timestamp` integer NOT NULL,
+	`ttl` integer DEFAULT 0 NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `reminder_preferences` (
+	`user_id` text NOT NULL,
+	`reminder_type` text NOT NULL,
+	`enabled` integer DEFAULT 0 NOT NULL,
+	`start_time` text DEFAULT '08:00' NOT NULL,
+	`end_time` text DEFAULT '19:00' NOT NULL,
+	`timezone` text DEFAULT 'America/Los_Angeles' NOT NULL,
+	`frequency_minutes` integer NOT NULL,
+	`random` integer DEFAULT 0 NOT NULL,
+	`frequency_random_multiple` real DEFAULT 1 NOT NULL,
+	`last_sent` integer DEFAULT 0 NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `rss_feeds` (
+	`name` text PRIMARY KEY NOT NULL,
+	`url` text NOT NULL,
+	`channel_id` text NOT NULL,
+	`update_frequency` integer DEFAULT 3600 NOT NULL,
+	`last_update` integer DEFAULT 0 NOT NULL,
+	`data` text
+);
+--> statement-breakpoint
+CREATE TABLE `rss_items` (
+	`feed_name` text NOT NULL,
+	`guid` text NOT NULL,
+	`title` text NOT NULL,
+	`link` text NOT NULL,
+	`pub_date` text NOT NULL,
+	`content` text NOT NULL,
+	`processed` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`feed_name`) REFERENCES `rss_feeds`(`name`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `tracking` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`type` text NOT NULL,
+	`value` text NOT NULL,
+	`timestamp` integer NOT NULL
+);
+</file>
+
+<file path="src/db/migrations/0001_busy_vance_astro.sql">
+PRAGMA foreign_keys=OFF;--> statement-breakpoint
+CREATE TABLE `__new_reminder_preferences` (
+	`user_id` text NOT NULL,
+	`reminder_type` text NOT NULL,
+	`enabled` integer DEFAULT 0 NOT NULL,
+	`start_time` text DEFAULT '08:00' NOT NULL,
+	`end_time` text DEFAULT '19:00' NOT NULL,
+	`timezone` text DEFAULT 'America/Los_Angeles' NOT NULL,
+	`frequency_minutes` integer NOT NULL,
+	`random` integer DEFAULT 0 NOT NULL,
+	`frequency_random_multiple` real DEFAULT 1 NOT NULL,
+	`last_sent` integer DEFAULT 0 NOT NULL,
+	PRIMARY KEY(`user_id`, `reminder_type`)
+);
+--> statement-breakpoint
+INSERT INTO `__new_reminder_preferences`("user_id", "reminder_type", "enabled", "start_time", "end_time", "timezone", "frequency_minutes", "random", "frequency_random_multiple", "last_sent") SELECT "user_id", "reminder_type", "enabled", "start_time", "end_time", "timezone", "frequency_minutes", "random", "frequency_random_multiple", "last_sent" FROM `reminder_preferences`;--> statement-breakpoint
+DROP TABLE `reminder_preferences`;--> statement-breakpoint
+ALTER TABLE `__new_reminder_preferences` RENAME TO `reminder_preferences`;--> statement-breakpoint
+PRAGMA foreign_keys=ON;
+</file>
+
+<file path="src/db/migrations/0002_funny_changeling.sql">
+PRAGMA foreign_keys=OFF;--> statement-breakpoint
+CREATE TABLE `__new_rss_items` (
+	`feed_name` text NOT NULL,
+	`guid` text NOT NULL,
+	`title` text NOT NULL,
+	`link` text NOT NULL,
+	`pub_date` text NOT NULL,
+	`content` text NOT NULL,
+	`processed` integer DEFAULT 0 NOT NULL,
+	PRIMARY KEY(`feed_name`, `guid`),
+	FOREIGN KEY (`feed_name`) REFERENCES `rss_feeds`(`name`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+INSERT INTO `__new_rss_items`("feed_name", "guid", "title", "link", "pub_date", "content", "processed") SELECT "feed_name", "guid", "title", "link", "pub_date", "content", "processed" FROM `rss_items`;--> statement-breakpoint
+DROP TABLE `rss_items`;--> statement-breakpoint
+ALTER TABLE `__new_rss_items` RENAME TO `rss_items`;--> statement-breakpoint
+PRAGMA foreign_keys=ON;
+</file>
+
+<file path="src/db/schema/cache.ts">
+import { text, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+
+export const genericCache = sqliteTable("generic_cache", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  timestamp: integer("timestamp").notNull(),
+  ttl: integer("ttl").notNull().default(0),
+});
+</file>
+
+<file path="src/db/schema/streaks.ts">
+import { text, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+
+export const streaks = sqliteTable("streaks", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  streakType: text("streak_type").notNull(),
+  currentStreak: integer("current_streak").notNull().default(0),
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastUpdated: integer("last_updated").notNull(),
+  protectionUsed: integer("protection_used").notNull().default(0),
+  lastProtectionUsed: integer("last_protection_used"),
+  streakLevel: text("streak_level").notNull().default("none"),
+});
+</file>
+
+<file path="src/db/schema/tracking.ts">
+import { text, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+
+export const tracking = sqliteTable("tracking", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  type: text("type").notNull(),
+  value: text("value").notNull(),
+  timestamp: integer("timestamp").notNull(),
+});
+</file>
+
+<file path="src/utils/rssDisplay.ts">
+import { TextChannel } from "discord.js";
+import { RSSItem } from "./rssDatabase";
+
+export async function displayNewEntries(
+  channel: TextChannel,
+  items: RSSItem[],
+  sourceName: string,
+): Promise<void> {
+  if (items.length === 0) return;
+
+  // Sort items by publication date, newest first
+  const sortedItems = [...items].sort((a, b) => {
+    const dateA = new Date(a.pubDate);
+    const dateB = new Date(b.pubDate);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  // Create a message with all items
+  const message = sortedItems
+    .map((item) => {
+      const description = item.content
+        ? `\n  ${item.content.substring(0, 200)}${
+            item.content.length > 200 ? "..." : ""
+          }`
+        : "";
+      return `• **${item.title}**\n  Source: ${sourceName}${description}\n  ${item.link}`;
+    })
+    .join("\n\n");
+
+  // Split message if it's too long (Discord's 2000 character limit)
+  const chunks = splitMessage(message);
+
+  // Send each chunk
+  for (const chunk of chunks) {
+    await channel.send(chunk);
+  }
+}
+
+function splitMessage(message: string, maxLength: number = 2000): string[] {
+  const chunks: string[] = [];
+  let currentChunk = "";
+
+  const lines = message.split("\n\n");
+  for (const line of lines) {
+    // If adding this line would exceed the limit, start a new chunk
+    if (currentChunk.length + line.length + 2 > maxLength) {
+      if (currentChunk) chunks.push(currentChunk.trim());
+      currentChunk = line;
+    } else {
+      currentChunk += (currentChunk ? "\n\n" : "") + line;
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk.trim());
+  return chunks;
+}
+</file>
+
+<file path=".prettierignore">
+node_modules
+dist
+build
+coverage
+.next
+*.log
+</file>
+
+<file path=".prettierrc">
+{
+  "semi": true,
+  "trailingComma": "all",
+  "singleQuote": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid"
+}
+</file>
+
+<file path="drizzle.config.ts">
+import type { Config } from "drizzle-kit";
+import path from "path";
+
+export default {
+  schema: "./src/db/schema/*",
+  out: "./src/db/migrations",
+  dialect: "sqlite",
+  dbCredentials: {
+    url: `file:${path.join(__dirname, "./data/sqlite/bot.db")}`,
+  },
+} satisfies Config;
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2024 Chris Mears
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="src/commands/llms/utils/complete.ts">
+import { LLMConfig, LLMProvider, LLMUsageStats } from "../../../types/llm";
+import { llmStats } from "./stats";
+
+export interface CompletionResult {
+  content: string;
+  usage: LLMUsageStats;
+  metadata?: Record<string, any>;
+}
+
+export interface CompletionOptions {
+  config?: Partial<LLMConfig>;
+  userId?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * General completion function that handles all LLM providers
+ * Manages stats recording and provides a consistent interface
+ */
+export async function complete(
+  prompt: string,
+  provider: LLMProvider,
+  options: CompletionOptions = {},
+): Promise<CompletionResult> {
+  try {
+    // Get completion from provider
+    const result = await provider.complete(prompt, options.config);
+
+    // Record usage stats if userId is provided
+    if (options.userId) {
+      await llmStats.recordUsage(
+        options.userId,
+        provider.name,
+        options.config?.model || provider.getDefaultConfig().model,
+        result.usage,
+      );
+    }
+
+    return {
+      content: result.content,
+      usage: result.usage,
+      metadata: options.metadata,
+    };
+  } catch (error) {
+    console.error("Error in LLM completion:", error);
+    throw error;
+  }
+}
+</file>
+
+<file path="src/commands/llms/utils/stats.ts">
+import sqlite3 from "sqlite3";
+import path from "path";
+import fs from "fs";
+import { LLMUsageStats } from "../../../types/llm";
+
+// Initialize database connection
+const dbDir = path.join(__dirname, "../../../../data/sqlite");
+const dbPath = path.join(dbDir, "llm_stats.db");
+
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error("Error opening LLM stats database:", err);
+  } else {
+    console.log("Connected to LLM stats database");
+    initializeDatabase();
+  }
+});
+
+interface UsageRecord extends LLMUsageStats {
+  timestamp: number;
+  userId: string;
+  model: string;
+  provider: string;
+}
+
+// Initialize database schema
+const initializeDatabase = (): void => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS llm_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp INTEGER NOT NULL,
+      userId TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      promptTokens INTEGER NOT NULL,
+      completionTokens INTEGER NOT NULL,
+      totalTokens INTEGER NOT NULL,
+      estimatedCost REAL NOT NULL
+    )
+  `);
+};
+
+// Initialize the database on module load
+initializeDatabase();
+
+const recordUsage = async (
+  userId: string,
+  provider: string,
+  model: string,
+  usage: LLMUsageStats,
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO llm_usage (
+        timestamp,
+        userId,
+        provider,
+        model,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        estimatedCost
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        Date.now(),
+        userId,
+        provider,
+        model,
+        usage.promptTokens,
+        usage.completionTokens,
+        usage.totalTokens,
+        usage.estimatedCost,
+      ],
+      (err) => {
+        if (err) reject(err);
+        else resolve();
+      },
+    );
+  });
+};
+
+const getStats = async (
+  userId?: string,
+  days = 30,
+): Promise<{
+  totalCost: number;
+  totalTokens: number;
+  usageByModel: Record<string, { tokens: number; cost: number }>;
+}> => {
+  const timeAgo = Date.now() - days * 24 * 60 * 60 * 1000;
+  const userFilter = userId ? "AND userId = ?" : "";
+  const params = userId ? [timeAgo, userId] : [timeAgo];
+
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT * FROM llm_usage WHERE timestamp >= ? ${userFilter}`,
+      params,
+      (err, rows: UsageRecord[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const usageByModel: Record<string, { tokens: number; cost: number }> =
+          {};
+        let totalCost = 0;
+        let totalTokens = 0;
+
+        rows.forEach((row) => {
+          if (!usageByModel[row.model]) {
+            usageByModel[row.model] = { tokens: 0, cost: 0 };
+          }
+          usageByModel[row.model].tokens += row.totalTokens;
+          usageByModel[row.model].cost += row.estimatedCost;
+          totalCost += row.estimatedCost;
+          totalTokens += row.totalTokens;
+        });
+
+        resolve({
+          totalCost,
+          totalTokens,
+          usageByModel,
+        });
+      },
+    );
+  });
+};
+
+export const llmStats = {
+  recordUsage,
+  getStats,
+};
+</file>
+
+<file path="src/commands/ping.ts">
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} from "discord.js";
+
+export const data = new SlashCommandBuilder()
+  .setName("ping")
+  .setDescription("Shows bot latency and other stats");
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const sent = await interaction.deferReply({ fetchReply: true });
+  const pingLatency = sent.createdTimestamp - interaction.createdTimestamp;
+  const apiLatency = Math.round(interaction.client.ws.ping);
+
+  const uptime = process.uptime();
+  const days = Math.floor(uptime / 86400);
+  const hours = Math.floor((uptime % 86400) / 3600);
+  const minutes = Math.floor((uptime % 3600) / 60);
+  const seconds = Math.floor(uptime % 60);
+
+  const embed = new EmbedBuilder()
+    .setColor(0x00ff00)
+    .setTitle("🏓 Pong!")
+    .addFields(
+      { name: "Bot Latency", value: `${pingLatency}ms`, inline: true },
+      { name: "API Latency", value: `${apiLatency}ms`, inline: true },
+      {
+        name: "Uptime",
+        value: `${days}d ${hours}h ${minutes}m ${seconds}s`,
+        inline: false,
+      },
+    )
+    .setTimestamp();
+
+  await interaction.editReply({ embeds: [embed] });
+}
+</file>
+
+<file path="src/commands/server.ts">
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} from "discord.js";
+
+export const data = new SlashCommandBuilder()
+  .setName("server")
+  .setDescription("Provides detailed information about the server.");
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  // Defer the reply first
+  await interaction.deferReply();
+
+  const guild = interaction.guild;
+
+  if (!guild) {
+    await interaction.editReply("This command can only be used in a server.");
+    return;
+  }
+
+  // Create a rich embed with server information
+  const serverEmbed = new EmbedBuilder()
+    .setColor(0x0099ff)
+    .setTitle(`Server Information: ${guild.name}`)
+    .setThumbnail(guild.iconURL())
+    .addFields(
+      { name: "Server Name", value: guild.name, inline: true },
+      { name: "Server ID", value: guild.id, inline: true },
+      {
+        name: "Created",
+        value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`,
+        inline: false,
+      },
+      {
+        name: "Member Count",
+        value: `${guild.memberCount} members`,
+        inline: true,
+      },
+      { name: "Boost Tier", value: `Tier ${guild.premiumTier}`, inline: true },
+    );
+
+  // Add owner information if available
+  try {
+    const owner = await guild.fetchOwner();
+    serverEmbed.addFields({
+      name: "Server Owner",
+      value: owner.user.username,
+      inline: true,
+    });
+  } catch (error) {
+    console.error("Could not fetch server owner:", error);
+  }
+
+  await interaction.editReply({ embeds: [serverEmbed] });
+}
+</file>
+
+<file path="src/db/migrations/meta/0002_snapshot.json">
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "ae7692bc-dd6f-468e-bf9b-22eca6f24f9b",
+  "prevId": "be87639f-4f7b-4b16-a8b3-fbf4942880de",
+  "tables": {
+    "generic_cache": {
+      "name": "generic_cache",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ttl": {
+          "name": "ttl",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "reminder_preferences": {
+      "name": "reminder_preferences",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reminder_type": {
+          "name": "reminder_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'08:00'"
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'19:00'"
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'America/Los_Angeles'"
+        },
+        "frequency_minutes": {
+          "name": "frequency_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "random": {
+          "name": "random",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "frequency_random_multiple": {
+          "name": "frequency_random_multiple",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "last_sent": {
+          "name": "last_sent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "reminder_preferences_user_id_reminder_type_pk": {
+          "columns": ["user_id", "reminder_type"],
+          "name": "reminder_preferences_user_id_reminder_type_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rss_feeds": {
+      "name": "rss_feeds",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "update_frequency": {
+          "name": "update_frequency",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 3600
+        },
+        "last_update": {
+          "name": "last_update",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rss_items": {
+      "name": "rss_items",
+      "columns": {
+        "feed_name": {
+          "name": "feed_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "guid": {
+          "name": "guid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "link": {
+          "name": "link",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pub_date": {
+          "name": "pub_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "processed": {
+          "name": "processed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rss_items_feed_name_rss_feeds_name_fk": {
+          "name": "rss_items_feed_name_rss_feeds_name_fk",
+          "tableFrom": "rss_items",
+          "tableTo": "rss_feeds",
+          "columnsFrom": ["feed_name"],
+          "columnsTo": ["name"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "rss_items_feed_name_guid_pk": {
+          "columns": ["feed_name", "guid"],
+          "name": "rss_items_feed_name_guid_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "tracking": {
+      "name": "tracking",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+</file>
+
+<file path="src/db/index.ts">
+// Import other dependencies statically
+import { drizzle } from "drizzle-orm/libsql";
+import * as schema from "./schema";
+import path from "path";
+
+// Use dynamic import for @libsql/client
+let db: ReturnType<typeof drizzle>;
+
+// Initialize database asynchronously
+async function initializeDb() {
+  try {
+    // Dynamic import of @libsql/client
+    const { createClient } = await import("@libsql/client");
+
+    const dbPath = path.join(__dirname, "../../data/sqlite/bot.db");
+
+    // Create SQLite client
+    const client = createClient({
+      url: `file:${dbPath}`,
+    });
+
+    // Create Drizzle database instance
+    db = drizzle(client, { schema });
+    console.log("Database initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+    throw error;
+  }
+}
+
+// Initialize the database immediately
+initializeDb();
+
+// Export the database instance and schema
+export { db };
+</file>
+
+<file path="src/events/interactionCreate.ts">
+import { Events, Interaction, CacheType, ActionRowBuilder, ButtonBuilder, ComponentType, APIMessageComponent, APIActionRowComponent, APIButtonComponent } from "discord.js";
+import { 
+    logWaterEntry, 
+    MODAL_ID_LOG_CUSTOM, 
+    INPUT_ID_CUSTOM_AMOUNT,
+    STREAK_TYPES // Needed for fetching current streak data
+} from '../handlers/waterReminder'; // Assuming exports are set up
+import * as streakService from '../utils/streakService';
+import * as streakFormatter from '../utils/streakFormatter';
+
+export default {
+  name: Events.InteractionCreate,
+  async execute(interaction: Interaction<CacheType>) { 
+    if (interaction.isChatInputCommand()) {
+      const command = interaction.client.commands?.get(interaction.commandName);
+
+      if (!command) {
+        console.error(
+          `No command matching ${interaction.commandName} was found.`,
+        );
+        return;
+      }
+
+      try {
+        await command.execute(interaction);
+      } catch (error) {
+        console.error(`Error executing ${interaction.commandName}`);
+        console.error(error);
+      }
+    } else if (interaction.isButton()) {
+      // respond to a permanent button
+    } else if (interaction.isStringSelectMenu()) {
+      // respond to a permanent select menu
+    } else if (interaction.isModalSubmit()) {
+         // --- Handle Custom Water Log Modal ---
+         if (interaction.customId === MODAL_ID_LOG_CUSTOM) {
+            const userId = interaction.user.id;
+            const amountStr = interaction.fields.getTextInputValue(INPUT_ID_CUSTOM_AMOUNT);
+            const amountMl = parseInt(amountStr, 10);
+
+            if (isNaN(amountMl) || amountMl <= 0) {
+                await interaction.reply({ content: '❌ Please enter a valid positive number for the amount in ml.', ephemeral: true });
+                return;
+            }
+
+            // Defer reply as logging + message edit might take a moment
+            await interaction.deferReply({ ephemeral: true }); 
+
+            try {
+                // Log the water entry (this function should handle its own success reply/followUp)
+                await logWaterEntry(userId, amountMl, interaction); 
+
+                // Fetch original message to disable buttons
+                if (interaction.message) { 
+                    try {
+                        const originalMessage = await interaction.channel?.messages.fetch(interaction.message.id); 
+                        if (originalMessage && originalMessage.components.length > 0) {
+                             const firstRow = originalMessage.components[0].toJSON() as APIActionRowComponent<APIButtonComponent>; 
+                             const disabledRow = new ActionRowBuilder<ButtonBuilder>();
+                             firstRow.components.forEach((componentJson: APIButtonComponent) => { 
+                                 if (componentJson.type === ComponentType.Button) {
+                                     const button = new ButtonBuilder(componentJson).setDisabled(true);
+                                     disabledRow.addComponents(button);
+                                 }
+                             });
+                            await originalMessage.edit({ components: [disabledRow] });
+                            console.log(`[DEBUG] Disabled buttons on original message ${originalMessage.id} after modal submit`);
+                        }
+                    } catch (editErr) {
+                        console.warn("Could not edit original message to disable buttons after modal:", editErr);
+                    }
+                }
+
+                // --- Send Current Streak Status ---
+                // The streak was already updated when the 'Custom' button was clicked.
+                // Fetch the *current* data now to show the latest status.
+                const currentStreakData = await streakService.getStreakData(userId, STREAK_TYPES.WATER_DAILY_CONSISTENCY);
+                const streakSummaryMessage = streakFormatter.getStreakStatusMessage(currentStreakData); 
+                
+                if (streakSummaryMessage) {
+                    try {
+                         // Follow up the deferred reply with the streak status (non-ephemeral)
+                         await interaction.followUp({ content: `**Current Status:**
+${streakSummaryMessage}`, ephemeral: false }); 
+                    } catch (followUpErr) {
+                        console.warn("Could not follow up modal interaction for streak summary:", followUpErr);
+                         try {
+                            await interaction.user.send(`**Current Status:**
+${streakSummaryMessage}`); // Fallback to DM
+                        } catch (dmErr) {
+                            console.error("Failed to send streak summary as DM after modal:", dmErr);
+                        }
+                    }
+                } else {
+                     // If summary is empty/null, at least edit the deferred reply so it doesn\'t hang
+                     await interaction.editReply({ content: `Logged ${amountMl}ml!`}); // Simple confirmation
+                }
+                 // --- End Streak Status ---
+
+            } catch (error) {
+                console.error("Error processing custom water log modal:", error);
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.editReply({ content: '❌ An error occurred while logging your custom amount.' });
+                } else {
+                     await interaction.reply({ content: '❌ An error occurred while logging your custom amount.', ephemeral: true });
+                }
+            }
+         }
+         // Handle other modals if needed...
+    }
+  },
+};
+</file>
+
+<file path="src/utils/validation.ts">
+import { logger } from "./logger";
+
+/**
+ * Validation utility class for input and data validation
+ */
+export class Validator {
+  /**
+   * Validate email address
+   * @param email - Email address to validate
+   * @returns Boolean indicating if email is valid
+   */
+  static isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Validate Discord user ID
+   * @param userId - Discord user ID to validate
+   * @returns Boolean indicating if user ID is valid
+   */
+  static isValidDiscordUserId(userId: string): boolean {
+    const userIdRegex = /^\d{17,19}$/;
+    return userIdRegex.test(userId);
+  }
+
+  /**
+   * Validate and sanitize input string
+   * @param input - Input string to validate
+   * @param maxLength - Maximum allowed length
+   * @returns Sanitized string or null if invalid
+   */
+  static sanitizeString(input: string, maxLength: number = 100): string | null {
+    if (!input) return null;
+
+    // Trim whitespace and remove potentially harmful characters
+    const sanitized = input.trim().replace(/[<>]/g, "");
+
+    if (sanitized.length > maxLength) {
+      logger.warn(`Input exceeds maximum length of ${maxLength}`);
+      return sanitized.slice(0, maxLength);
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Check if a value is within a specified range
+   * @param value - Number to check
+   * @param min - Minimum allowed value
+   * @param max - Maximum allowed value
+   * @returns Boolean indicating if value is in range
+   */
+  static isInRange(value: number, min: number, max: number): boolean {
+    return value >= min && value <= max;
+  }
+
+  /**
+   * Validate URL
+   * @param url - URL to validate
+   * @returns Boolean indicating if URL is valid
+   */
+  static isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Custom error class for validation errors
+ */
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "target": "es2022",
+    "lib": ["ES2022"],
+    "alwaysStrict": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["./src/**/*.ts"],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
+}
+</file>
+
+<file path="src/commands/llms/index.ts">
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} from "discord.js";
+import { openaiProvider } from "./providers/openai";
+import { llmStats } from "./utils/stats";
+import { LLMProvider } from "../../types/llm";
+
+// Initialize providers
+const providers: { [key: string]: LLMProvider } = {
+  openai: openaiProvider,
+  // Add more providers here as they're implemented
+};
+
+export const data = new SlashCommandBuilder()
+  .setName("llm")
+  .setDescription("Interact with various LLM models")
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName("chat")
+      .setDescription("Chat with an LLM model")
+      .addStringOption((option) =>
+        option
+          .setName("model")
+          .setDescription("The model to use")
+          .setRequired(true)
+          .addChoices(
+            { name: "GPT-4 Mini", value: "gpt-4o-mini" },
+            { name: "GPT-4", value: "gpt-4o" },
+            { name: "GPT-3.5 Turbo", value: "gpt-3.5-turbo" },
+          ),
+      )
+      .addStringOption((option) =>
+        option
+          .setName("prompt")
+          .setDescription("Your message to the model")
+          .setRequired(true),
+      ),
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName("stats")
+      .setDescription("View your LLM usage statistics")
+      .addIntegerOption((option) =>
+        option
+          .setName("days")
+          .setDescription("Number of days to show stats for (default: 30)")
+          .setMinValue(1)
+          .setMaxValue(365),
+      ),
+  );
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const subcommand = interaction.options.getSubcommand();
+
+  if (subcommand === "chat") {
+    const model = interaction.options.getString("model", true);
+    const prompt = interaction.options.getString("prompt", true);
+    const provider = providers.openai; // For now, hardcoded to OpenAI
+
+    try {
+      await interaction.deferReply();
+
+      const result = await provider.complete(prompt, { model });
+
+      // Record usage statistics
+      await llmStats.recordUsage(
+        interaction.user.id,
+        provider.name,
+        model,
+        result.usage,
+      );
+
+      await interaction.editReply({
+        content: result.content,
+      });
+    } catch (error) {
+      console.error("Error in LLM chat:", error);
+      await interaction.editReply({
+        content: "Sorry, there was an error processing your request.",
+      });
+    }
+  } else if (subcommand === "stats") {
+    const days = interaction.options.getInteger("days") || 30;
+
+    try {
+      await interaction.deferReply();
+
+      const stats = await llmStats.getStats(interaction.user.id, days);
+
+      const embed = new EmbedBuilder()
+        .setTitle("LLM Usage Statistics")
+        .setDescription(`Statistics for the last ${days} days`)
+        .addFields(
+          {
+            name: "Total Cost",
+            value: `$${stats.totalCost.toFixed(4)}`,
+            inline: true,
+          },
+          {
+            name: "Total Tokens",
+            value: stats.totalTokens.toString(),
+            inline: true,
+          },
+        )
+        .setFooter({ text: "Usage by Model:" });
+
+      // Add usage breakdown by model
+      Object.entries(stats.usageByModel).forEach(([model, usage]) => {
+        embed.addFields({
+          name: model,
+          value: `Tokens: ${usage.tokens}\nCost: $${usage.cost.toFixed(4)}`,
+          inline: true,
+        });
+      });
+
+      await interaction.editReply({
+        embeds: [embed],
+      });
+    } catch (error) {
+      console.error("Error getting LLM stats:", error);
+      await interaction.editReply({
+        content: "Sorry, there was an error retrieving your statistics.",
+      });
+    }
+  }
+}
+</file>
+
+<file path="src/commands/rss.ts">
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  EmbedBuilder,
+} from "discord.js";
+import {
+  addFeed,
+  stopUpdateInterval,
+  getNewItems,
+} from "../utils/rssFeedHandler";
+import { getRSSFeed, getAllRSSFeeds, deleteFeed } from "../utils/rssDatabase";
+import { config } from "dotenv";
+
+// Load environment variables
+config();
+
+const DEFAULT_RSS_CHANNEL = process.env.DEFAULT_RSS_CHANNEL_ID;
+
+export const data = new SlashCommandBuilder()
+  .setName("rss")
+  .setDescription("Manage RSS feeds")
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName("add")
+      .setDescription("Add a new RSS feed")
+      .addStringOption((option) =>
+        option
+          .setName("name")
+          .setDescription("Unique name for this feed")
+          .setRequired(true),
+      )
+      .addStringOption((option) =>
+        option
+          .setName("url")
+          .setDescription("URL of the RSS feed")
+          .setRequired(true),
+      )
+      .addChannelOption((option) =>
+        option
+          .setName("channel")
+          .setDescription(
+            "Channel to post updates to (defaults to RSS channel)",
+          ),
+      )
+      .addIntegerOption((option) =>
+        option
+          .setName("frequency")
+          .setDescription("Update frequency in minutes (default: 60)")
+          .setMinValue(1)
+          .setMaxValue(1440),
+      ),
+  )
+  .addSubcommand((subcommand) =>
+    subcommand.setName("list").setDescription("List all RSS feeds"),
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName("remove")
+      .setDescription("Remove an RSS feed")
+      .addStringOption((option) =>
+        option
+          .setName("name")
+          .setDescription("Name of the feed to remove")
+          .setRequired(true),
+      ),
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName("force-update")
+      .setDescription("Force update a feed")
+      .addStringOption((option) =>
+        option
+          .setName("name")
+          .setDescription("Name of the feed to update")
+          .setRequired(true),
+      ),
+  );
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const subcommand = interaction.options.getSubcommand();
+
+  switch (subcommand) {
+    case "add": {
+      await interaction.deferReply();
+
+      const name = interaction.options.getString("name", true);
+      const url = interaction.options.getString("url", true);
+      const channel = interaction.options.getChannel("channel");
+      const frequencyMinutes =
+        interaction.options.getInteger("frequency") || 60;
+
+      try {
+        const existingFeed = await getRSSFeed(name);
+        if (existingFeed) {
+          await interaction.editReply(
+            `A feed with the name "${name}" already exists.`,
+          );
+          return;
+        }
+
+        // Use default channel if none specified
+        const channelId = channel?.id || DEFAULT_RSS_CHANNEL;
+        if (!channelId) {
+          await interaction.editReply(
+            "No channel specified and no default RSS channel configured. Please specify a channel or set DEFAULT_RSS_CHANNEL_ID in your environment.",
+          );
+          return;
+        }
+
+        await addFeed(
+          name,
+          url,
+          channelId,
+          frequencyMinutes * 60, // Convert minutes to seconds
+        );
+
+        const embed = new EmbedBuilder()
+          .setColor(0x00ff00)
+          .setTitle("RSS Feed Added")
+          .addFields(
+            { name: "Name", value: name, inline: true },
+            { name: "URL", value: url, inline: true },
+            { name: "Channel", value: `<#${channelId}>`, inline: true },
+            {
+              name: "Update Frequency",
+              value: `${frequencyMinutes} minutes`,
+              inline: true,
+            },
+          );
+
+        await interaction.editReply({ embeds: [embed] });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await interaction.editReply(`Failed to add RSS feed: ${errorMessage}`);
+      }
+      break;
+    }
+
+    case "list": {
+      await interaction.deferReply();
+
+      try {
+        const feeds = await getAllRSSFeeds();
+
+        if (feeds.length === 0) {
+          await interaction.editReply("No RSS feeds configured.");
+          return;
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(0x00ff00)
+          .setTitle("RSS Feeds")
+          .addFields(
+            feeds.map((feed) => ({
+              name: feed.name,
+              value: `URL: ${feed.url}\nChannel: <#${feed.channelId}>\nFrequency: ${Math.floor((feed.updateFrequency ?? 3600) / 60)} minutes`,
+              inline: false,
+            })),
+          );
+
+        await interaction.editReply({ embeds: [embed] });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await interaction.editReply(
+          `Failed to list RSS feeds: ${errorMessage}`,
+        );
+      }
+      break;
+    }
+
+    case "remove": {
+      await interaction.deferReply();
+
+      const name = interaction.options.getString("name", true);
+
+      try {
+        const feed = await getRSSFeed(name);
+        if (!feed) {
+          await interaction.editReply(`No feed found with the name "${name}".`);
+          return;
+        }
+
+        stopUpdateInterval(name);
+        await deleteFeed(name);
+
+        await interaction.editReply(`Removed RSS feed "${name}".`);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await interaction.editReply(
+          `Failed to remove RSS feed: ${errorMessage}`,
+        );
+      }
+      break;
+    }
+
+    case "force-update": {
+      await interaction.deferReply();
+
+      const name = interaction.options.getString("name", true);
+
+      try {
+        const feed = await getRSSFeed(name);
+        if (!feed) {
+          await interaction.editReply(`No feed found with the name "${name}".`);
+          return;
+        }
+
+        const items = await getNewItems(name);
+        await interaction.editReply(
+          `Force updated "${name}". Found ${items.length} new items.`,
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await interaction.editReply(`Failed to force update: ${errorMessage}`);
+      }
+      break;
+    }
+  }
+}
+</file>
+
+<file path="src/commands/user.ts">
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+
+export const data = new SlashCommandBuilder()
+  .setName("user")
+  .setDescription("Provides information about the user.");
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const joinedDate =
+    interaction.member && "joinedAt" in interaction.member
+      ? interaction.member.joinedAt?.toDateString()
+      : "Unknown join date";
+
+  await interaction.reply(
+    `This command was run by ${interaction.user.username}, who joined on ${joinedDate}.`,
+  );
+}
+</file>
+
+<file path="src/constants/streaks.ts">
+// Constants for streak system
+export const STREAK_TYPES = {
+  WATER_DAILY_CONSISTENCY: "water_daily_consistency",
+  // Add other streak types here if needed
+};
+
+export const STREAK_LEVELS = {
+  NONE: "none",
+  BRONZE: "bronze",
+  SILVER: "silver",
+  GOLD: "gold",
+  DIAMOND: "diamond",
+};
+
+export const STREAK_THRESHOLDS = {
+  BRONZE: 3,   // 3 consecutive quick responses
+  SILVER: 7,   // 7 consecutive quick responses
+  GOLD: 14,    // 14 consecutive quick responses
+  DIAMOND: 30, // 30 consecutive quick responses
+};
+
+export const MAX_REACTION_TIME_MS = 3600000; // 60 minutes (keep for tracking reaction timeout)
+
+export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export const DEFAULT_DAILY_WATER_TARGET_ML = 3000;
+</file>
+
+<file path="src/db/migrations/meta/_journal.json">
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1739077235804,
+      "tag": "0000_icy_bushwacker",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1739077745090,
+      "tag": "0001_busy_vance_astro",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1739082229693,
+      "tag": "0002_funny_changeling",
+      "breakpoints": true
+    }
+  ]
+}
+</file>
+
+<file path="src/db/migrations/meta/0000_snapshot.json">
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "4a6a51ac-1c23-41ca-9ec4-2203ef178ac5",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "generic_cache": {
+      "name": "generic_cache",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ttl": {
+          "name": "ttl",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "reminder_preferences": {
+      "name": "reminder_preferences",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reminder_type": {
+          "name": "reminder_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'08:00'"
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'19:00'"
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'America/Los_Angeles'"
+        },
+        "frequency_minutes": {
+          "name": "frequency_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "random": {
+          "name": "random",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "frequency_random_multiple": {
+          "name": "frequency_random_multiple",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "last_sent": {
+          "name": "last_sent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rss_feeds": {
+      "name": "rss_feeds",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "update_frequency": {
+          "name": "update_frequency",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 3600
+        },
+        "last_update": {
+          "name": "last_update",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rss_items": {
+      "name": "rss_items",
+      "columns": {
+        "feed_name": {
+          "name": "feed_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "guid": {
+          "name": "guid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "link": {
+          "name": "link",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pub_date": {
+          "name": "pub_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "processed": {
+          "name": "processed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rss_items_feed_name_rss_feeds_name_fk": {
+          "name": "rss_items_feed_name_rss_feeds_name_fk",
+          "tableFrom": "rss_items",
+          "tableTo": "rss_feeds",
+          "columnsFrom": ["feed_name"],
+          "columnsTo": ["name"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "tracking": {
+      "name": "tracking",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+</file>
+
+<file path="src/db/migrations/meta/0001_snapshot.json">
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "be87639f-4f7b-4b16-a8b3-fbf4942880de",
+  "prevId": "4a6a51ac-1c23-41ca-9ec4-2203ef178ac5",
+  "tables": {
+    "generic_cache": {
+      "name": "generic_cache",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ttl": {
+          "name": "ttl",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "reminder_preferences": {
+      "name": "reminder_preferences",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reminder_type": {
+          "name": "reminder_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'08:00'"
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'19:00'"
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'America/Los_Angeles'"
+        },
+        "frequency_minutes": {
+          "name": "frequency_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "random": {
+          "name": "random",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "frequency_random_multiple": {
+          "name": "frequency_random_multiple",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "last_sent": {
+          "name": "last_sent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "reminder_preferences_user_id_reminder_type_pk": {
+          "columns": ["user_id", "reminder_type"],
+          "name": "reminder_preferences_user_id_reminder_type_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rss_feeds": {
+      "name": "rss_feeds",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "update_frequency": {
+          "name": "update_frequency",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 3600
+        },
+        "last_update": {
+          "name": "last_update",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rss_items": {
+      "name": "rss_items",
+      "columns": {
+        "feed_name": {
+          "name": "feed_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "guid": {
+          "name": "guid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "link": {
+          "name": "link",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pub_date": {
+          "name": "pub_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "processed": {
+          "name": "processed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rss_items_feed_name_rss_feeds_name_fk": {
+          "name": "rss_items_feed_name_rss_feeds_name_fk",
+          "tableFrom": "rss_items",
+          "tableTo": "rss_feeds",
+          "columnsFrom": ["feed_name"],
+          "columnsTo": ["name"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "tracking": {
+      "name": "tracking",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+</file>
+
+<file path="src/db/schema/index.ts">
+export * from "./cache";
+export * from "./reminderPreferences";
+export * from "./rss";
+export * from "./tracking";
+export * from "./streaks";
+</file>
+
+<file path="src/db/schema/reminderPreferences.ts">
+import {
+  text,
+  integer,
+  real,
+  sqliteTable,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
+
+export const reminderPreferences = sqliteTable(
+  "reminder_preferences",
+  {
+    userId: text("user_id").notNull(),
+    reminderType: text("reminder_type").notNull(),
+    enabled: integer("enabled").notNull().default(0),
+    startTime: text("start_time").notNull().default("08:00"),
+    endTime: text("end_time").notNull().default("19:00"),
+    timezone: text("timezone").notNull().default("America/Los_Angeles"),
+    frequencyMinutes: integer("frequency_minutes").notNull(),
+    random: integer("random").notNull().default(0),
+    frequencyRandomMultiple: real("frequency_random_multiple")
+      .notNull()
+      .default(1.0),
+    lastSent: integer("last_sent").notNull().default(0),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.reminderType] }),
+  }),
+);
+</file>
+
+<file path="src/events/messageCreate.ts">
+import { Events, Message } from "discord.js";
+import { openaiProvider } from "../commands/llms/providers/openai";
+import { llmStats } from "../commands/llms/utils/stats";
+
+// Default model to use for responses
+const DEFAULT_MODEL = "gpt-3.5-turbo";
+
+export default {
+  name: Events.MessageCreate,
+  async execute(message: Message) {
+    // Ignore messages from bots (including self)
+    if (message.author.bot) return;
+
+    // Check if message is a DM or mentions the bot
+    const isDM = message.channel.isDMBased();
+    const isMention = message.mentions.users.has(message.client.user!.id);
+
+    if (!isDM && !isMention) return;
+
+    try {
+      // Get the actual message content, removing the bot mention if present
+      let prompt = message.content;
+      if (isMention) {
+        prompt = prompt
+          .replace(new RegExp(`<@!?${message.client.user!.id}>`), "")
+          .trim();
+      }
+
+      // If the message is empty after removing mention, ignore it
+      if (!prompt) return;
+
+      // Show typing indicator while processing
+      // @ts-ignore Fix this when we settle on an architecture
+      await message.channel.sendTyping();
+
+      // Use the OpenAI provider to generate a response
+      const result = await openaiProvider.complete(prompt, {
+        model: DEFAULT_MODEL,
+      });
+
+      // Record usage statistics
+      await llmStats.recordUsage(
+        message.author.id,
+        openaiProvider.name,
+        DEFAULT_MODEL,
+        result.usage,
+      );
+
+      // Send the response
+      await message.reply({
+        content: result.content,
+        allowedMentions: { repliedUser: true },
+      });
+    } catch (error) {
+      console.error("Error in message response:", error);
+      await message.reply({
+        content: "Sorry, I encountered an error while processing your message.",
+        allowedMentions: { repliedUser: true },
+      });
+    }
+  },
+};
+</file>
+
+<file path="src/types/markets.ts">
+// NOTE: Keep this for future use even though it's not currently used.
+
+export interface MarketState {
+  marketState?: "PRE" | "REGULAR" | "POST" | "CLOSED";
+  regularMarketPrice: number;
+  regularMarketPreviousClose: number;
+  regularMarketOpen?: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
+  regularMarketVolume?: number;
+}
+
+export interface BaseAsset {
+  name: string;
+  symbol: string;
+  price: number;
+  change: number;
+  percentChange: number;
+  previousClose: number;
+  isOpen: boolean;
+  lastTradeTime: number;
+  currency?: string; // The currency of the asset (e.g., USD, EUR)
+  exchangeRate?: number; // Exchange rate to USD if not in USD
+  priceUSD?: number; // Price in USD for easy comparison
+}
+
+export interface CacheConfig {
+  duration: number; // Cache duration in milliseconds
+  key: string; // Cache key for the data
+}
+
+export interface ProviderConfig {
+  retryAttempts: number;
+  retryDelay: number; // Delay between retries in milliseconds
+  timeout: number; // Request timeout in milliseconds
+}
+</file>
+
+<file path="src/utils/errorHandler.ts">
+import { logger } from "./logger";
+import {
+  ChatInputCommandInteraction,
+  InteractionReplyOptions,
+} from "discord.js";
+
+/**
+ * Comprehensive error handling utility for Discord bot
+ */
+export class ErrorHandler {
+  /**
+   * Handle and log errors that occur during command execution
+   * @param error - The error that occurred
+   * @param interaction - Optional interaction for replying with error message
+   */
+  static async handleCommandError(
+    error: Error,
+    interaction?: ChatInputCommandInteraction,
+  ): Promise<void> {
+    // Log the full error for debugging
+    logger.error("Command execution error", {
+      errorName: error.name,
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+
+    // If interaction is available, send an error response to the user
+    if (interaction && interaction.isRepliable()) {
+      const errorReply: InteractionReplyOptions = {
+        content:
+          "❌ An unexpected error occurred while processing your command.",
+        ephemeral: true,
+      };
+
+      try {
+        await interaction.reply(errorReply);
+      } catch (replyError) {
+        logger.error("Failed to send error reply", replyError);
+      }
+    }
+  }
+
+  /**
+   * Handle network-related errors
+   * @param error - Network error
+   * @param context - Additional context about the network operation
+   */
+  static handleNetworkError(error: Error, context?: any): void {
+    logger.error("Network error occurred", {
+      errorName: error.name,
+      errorMessage: error.message,
+      context,
+    });
+  }
+
+  /**
+   * Handle database-related errors
+   * @param error - Database error
+   * @param context - Additional context about the database operation
+   */
+  static handleDatabaseError(error: Error, context?: any): void {
+    logger.error("Database error occurred", {
+      errorName: error.name,
+      errorMessage: error.message,
+      context,
+    });
+  }
+
+  /**
+   * Create a user-friendly error message
+   * @param error - Original error
+   * @returns Formatted error message
+   */
+  static formatErrorMessage(error: Error): string {
+    const defaultMessage = "An unexpected error occurred";
+
+    // Map of known error types to user-friendly messages
+    const errorMap: { [key: string]: string } = {
+      ValidationError: "Invalid input provided",
+      NetworkError: "Unable to connect to the service",
+      DatabaseError: "Database operation failed",
+      PermissionError: "You do not have permission to do this",
+    };
+
+    return errorMap[error.name] || defaultMessage;
+  }
+
+  /**
+   * Safely execute a function with error handling
+   * @param fn - Function to execute
+   * @param errorHandler - Optional custom error handler
+   */
+  static async safeExecute<T>(
+    fn: () => Promise<T>,
+    errorHandler?: (error: Error) => void,
+  ): Promise<T | null> {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error instanceof Error) {
+        if (errorHandler) {
+          errorHandler(error);
+        } else {
+          logger.error("Unhandled error in safeExecute", error);
+        }
+      }
+      return null;
+    }
+  }
+}
+
+/**
+ * Custom error classes for more specific error handling
+ */
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
+export class DatabaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DatabaseError";
+  }
+}
+</file>
+
+<file path="src/utils/rssDatabase.ts">
+import { eq, and, sql, inArray } from "drizzle-orm";
+import { db } from "../db";
+import { rssFeeds, rssItems } from "../db/schema/rss";
+
+export interface RSSFeed {
+  name: string;
+  url: string;
+  channelId: string;
+  updateFrequency?: number;
+  data?: string;
+}
+
+export interface RSSItem {
+  feedName: string;
+  guid: string;
+  title: string;
+  link: string;
+  pubDate: string;
+  content: string;
+  processed: boolean;
+}
+
+// Add or update an RSS feed
+export async function setRSSFeed(feed: RSSFeed): Promise<void> {
+  await db
+    .insert(rssFeeds)
+    .values({
+      name: feed.name,
+      url: feed.url,
+      channelId: feed.channelId,
+      updateFrequency: feed.updateFrequency || 3600,
+      data: feed.data || null,
+      lastUpdate: 0,
+    })
+    .onConflictDoUpdate({
+      target: rssFeeds.name,
+      set: {
+        url: feed.url,
+        channelId: feed.channelId,
+        updateFrequency: feed.updateFrequency || 3600,
+        data: feed.data || null,
+      },
+    });
+}
+
+// Get an RSS feed by name
+export async function getRSSFeed(name: string): Promise<RSSFeed | null> {
+  const result = await db
+    .select()
+    .from(rssFeeds)
+    .where(eq(rssFeeds.name, name));
+  if (result.length === 0) return null;
+
+  const feed = result[0];
+  return {
+    name: feed.name,
+    url: feed.url,
+    channelId: feed.channelId,
+    updateFrequency: feed.updateFrequency,
+    data: feed.data || undefined,
+  };
+}
+
+// Get all RSS feeds
+export async function getAllRSSFeeds(): Promise<RSSFeed[]> {
+  const feeds = await db.select().from(rssFeeds);
+  return feeds.map((feed) => ({
+    name: feed.name,
+    url: feed.url,
+    channelId: feed.channelId,
+    updateFrequency: feed.updateFrequency,
+    data: feed.data || undefined,
+  }));
+}
+
+// Add RSS items
+export async function addRSSItems(items: RSSItem[]): Promise<void> {
+  await db
+    .insert(rssItems)
+    .values(
+      items.map((item) => ({
+        feedName: item.feedName,
+        guid: item.guid,
+        title: item.title,
+        link: item.link,
+        pubDate: item.pubDate,
+        content: item.content,
+        processed: item.processed ? 1 : 0,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [rssItems.feedName, rssItems.guid],
+      set: {
+        title: sql`excluded.title`,
+        link: sql`excluded.link`,
+        pubDate: sql`excluded.pub_date`,
+        content: sql`excluded.content`,
+        processed: sql`excluded.processed`,
+      },
+    });
+}
+
+// Get unprocessed items for a feed
+export async function getUnprocessedItems(
+  feedName: string,
+): Promise<RSSItem[]> {
+  const items = await db
+    .select()
+    .from(rssItems)
+    .where(and(eq(rssItems.feedName, feedName), eq(rssItems.processed, 0)));
+
+  return items.map((item) => ({
+    feedName: item.feedName,
+    guid: item.guid,
+    title: item.title,
+    link: item.link,
+    pubDate: item.pubDate,
+    content: item.content,
+    processed: Boolean(item.processed),
+  }));
+}
+
+// Mark items as processed
+export async function markItemsAsProcessed(
+  feedName: string,
+  guids: string[],
+): Promise<void> {
+  await db
+    .update(rssItems)
+    .set({ processed: 1 })
+    .where(and(eq(rssItems.feedName, feedName), inArray(rssItems.guid, guids)));
+}
+
+// Update last update time for a feed
+export async function updateLastUpdateTime(feedName: string): Promise<void> {
+  await db
+    .update(rssFeeds)
+    .set({ lastUpdate: Math.floor(Date.now() / 1000) })
+    .where(eq(rssFeeds.name, feedName));
+}
+
+// Delete a feed and its items
+export async function deleteFeed(name: string): Promise<void> {
+  // Delete all items for this feed first
+  await db.delete(rssItems).where(eq(rssItems.feedName, name));
+
+  // Delete the feed itself
+  await db.delete(rssFeeds).where(eq(rssFeeds.name, name));
+}
+</file>
+
+<file path="src/utils/rssFeedHandler.ts">
+import Parser from "rss-parser";
+import {
+  RSSItem,
+  setRSSFeed,
+  getRSSFeed,
+  addRSSItems,
+  updateLastUpdateTime,
+  getUnprocessedItems,
+  markItemsAsProcessed,
+  getAllRSSFeeds,
+} from "./rssDatabase";
+import { Client, TextChannel } from "discord.js";
+import { displayNewEntries } from "./rssDisplay";
+
+const parser = new Parser();
+
+// Store intervals globally
+const updateIntervals: Map<string, NodeJS.Timeout> = new Map();
+
+// Initialize a new RSS feed
+export async function addFeed(
+  name: string,
+  url: string,
+  channelId: string,
+  updateFrequency: number = 3600,
+  data?: string,
+): Promise<void> {
+  try {
+    // Validate the feed URL by attempting to parse it
+    await parser.parseURL(url);
+
+    // Store the feed in the database
+    await setRSSFeed({
+      name,
+      url,
+      channelId,
+      updateFrequency,
+      data,
+    });
+
+    // Start the update interval
+    await startUpdateInterval(name);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to add RSS feed: ${error.message}`);
+    }
+    throw new Error(`Failed to add RSS feed: ${String(error)}`);
+  }
+}
+
+// Start the update interval for a feed
+async function startUpdateInterval(feedName: string): Promise<void> {
+  // Clear any existing interval
+  stopUpdateInterval(feedName);
+
+  const feed = await getRSSFeed(feedName);
+  if (!feed) return;
+
+  // Create new interval
+  const interval = setInterval(
+    () => updateFeed(feedName),
+    (feed?.updateFrequency || 3600) * 1000, // Convert seconds to milliseconds
+  );
+
+  updateIntervals.set(feedName, interval);
+
+  // Perform initial update
+  await updateFeed(feedName);
+}
+
+// Stop the update interval for a feed
+export function stopUpdateInterval(feedName: string): void {
+  const interval = updateIntervals.get(feedName);
+  if (interval) {
+    clearInterval(interval);
+    updateIntervals.delete(feedName);
+  }
+}
+
+// Update a feed and display new items
+export async function updateFeed(
+  feedName: string,
+  client?: Client,
+): Promise<void> {
+  try {
+    const feed = await getRSSFeed(feedName);
+    if (!feed) return;
+
+    const parsedFeed = await parser.parseURL(feed.url);
+
+    // Convert parsed items to our format
+    const items: RSSItem[] = parsedFeed.items.map((item) => ({
+      feedName,
+      guid: item.guid || item.id || item.link || "",
+      title: item.title || "",
+      link: item.link || "",
+      pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
+      content: item.content || item.contentSnippet || "",
+      processed: false,
+    }));
+
+    // Store items in database
+    if (items.length > 0) {
+      await addRSSItems(items);
+      await updateLastUpdateTime(feedName);
+    }
+
+    // Display new items if client is provided
+    if (client) {
+      await displayNewItems(feedName, feed.channelId, client);
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Failed to update RSS feed ${feedName}: ${error.message}`);
+    } else {
+      console.error(`Failed to update RSS feed ${feedName}: ${String(error)}`);
+    }
+  }
+}
+
+// Get unprocessed items for a feed
+export async function getNewItems(feedName: string): Promise<RSSItem[]> {
+  return await getUnprocessedItems(feedName);
+}
+
+// Display new items and mark them as processed
+export async function displayNewItems(
+  feedName: string,
+  channelId: string,
+  client: Client,
+): Promise<void> {
+  try {
+    // Get unprocessed items
+    const items = await getUnprocessedItems(feedName);
+    if (items.length === 0) return;
+
+    // Get the channel
+    const channel = client.channels.cache.get(channelId) as TextChannel;
+    if (!channel) {
+      console.error(`Channel ${channelId} not found for feed ${feedName}`);
+      return;
+    }
+
+    // Get feed info for source name
+    const feed = await getRSSFeed(feedName);
+    if (!feed) return;
+
+    // Display the items
+    await displayNewEntries(channel, items, feed.name);
+
+    // Mark items as processed
+    await markItemsAsProcessed(
+      feedName,
+      items.map((item) => item.guid),
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(
+        `Failed to display items for feed ${feedName}: ${error.message}`,
+      );
+    } else {
+      console.error(
+        `Failed to display items for feed ${feedName}: ${String(error)}`,
+      );
+    }
+  }
+}
+
+// Display all unprocessed items for all feeds
+export async function displayAllUnprocessedItems(
+  client: Client,
+): Promise<void> {
+  try {
+    const feeds = await getAllRSSFeeds();
+    for (const feed of feeds) {
+      await displayNewItems(feed.name, feed.channelId, client);
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Failed to display unprocessed items: ${error.message}`);
+    } else {
+      console.error(`Failed to display unprocessed items: ${String(error)}`);
+    }
+  }
+}
+
+// Clean up all intervals
+export function cleanup(): void {
+  for (const [feedName] of updateIntervals) {
+    stopUpdateInterval(feedName);
+  }
+}
+</file>
+
+<file path="src/utils/streakFormatter.ts">
+import {
+  StreakRecord,
+  UpdateStreakResult,
+  getNextLevel,
+  getStreakThreshold,
+} from "./streakService";
+import { STREAK_LEVELS, STREAK_THRESHOLDS } from "../constants/streaks";
+
+/**
+ * Capitalize first letter of a string
+ */
+export function capitalizeFirstLetter(string: string): string {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+/**
+ * Get emoji for streak level
+ */
+export function getStreakEmoji(level: string): string {
+  switch (level) {
+    case STREAK_LEVELS.BRONZE:
+      return "🥉";
+    case STREAK_LEVELS.SILVER:
+      return "🥈";
+    case STREAK_LEVELS.GOLD:
+      return "🥇";
+    case STREAK_LEVELS.DIAMOND:
+      return "💎";
+    default:
+      return ""; // No emoji for NONE
+  }
+}
+
+/**
+ * Information about the next streak level.
+ */
+export interface NextLevelInfo {
+  nextLevelName: string;
+  daysToNextLevel: number;
+}
+
+/**
+ * Calculate the next streak level and days required.
+ * @param currentStreak The user's current streak count.
+ * @returns An object containing the next level name and days needed, or null if at max level.
+ */
+export function getDaysToNextLevelInfo(
+  currentStreak: number
+): NextLevelInfo | null {
+  if (currentStreak >= STREAK_THRESHOLDS.DIAMOND) {
+    return null; // Already at max level
+  }
+
+  let nextLevelName = STREAK_LEVELS.BRONZE;
+  let daysToNextLevel = STREAK_THRESHOLDS.BRONZE - currentStreak;
+
+  if (currentStreak >= STREAK_THRESHOLDS.BRONZE) {
+    nextLevelName = STREAK_LEVELS.SILVER;
+    daysToNextLevel = STREAK_THRESHOLDS.SILVER - currentStreak;
+  }
+  if (currentStreak >= STREAK_THRESHOLDS.SILVER) {
+    nextLevelName = STREAK_LEVELS.GOLD;
+    daysToNextLevel = STREAK_THRESHOLDS.GOLD - currentStreak;
+  }
+  if (currentStreak >= STREAK_THRESHOLDS.GOLD) {
+    nextLevelName = STREAK_LEVELS.DIAMOND;
+    daysToNextLevel = STREAK_THRESHOLDS.DIAMOND - currentStreak;
+  }
+
+  return {
+    nextLevelName: capitalizeFirstLetter(nextLevelName),
+    daysToNextLevel: Math.max(1, daysToNextLevel), // Ensure at least 1 day
+  };
+}
+
+/**
+ * Format the streak update message based on streak changes and daily water intake.
+ * @param streakResult The result object from the updateStreak function.
+ * @param dailyIntakeMl The total water intake for the current day in milliliters.
+ * @param dailyTargetMl The target water intake for the day.
+ * @returns A formatted string describing the streak status or encouragement, or null if no message is needed.
+ */
+export function formatStreakUpdateMessage(
+  streakResult: UpdateStreakResult,
+  dailyIntakeMl: number,
+  dailyTargetMl: number
+): string | null {
+  const { streakIncreased, newStreak, newLevel, streakBroken } = streakResult;
+  const messageParts: string[] = [];
+
+  if (streakIncreased) {
+    if (newStreak === 1) { // Started a new streak
+      messageParts.push(`🔥 **New Streak Started!** You're on day 1!`);
+    } else {
+      messageParts.push(`🚀 **Streak Increased!** You're now on a **${newStreak}-day** streak!`);
+    }
+
+    // Check for new level unlocked
+    if (newLevel) {
+      const levelEmoji = getStreakEmoji(newLevel);
+      messageParts.push(`🎉 ${levelEmoji} **Level Unlocked:** ${capitalizeFirstLetter(newLevel)}!`);
+    }
+
+    // Add info about next level
+    const nextLevelInfo = getDaysToNextLevelInfo(newStreak);
+    if (nextLevelInfo) {
+      const daysText = nextLevelInfo.daysToNextLevel === 1 ? "day" : "days";
+      messageParts.push(`➡️ Keep it up for **${nextLevelInfo.daysToNextLevel}** more ${daysText} to reach **${nextLevelInfo.nextLevelName}**!`);
+    } else {
+      // At Diamond level or beyond
+      messageParts.push(`💎 You've reached the highest level! Incredible consistency!`);
+    }
+
+  } else if (streakBroken) {
+    messageParts.push(`😢 **Streak Broken.** Don't worry, a new streak starts now (day 1)!`);
+    const nextLevelInfo = getDaysToNextLevelInfo(1); // Info for getting back to Bronze
+    if (nextLevelInfo) {
+       const daysText = nextLevelInfo.daysToNextLevel === 1 ? "day" : "days";
+       messageParts.push(`➡️ Keep it up for **${nextLevelInfo.daysToNextLevel}** more ${daysText} to reach **${nextLevelInfo.nextLevelName}**!`);
+    }
+
+  } else {
+    // Streak didn't increase or break (e.g., same day interaction)
+    const remainingMl = dailyTargetMl - dailyIntakeMl;
+    if (remainingMl > 0) {
+      messageParts.push(`💧 Keep going! Just **${remainingMl}ml** more water to hit your daily goal of ${dailyTargetMl}ml!`);
+    } else {
+      messageParts.push(`✅ Great job! You've hit your daily water goal of ${dailyTargetMl}ml! (${dailyIntakeMl}ml logged)`);
+    }
+  }
+
+  return messageParts.length > 0 ? messageParts.join("\n") : null;
+}
+
+/**
+ * Get a formatted message about the user's streak status
+ */
+export function getStreakStatusMessage(streakData: StreakRecord): string {
+  const streakEmoji = getStreakEmoji(streakData.streakLevel);
+  const daysText = streakData.currentStreak === 1 ? "day" : "days";
+
+  let message = `${streakEmoji} **Current streak**: ${streakData.currentStreak} ${daysText}\n`;
+  message += `🏆 **Longest streak**: ${streakData.longestStreak} days\n`;
+
+  if (streakData.streakLevel !== STREAK_LEVELS.NONE) {
+    message += `🎖️ **Current level**: ${capitalizeFirstLetter(
+      streakData.streakLevel,
+    )}\n`;
+  }
+
+  // Show next level info if applicable
+  const nextLevel = getNextLevel(streakData.streakLevel);
+  if (nextLevel) {
+    const threshold = getStreakThreshold(nextLevel);
+    const responsesToNextLevel = threshold - streakData.currentStreak;
+    if (responsesToNextLevel > 0) {
+      const daysNeededText = responsesToNextLevel === 1 ? "day" : "days";
+      message += `⬆️ **Next level**: ${capitalizeFirstLetter(nextLevel)} (${responsesToNextLevel} more ${daysNeededText})\n`;
+    }
+  }
+
+  return message.trim(); // Trim trailing newline if any
+}
+</file>
+
+<file path="src/utils/streakService.ts">
+import { db } from "../db";
+import { streaks } from "../db/schema/streaks";
+import { eq, and } from "drizzle-orm";
+import { randomUUID } from "crypto";
+import {
+  STREAK_LEVELS,
+  STREAK_THRESHOLDS,
+  MS_PER_DAY,
+} from "../constants/streaks";
+
+// Renamed from StreakData - removed protectionAvailable as it's derived
+export interface StreakRecord {
+  currentStreak: number;
+  longestStreak: number;
+  streakLevel: string;
+  lastUpdated: number;
+}
+
+/**
+ * Initialize a streak record for a user if it doesn't exist
+ */
+export async function initializeStreak(userId: string, streakType: string): Promise<void> {
+  try {
+    // Check if streak record already exists
+    const existingStreak = await db
+      .select()
+      .from(streaks)
+      .where(
+        and(
+          eq(streaks.userId, userId),
+          eq(streaks.streakType, streakType)
+        )
+      );
+
+    if (existingStreak.length === 0) {
+      // Create new streak record
+      await db.insert(streaks).values({
+        id: randomUUID(),
+        userId,
+        streakType,
+        currentStreak: 0,
+        longestStreak: 0,
+        lastUpdated: Date.now(),
+        streakLevel: STREAK_LEVELS.NONE,
+      });
+    }
+  } catch (err) {
+    console.error("Database error in initializeStreak:", err);
+    throw err;
+  }
+}
+
+// Helper type for the result of updateStreak
+export type UpdateStreakResult = {
+  streakUpdated: boolean;
+  streakIncreased: boolean;
+  newStreak: number;
+  newLevel: string | null;
+  streakBroken: boolean;
+};
+
+// Helper function to get the day number (days since epoch)
+const getDayNumber = (timestamp: number): number => {
+  return Math.floor(timestamp / MS_PER_DAY);
+};
+
+/**
+ * Update a user's **daily consistency** streak.
+ * Increases if the update is on the day after the last update.
+ * Resets to 1 if the update is more than one day after the last update.
+ * Does nothing if the update is on the same day as the last update.
+ * Returns information about streak changes.
+ */
+export async function updateStreak(
+  userId: string,
+  streakType: string
+): Promise<UpdateStreakResult> {
+  try {
+    // Ensure streak record exists
+    await initializeStreak(userId, streakType);
+
+    // Get current streak data
+    const streakData = await getStreakData(userId, streakType);
+
+    const now = Date.now();
+    const currentDayNumber = getDayNumber(now);
+    const lastUpdateDayNumber = getDayNumber(streakData.lastUpdated);
+
+    let streakIncreased = false;
+    let streakBroken = false;
+    let newLevel: string | null = null;
+    let updatedStreak = streakData.currentStreak;
+    let needsDbUpdate = false;
+    let finalLevel = streakData.streakLevel; // Start with current level
+
+    // --- Check 1: Is this the very first interaction for this streak period? ---
+    if (streakData.currentStreak === 0) {
+      updatedStreak = 1;
+      streakIncreased = true;
+      needsDbUpdate = true;
+      finalLevel = STREAK_LEVELS.BRONZE;
+      if (finalLevel !== streakData.streakLevel) {
+        newLevel = finalLevel;
+      }
+      console.log(`[Streak] User ${userId} (${streakType}): Streak started! Set to ${updatedStreak}`);
+    }
+    // --- Check 2: Interaction on a different day, and streak was already active ---
+    else if (currentDayNumber > lastUpdateDayNumber) {
+      needsDbUpdate = true;
+
+      if (currentDayNumber === lastUpdateDayNumber + 1) {
+        // Interaction is on the consecutive day, increase streak
+        updatedStreak = streakData.currentStreak + 1;
+        streakIncreased = true;
+        console.log(`[Streak] User ${userId} (${streakType}): Consecutive day interaction. Streak increased to ${updatedStreak}`);
+      } else {
+        // Interaction is more than one day after the last update, streak broken
+        updatedStreak = 1;
+        streakBroken = true;
+        streakIncreased = false;
+        finalLevel = STREAK_LEVELS.BRONZE;
+        console.log(`[Streak] User ${userId} (${streakType}): Missed day(s). Streak reset to 1.`);
+      }
+
+      // Check for new level if streak changed (only if not already reset to Bronze)
+      if (!streakBroken) {
+        if (updatedStreak >= STREAK_THRESHOLDS.DIAMOND && streakData.streakLevel !== STREAK_LEVELS.DIAMOND) {
+          finalLevel = STREAK_LEVELS.DIAMOND;
+        } else if (updatedStreak >= STREAK_THRESHOLDS.GOLD && streakData.streakLevel !== STREAK_LEVELS.GOLD) {
+          finalLevel = STREAK_LEVELS.GOLD;
+        } else if (updatedStreak >= STREAK_THRESHOLDS.SILVER && streakData.streakLevel !== STREAK_LEVELS.SILVER) {
+          finalLevel = STREAK_LEVELS.SILVER;
+        } else if (updatedStreak >= STREAK_THRESHOLDS.BRONZE && streakData.streakLevel !== STREAK_LEVELS.BRONZE) {
+          finalLevel = STREAK_LEVELS.BRONZE;
+        }
+      }
+
+      // Record if the level actually changed
+      if (finalLevel !== streakData.streakLevel) {
+        newLevel = finalLevel;
+      }
+
+    }
+    // --- Check 3: Interaction on the same day, and streak was already active ---
+    else if (currentDayNumber === lastUpdateDayNumber && streakData.currentStreak > 0) {
+      // Interaction is on the same day as the last update, and streak > 0. Do nothing.
+      console.log(`[Streak] User ${userId} (${streakType}): Same day interaction. Streak remains ${updatedStreak}`);
+      needsDbUpdate = false;
+    }
+
+    // Update streak in database only if something changed
+    if (needsDbUpdate) {
+      await db
+        .update(streaks)
+        .set({
+          currentStreak: updatedStreak,
+          longestStreak: Math.max(updatedStreak, streakData.longestStreak),
+          lastUpdated: now,
+          streakLevel: finalLevel,
+        })
+        .where(
+          and(
+            eq(streaks.userId, userId),
+            eq(streaks.streakType, streakType)
+          )
+        );
+      console.log(`[Streak] User ${userId} (${streakType}): DB updated. New Streak: ${updatedStreak}, Level: ${finalLevel}, Last Updated: ${new Date(now).toISOString()}`);
+
+    } else {
+      console.log(`[Streak] User ${userId} (${streakType}): No DB update needed.`);
+    }
+
+    return {
+      streakUpdated: needsDbUpdate,
+      streakIncreased,
+      newStreak: updatedStreak,
+      newLevel,
+      streakBroken,
+    };
+  } catch (err) {
+    console.error("Database error in updateStreak:", err);
+    throw err;
+  }
+}
+
+/**
+ * Get a user's streak data
+ * Note: This returns the raw record. Availability of protection should be checked where needed.
+ */
+export async function getStreakData(userId: string, streakType: string): Promise<StreakRecord> {
+  try {
+    // Ensure streak record exists
+    await initializeStreak(userId, streakType);
+
+    const results = await db
+      .select()
+      .from(streaks)
+      .where(
+        and(
+          eq(streaks.userId, userId),
+          eq(streaks.streakType, streakType)
+        )
+      );
+
+    if (results.length === 0) {
+      // This case should ideally be handled by initializeStreak, but good to check
+      console.error(`No streak data found for user ${userId} after initialization attempt.`);
+      // Consider returning a default StreakRecord or throwing a more specific error
+      throw new Error(`No streak data found for user ${userId} and type ${streakType}`);
+    }
+
+    const data = results[0];
+
+    // Return a mapped object matching StreakRecord, excluding removed fields
+    return {
+      currentStreak: data.currentStreak,
+      longestStreak: data.longestStreak,
+      streakLevel: data.streakLevel || STREAK_LEVELS.NONE, // Ensure level is never null/undefined
+      lastUpdated: data.lastUpdated,
+    };
+  } catch (err) {
+    console.error("Database error in getStreakData:", err);
+    throw err;
+  }
+}
+
+/**
+ * Get the next level based on current level
+ */
+export function getNextLevel(currentLevel: string): string | null {
+  switch (currentLevel) {
+    case STREAK_LEVELS.NONE:
+      return STREAK_LEVELS.BRONZE;
+    case STREAK_LEVELS.BRONZE:
+      return STREAK_LEVELS.SILVER;
+    case STREAK_LEVELS.SILVER:
+      return STREAK_LEVELS.GOLD;
+    case STREAK_LEVELS.GOLD:
+      return STREAK_LEVELS.DIAMOND;
+    case STREAK_LEVELS.DIAMOND:
+      return null; // Max level
+    default:
+      return STREAK_LEVELS.BRONZE; // Should not happen
+  }
+}
+
+/**
+ * Get threshold for a streak level
+ */
+export function getStreakThreshold(level: string): number {
+  switch (level) {
+    case STREAK_LEVELS.BRONZE:
+      return STREAK_THRESHOLDS.BRONZE;
+    case STREAK_LEVELS.SILVER:
+      return STREAK_THRESHOLDS.SILVER;
+    case STREAK_LEVELS.GOLD:
+      return STREAK_THRESHOLDS.GOLD;
+    case STREAK_LEVELS.DIAMOND:
+      return STREAK_THRESHOLDS.DIAMOND;
+    default:
+      return Infinity; // Should not happen
+  }
+}
+</file>
+
+<file path="src/deploy-commands.ts">
+import dotenv from "dotenv";
+import path from "path";
+import * as fs from "fs";
+import { REST, Routes } from "discord.js";
+
+dotenv.config();
+
+// Assumes all commands are in the commands folder
+const commands = [];
+const foldersPath = path.join(__dirname, "commands");
+const commandFiles = fs
+  .readdirSync(foldersPath)
+  .filter((file) => file.endsWith(".ts"));
+
+// Push all commands as JSON to the array
+for (const file of commandFiles) {
+  const filePath = path.join(foldersPath, file);
+  const command = require(filePath);
+  if ("data" in command && "execute" in command) {
+    commands.push(command.data.toJSON());
+  } else {
+    console.log(
+      `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`,
+    );
+  }
+}
+
+// Create a new REST object
+const rest = new REST().setToken(process?.env?.DISCORD_TOKEN ?? "");
+
+// Deploy all commands
+(async () => {
+  try {
+    console.log(
+      `Started refreshing ${commands.length} application (/) commands.`,
+    );
+
+    // The put method is used to fully refresh all commands in the guild with the current set
+    const data = await rest.put(
+      Routes.applicationGuildCommands(
+        process?.env?.DISCORD_CLIENT_ID ?? "",
+        process?.env?.DISCORD_GUILD_ID ?? "",
+      ),
+      { body: commands },
+    );
+
+    console.log(
+      `Successfully reloaded ${Array.isArray(data) ? data.length : 0} application (/) commands.`,
+    );
+  } catch (error) {
+    console.error(error);
+  }
+})();
+</file>
+
+<file path="src/utils.ts">
+// Format date into "YYYY-MM-DD (hh:mm AM/PM TZ)"
+export const formatDate = (date: Date) =>
+  date
+    .toLocaleString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZoneName: "short",
+    })
+    .replace(",", "")
+    .replace(" ", " (")
+    .replace(" ", " ") + ")";
+
+export function formatDateHumanReadable(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
+export const getChangeColor = function (change: number): number {
+  // First check if it's already in 0-1 range
+  const normalizedValue =
+    change >= 0 && change <= 1
+      ? change
+      : change >= -1 && change <= 1
+        ? (change + 1) / 2
+        : change;
+
+  const roundedChange = Math.round(normalizedValue * 100) / 100;
+
+  const greenShades = [
+    0xccffcc, // Very light green
+    0x99ff99, // Light green
+    0x66cc66, // Medium light green
+    0x339933, // Medium green
+    0x006600, // Dark green
+  ];
+
+  const redShades = [
+    0xffcccc, // Very light red
+    0xff9999, // Light red
+    0xff6666, // Medium light red
+    0xff3333, // Medium red
+    0xcc0000, // Dark red
+  ];
+
+  if (roundedChange === 0.5) {
+    return 0xffffff; // White (neutral)
+  }
+
+  if (roundedChange > 0.5) {
+    // Map 0.5-1 range to 0-1 for green shades
+    const normalizedChange = (roundedChange - 0.5) * 2;
+    const index = Math.min(Math.floor(normalizedChange * 5), 4);
+    return greenShades[index];
+  }
+
+  // Map 0-0.5 range to 0-1 for red shades
+  const normalizedChange = (0.5 - roundedChange) * 2;
+  const index = Math.min(Math.floor(normalizedChange * 5), 4);
+  return redShades[index];
+};
+</file>
+
+<file path=".gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Cache
+.DS_Store
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for instrumented libs generated by jscoverage/JSCover
+lib-cov
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower dependency directory (https://bower.io/)
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Snowpack dependency directory (https://snowpack.dev/)
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+# Comment in the public line in if your project uses Gatsby and not Next.js
+# https://nextjs.org/blog/next-9-1#public-directory-support
+# public
+
+# vuepress build output
+.vuepress/dist
+
+# vuepress v2.x temp and cache directory
+.temp
+.cache
+
+# Docusaurus cache and generated files
+.docusaurus
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Sqlite
+*.db
+data/sqlite
+</file>
+
+<file path="src/commands/gpt.ts">
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function getCompletionFromMessages(
+  prompt: string,
+  temperature = 0.2,
+  model = "gpt-4o-mini",
+) {
+  const response = await openai.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "text",
+            text: 'Respond to queries for general knowledge and code help in a brief and concise manner suitable for Discord communication, using markdown for code snippets and formatting where necessary.\n\n# Guidelines\n\n- Keep responses brief to suit Discord platform use, providing succinct and relevant information.\n- Use markdown to format code and emphasize key points to enhance readability.\n- Focus on delivering clear, actionable insights and solutions without unnecessary elaboration.\n\n# Steps for General Knowledge Queries\n\n- Understand the primary question or topic being addressed.\n- Summarize the essential information or facts related to the query.\n- Deliver a concise and informative response, using bullet points if necessary.\n\n# Steps for Code Help\n\n- Identify the programming language and specific problem or task.\n- Provide a short explanation of the approach or solution.\n- Include minimal code snippets using markdown syntax (`\\```) to demonstrate the solution without extensive commentary.\n\n# Output Format\n\n- Responses should be in paragraph form for general knowledge.\n- For code help, responses should be a combination of brief explanations and markdown-formatted code snippets.\n\n# Examples\n\n**Example 1: General Knowledge Query**\n\n_Input:_ "What is the capital of France?"\n_Output:_ "The capital of France is Paris."\n\n**Example 2: Code Help**\n\n_Input:_ "How do I define a function in Python?"\n_Output:_ \n"To define a function in Python, use the `def` keyword followed by the function name and parentheses. Here\'s an example:\n```python\ndef my_function():\n    print(\'Hello, World!\')\n```\n"\n\n# Notes\n\n- Consider edge cases where a short response may need additional detail for clarity, especially in code assistance.\n- Adapt the level of detail based on the complexity of the query while maintaining brevity.',
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    temperature,
+    max_tokens: 500,
+    top_p: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+    response_format: {
+      type: "text",
+    },
+  });
+
+  console.dir(response);
+
+  return response.choices[0].message?.content;
+}
+
+export const data = new SlashCommandBuilder()
+  .setName("gpt")
+  .setDescription("Replies with LLM response (currently OpenAI gpt-4o-mini)")
+  .addStringOption((option) =>
+    option.setName("prompt").setDescription("The prompt to send to the LLM"),
+  );
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const prompt =
+    interaction.options.getString("prompt") ??
+    "Shoot, I forgot what I was asking...";
+
+  try {
+    console.log(`⚡️: Searching OpenAI API for '${prompt}'...`);
+    await interaction.deferReply({ ephemeral: true });
+    const result = await getCompletionFromMessages(prompt);
+    await interaction.editReply(result ?? "No result returned.");
+  } catch (error) {
+    console.log(error);
+    await interaction.editReply(error ?? "Unknown error returned.");
+  }
+}
+</file>
+
+<file path="src/commands/waterStreak.ts">
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { getStreakData, StreakRecord } from "../utils/streakService";
+import { getStreakStatusMessage } from "../utils/streakFormatter";
+import { 
+  STREAK_TYPES, 
+  STREAK_LEVELS, 
+  MAX_REACTION_TIME_MS 
+} from "../constants/streaks"; 
+
+export const data = new SlashCommandBuilder()
+  .setName("water-streak")
+  .setDescription("View your daily water logging streak status");
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const userId = interaction.user.id;
+
+  try {
+    // Get streak data for the user using the new service
+    const streakData: StreakRecord | null = await getStreakData(
+      userId,
+      STREAK_TYPES.WATER_DAILY_CONSISTENCY
+    );
+
+    // Create an embed for streak status
+    const embed = new EmbedBuilder();
+
+    if (streakData) {
+      embed
+        .setColor(getStreakColor(streakData.streakLevel))
+        .setTitle("💧 Water Reminder Streak Status")
+        .setDescription(getStreakStatusMessage(streakData))
+        .setFooter({ 
+          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
+        })
+        .setTimestamp();
+    } else {
+      embed
+        .setColor(0x2B65EC)
+        .setTitle("💧 Water Reminder Streak Status")
+        .setDescription("You haven't started tracking your water reminder streaks yet!")
+        .setFooter({ 
+          text: `Max reaction time allowed: ${MAX_REACTION_TIME_MS / (60 * 1000)} minutes.`
+        })
+        .setTimestamp();
+    }
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true,
+    });
+  } catch (error) {
+    console.error("Error getting streak status:", error);
+    await interaction.reply({
+      content: "There was an error getting your streak status. Please try again.",
+      ephemeral: true,
+    });
+  }
+}
+
+/**
+ * Get color for streak level
+ */
+function getStreakColor(level: string): number {
+  switch (level) {
+    case STREAK_LEVELS.DIAMOND:
+      return 0x9EDDFF;
+    case STREAK_LEVELS.GOLD:
+      return 0xFFD700;
+    case STREAK_LEVELS.SILVER:
+      return 0xC0C0C0;
+    case STREAK_LEVELS.BRONZE:
+      return 0xCD7F32;
+    default:
+      return 0x2B65EC;
+  }
+}
+</file>
+
+<file path="src/db/schema/rss.ts">
+import {
+  text,
+  integer,
+  sqliteTable,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
+
+export const rssFeeds = sqliteTable("rss_feeds", {
+  name: text("name").primaryKey(),
+  url: text("url").notNull(),
+  channelId: text("channel_id").notNull(),
+  updateFrequency: integer("update_frequency").notNull().default(3600),
+  lastUpdate: integer("last_update").notNull().default(0),
+  data: text("data"),
+});
+
+export const rssItems = sqliteTable(
+  "rss_items",
+  {
+    feedName: text("feed_name")
+      .notNull()
+      .references(() => rssFeeds.name),
+    guid: text("guid").notNull(),
+    title: text("title").notNull(),
+    link: text("link").notNull(),
+    pubDate: text("pub_date").notNull(),
+    content: text("content").notNull(),
+    processed: integer("processed").notNull().default(0),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.feedName, table.guid] }),
+  }),
+);
+</file>
+
+<file path="src/types/global.ts">
+import { Collection } from "discord.js";
+import { BotCommand } from "./interfaces";
+
+/**
+ * Extended Discord Client with additional properties for bot functionality
+ */
+declare module "discord.js" {
+  interface Client {
+    /**
+     * Collection of bot commands for easy access and management
+     */
+    commands?: Collection<string, BotCommand>;
+
+    /**
+     * Cooldowns for commands to prevent spam
+     */
+    cooldowns?: Collection<string, Collection<string, number>>;
+  }
+}
+
+/**
+ * Environment configuration interface
+ * Defines the shape of environment variables
+ */
+export interface EnvironmentConfig {
+  /**
+   * Discord bot token for authentication
+   */
+  DISCORD_TOKEN: string;
+
+  /**
+   * Client ID of the Discord application
+   */
+  CLIENT_ID: string;
+
+  /**
+   * Guild ID for guild-specific commands (optional)
+   */
+  GUILD_ID?: string;
+
+  /**
+   * Database connection string
+   */
+  DATABASE_URL: string;
+}
+
+/**
+ * Utility type for making certain properties optional
+ */
+export type Partial<T> = {
+  [P in keyof T]?: T[P];
+};
+
+/**
+ * Logging levels for consistent logging across the application
+ */
+export enum LogLevel {
+  ERROR = "error",
+  WARN = "warn",
+  INFO = "info",
+  DEBUG = "debug",
+}
+</file>
+
+<file path="src/types/interfaces.ts">
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+
+/**
+ * Interface representing a Discord bot command
+ * Ensures consistent structure for all bot commands
+ */
+export interface BotCommand {
+  /**
+   * Slash command data for Discord's command registration
+   */
+  data:
+    | SlashCommandBuilder
+    | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">;
+
+  /**
+   * Execute method for the command
+   * @param interaction - The interaction that triggered the command
+   */
+  execute(interaction: ChatInputCommandInteraction): Promise<void>;
+}
+
+/**
+ * Type guard to check if a command implements the BotCommand interface
+ * @param command - The command to check
+ * @returns Boolean indicating if the command is a valid BotCommand
+ */
+export function isBotCommand(command: any): command is BotCommand {
+  return (
+    command &&
+    typeof command.data === "object" &&
+    typeof command.execute === "function"
+  );
+}
+
+/**
+ * Enum for common command categories
+ * Helps in organizing and categorizing bot commands
+ */
+export enum CommandCategory {
+  UTILITY = "Utility",
+  MODERATION = "Moderation",
+  FUN = "Fun",
+  TRACKING = "Tracking",
+  INFORMATION = "Information",
+}
+</file>
+
+<file path="src/types/llm.ts">
+/**
+ * Interface for LLM provider configuration
+ */
+export interface LLMConfig {
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+}
+
+/**
+ * Interface for LLM usage statistics
+ */
+export interface LLMUsageStats {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost: number;
+}
+
+/**
+ * Interface for LLM provider functions
+ */
+export interface LLMProvider {
+  name: string;
+  availableModels: string[];
+  getDefaultConfig: () => LLMConfig;
+  complete: (
+    prompt: string,
+    config?: Partial<LLMConfig>,
+  ) => Promise<{
+    content: string;
+    usage: LLMUsageStats;
+  }>;
+}
+</file>
+
+<file path="src/types/reminder.ts">
+import { Client } from "discord.js";
+
+export interface ReminderPreferences {
+  user_id: string;
+  reminder_type: string;
+  enabled: boolean;
+  start_time: string;
+  end_time: string;
+  timezone: string;
+  frequency_minutes: number;
+  random?: boolean;
+  frequency_random_multiple?: number;
+  last_sent?: number;
+}
+
+export interface ReminderHandler {
+  type: string;
+  defaultMessages: string[];
+  defaultFrequencyMinutes: number;
+  defaultRandom: boolean;
+  defaultFrequencyRandomMultiple: number;
+  onReminder: (client: Client, userId: string) => Promise<void>;
+}
+</file>
+
+<file path="src/utils/logger.ts">
+import { LogLevel } from "../types/global";
+// Using dynamic import for chalk
+let chalkInstance: any;
+(async () => {
+  chalkInstance = (await import("chalk")).default;
+})();
+
+/**
+ * Advanced logging utility for the Discord bot
+ * Provides colorful, contextual logging with different log levels
+ */
+export class Logger {
+  /**
+   * Private constructor to enforce singleton pattern
+   */
+  private constructor() {}
+
+  /**
+   * Singleton instance of the Logger
+   */
+  private static instance: Logger;
+
+  /**
+   * Get the singleton instance of the Logger
+   * @returns Logger instance
+   */
+  public static getInstance(): Logger {
+    if (!Logger.instance) {
+      Logger.instance = new Logger();
+    }
+    return Logger.instance;
+  }
+
+  /**
+   * Log an error message
+   * @param message - The error message to log
+   * @param context - Optional context for the error
+   */
+  error(message: string, context?: any): void {
+    this.log(LogLevel.ERROR, chalkInstance.red(message), context);
+  }
+
+  /**
+   * Log a warning message
+   * @param message - The warning message to log
+   * @param context - Optional context for the warning
+   */
+  warn(message: string, context?: any): void {
+    this.log(LogLevel.WARN, chalkInstance.yellow(message), context);
+  }
+
+  /**
+   * Log an informational message
+   * @param message - The info message to log
+   * @param context - Optional context for the info
+   */
+  info(message: string, context?: any): void {
+    this.log(LogLevel.INFO, chalkInstance.blue(message), context);
+  }
+
+  /**
+   * Log a debug message
+   * @param message - The debug message to log
+   * @param context - Optional context for debugging
+   */
+  debug(message: string, context?: any): void {
+    this.log(LogLevel.DEBUG, chalkInstance.gray(message), context);
+  }
+
+  /**
+   * Internal method to handle logging with different levels
+   * @param level - The log level
+   * @param message - The formatted message
+   * @param context - Optional additional context
+   */
+  private log(level: LogLevel, message: string, context?: any): void {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+
+    console.log(logMessage);
+
+    if (context) {
+      console.dir(context, { depth: null });
+    }
+  }
+}
+
+/**
+ * Export a pre-configured logger instance
+ */
+export const logger = Logger.getInstance();
+</file>
+
+<file path="README.md">
+# personal-discord-bot
+
+A feature-rich Personal Assistant Discord Bot built with Discord.js. This bot includes various capabilities such as GPT integration, news tracking, financial tools, time management, and more.
+
+## Features
+
+- **GPT Integration**: Interact with GPT models for intelligent conversations
+- **News Tracking**: Follow and get updates from RSS feeds
+- **Financial Tools**: Track cryptocurrency prices and stock market data
+- **Time Management**: Handle timezone conversions and scheduling
+- **Server & User Info**: Get information about servers and users
+- **Database Integration**: Persistent storage using SQLite
+- **Voice Channel Support**: High-quality voice features using Discord Voice API
+
+## Prerequisites
+
+- Node.js (v16 or higher)
+- npm
+- Discord Bot Token
+- OpenAI API Key (for GPT features)
+- SQLite (for data persistence)
+
+## Tech Stack
+
+- TypeScript
+- Discord.js v14
+- OpenAI API
+- SQLite3
+- Various APIs:
+  - CoinGecko (cryptocurrency data)
+  - Yahoo Finance (stock market data)
+  - RSS Parser (news feeds)
+
+## Getting Started
+
+### 1. Setup
+
+These are initial steps to get things running:
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create environment file:
+   ```bash
+   echo "DISCORD_TOKEN=\nOPENAI_API_KEY=" >> .env
+   ```
+4. Build the TypeScript code:
+   ```bash
+   npm run build
+   ```
+
+### 2. Create a Discord Bot
+
+1. Go to the [Discord Developers Portal](https://discord.com/developers/applications) and create a **New Application**
+2. Navigate to **Settings > Bot** and click **Add Bot**
+3. Configure bot settings:
+   - Turn off **Public Bot**
+   - Enable necessary Privileged Gateway Intents (Presence, Server Members, Message Content)
+4. Under **Build-A-Bot**, copy the **Token** and paste it in your `.env` file
+5. Go to **OAuth2 > URL Generator**:
+   - Select scopes: `bot`, `applications.commands`
+   - Select appropriate bot permissions
+   - Use the generated URL to invite the bot to your server
+
+### 3. Configure OpenAI (for GPT features)
+
+1. Get your API key from [OpenAI's platform](https://platform.openai.com/)
+2. Add the key to your `.env` file: `OPENAI_API_KEY=your_key_here`
+
+### 4. Run the Bot
+
+1. Deploy slash commands (only needed once or when commands change):
+
+   ```bash
+   npm run deploy-commands
+   ```
+
+2. Start the bot:
+
+   ```bash
+   # For production
+   npm start
+
+   # For development with watch mode
+   npm run dev
+   ```
+
+## Available Commands
+
+### General
+
+- `/ping` - Check bot's latency, API latency, and uptime
+- `/server` - Get detailed server information including member count and boost tier
+- `/user` - Get user information
+
+### AI & Chat
+
+- `/gpt [prompt]` - Interact with GPT-4 model for intelligent conversations
+
+### Wellness & Health
+
+- `/track-water [action]` - Track your daily water intake
+  - Actions: add, today, range
+- `/water-reminder [action]` - Set up automated water drinking reminders
+  - `/water-reminder start [start_time] [end_time] [timezone]` - Start receiving reminders
+  - `/water-reminder stop` - Stop receiving reminders
+
+### Markets & Finance
+
+- `/markets` - Get a comprehensive overview of global markets including:
+  - US Markets (S&P 500, Dow Jones, NASDAQ)
+  - European Markets (DAX, FTSE 100, CAC 40)
+  - Asian Markets (Nikkei 225, Hang Seng, Shanghai)
+  - Exchange Rates
+  - Treasury Notes
+  - Cryptocurrency prices
+
+### News & Information
+
+- `/news [action]` - Get news updates from trusted sources
+  - Actions:
+    - `top` - Get top headlines
+    - `yesterday` - Get popular news from yesterday
+
+## Development
+
+The project uses TypeScript for better type safety and developer experience. Key development commands:
+
+```bash
+# Build the project
+npm run build
+
+# Start in development mode with auto-reload
+npm run dev
+
+# Deploy slash commands
+npm run deploy-commands
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT License - See LICENSE file for details
+</file>
+
+<file path="src/utils/reminderDatabase.ts">
+import { db } from "../db";
+import { reminderPreferences } from "../db/schema/reminderPreferences";
+import { eq, and } from "drizzle-orm";
+import { ReminderPreferences } from "../types/reminder";
+
+// Set user preferences
+export async function setPreferences(
+  prefs: ReminderPreferences,
+): Promise<void> {
+  try {
+    await db
+      .insert(reminderPreferences)
+      .values({
+        userId: prefs.user_id,
+        reminderType: prefs.reminder_type,
+        enabled: prefs.enabled ? 1 : 0,
+        startTime: prefs.start_time,
+        endTime: prefs.end_time,
+        timezone: prefs.timezone,
+        frequencyMinutes: prefs.frequency_minutes,
+        random: prefs.random ? 1 : 0,
+        frequencyRandomMultiple: prefs.frequency_random_multiple || 1.0,
+        lastSent: prefs.last_sent || 0,
+      })
+      .onConflictDoUpdate({
+        target: [reminderPreferences.userId, reminderPreferences.reminderType],
+        set: {
+          enabled: prefs.enabled ? 1 : 0,
+          startTime: prefs.start_time,
+          endTime: prefs.end_time,
+          timezone: prefs.timezone,
+          frequencyMinutes: prefs.frequency_minutes,
+          random: prefs.random ? 1 : 0,
+          frequencyRandomMultiple: prefs.frequency_random_multiple || 1.0,
+          lastSent: prefs.last_sent || 0,
+        },
+      });
+  } catch (err) {
+    console.error("Database error in setPreferences:", err);
+    throw err;
+  }
+}
+
+// Get user preferences for a specific reminder type
+export async function getPreferences(
+  userId: string,
+  reminderType: string,
+): Promise<ReminderPreferences | null> {
+  try {
+    const result = await db
+      .select()
+      .from(reminderPreferences)
+      .where(
+        and(
+          eq(reminderPreferences.userId, userId),
+          eq(reminderPreferences.reminderType, reminderType),
+        ),
+      )
+      .limit(1);
+
+    const row = result[0];
+    if (!row) return null;
+
+    return {
+      user_id: row.userId,
+      reminder_type: row.reminderType,
+      enabled: row.enabled === 1,
+      start_time: row.startTime,
+      end_time: row.endTime,
+      timezone: row.timezone,
+      frequency_minutes: row.frequencyMinutes,
+      random: row.random === 1,
+      frequency_random_multiple: row.frequencyRandomMultiple,
+      last_sent: row.lastSent,
+    };
+  } catch (err) {
+    console.error("Database error in getPreferences:", err);
+    throw err;
+  }
+}
+
+// Get all enabled users for a specific reminder type
+export async function getAllEnabledUsers(
+  reminderType: string,
+): Promise<ReminderPreferences[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(reminderPreferences)
+      .where(
+        and(
+          eq(reminderPreferences.enabled, 1),
+          eq(reminderPreferences.reminderType, reminderType),
+        ),
+      );
+
+    return rows.map((row) => ({
+      user_id: row.userId,
+      reminder_type: row.reminderType,
+      enabled: row.enabled === 1,
+      start_time: row.startTime,
+      end_time: row.endTime,
+      timezone: row.timezone,
+      frequency_minutes: row.frequencyMinutes || 60,
+      random: row.random === 1,
+      frequency_random_multiple: row.frequencyRandomMultiple || 1.0,
+      last_sent: row.lastSent,
+    }));
+  } catch (err) {
+    console.error("Database error in getAllEnabledUsers:", err);
+    throw err;
+  }
+}
+
+// Update last sent time for a reminder
+export async function updateLastSent(
+  userId: string,
+  reminderType: string,
+  timestamp: number,
+): Promise<void> {
+  try {
+    await db
+      .update(reminderPreferences)
+      .set({ lastSent: timestamp })
+      .where(
+        and(
+          eq(reminderPreferences.userId, userId),
+          eq(reminderPreferences.reminderType, reminderType),
+        ),
+      );
+  } catch (err) {
+    console.error("Database error in updateLastSent:", err);
+    throw err;
+  }
+}
+</file>
+
+<file path="src/utils/reminderScheduler.ts">
+import { Client } from "discord.js";
+import * as reminderDb from "./reminderDatabase";
+import { ReminderHandler, ReminderPreferences } from "../types/reminder";
+
+const spacetimeImport = import("spacetime");
+
+// State management
+let discordClient: Client | null = null;
+const userTimers: Map<string, NodeJS.Timeout> = new Map();
+const reminderHandlers: Map<string, ReminderHandler> = new Map();
+
+// Core functionality
+export const setClient = (client: Client): void => {
+  discordClient = client;
+};
+
+export const registerHandler = (handler: ReminderHandler): void => {
+  reminderHandlers.set(handler.type, handler);
+};
+
+const getTimerKey = (userId: string, reminderType: string): string => {
+  return `${userId}:${reminderType}`;
+};
+
+const getRandomInterval = (minMinutes: number, maxMinutes: number): number => {
+  const min = minMinutes;
+  const max = maxMinutes;
+  return Math.floor(Math.random() * (max - min + 1) + min) * 60 * 1000;
+};
+
+const scheduleNextReminder = (
+  userId: string,
+  prefs: ReminderPreferences,
+): void => {
+  console.log(
+    `[DEBUG] Scheduling next reminder for user ${userId}, type: ${prefs.reminder_type}`,
+  );
+
+  const handler = reminderHandlers.get(prefs.reminder_type);
+  if (!handler) {
+    console.error(`No handler found for reminder type: ${prefs.reminder_type}`);
+    return;
+  }
+
+  const interval = getRandomInterval(
+    prefs.frequency_minutes,
+    prefs.frequency_minutes * (prefs.frequency_random_multiple ?? 1.0),
+  );
+  console.log(
+    `[DEBUG] Calculated interval: ${interval}ms (${interval / (60 * 1000)} minutes)`,
+  );
+
+  const timerKey = getTimerKey(userId, prefs.reminder_type);
+  const timer = setTimeout(
+    () => sendReminder(userId, prefs.reminder_type),
+    interval,
+  );
+
+  // Clear any existing timer before setting a new one
+  if (userTimers.has(timerKey)) {
+    console.log(`[DEBUG] Clearing existing timer for ${timerKey}`);
+    clearTimeout(userTimers.get(timerKey));
+  }
+
+  userTimers.set(timerKey, timer);
+  console.log(
+    `[DEBUG] Set new timer for ${timerKey}, next reminder in ${interval / (60 * 1000)} minutes`,
+  );
+};
+
+const sendReminder = async (
+  userId: string,
+  reminderType: string,
+): Promise<void> => {
+  console.log(
+    `[DEBUG] Attempting to send reminder for user ${userId}, type: ${reminderType}`,
+  );
+  if (!discordClient) {
+    console.log(`[DEBUG] Discord client not initialized, skipping reminder`);
+    return;
+  }
+
+  try {
+    const spacetime = (await spacetimeImport).default;
+    const prefs = await reminderDb.getPreferences(userId, reminderType);
+    console.log(`[DEBUG] Loaded preferences:`, JSON.stringify(prefs, null, 2));
+
+    const handler = reminderHandlers.get(reminderType);
+
+    if (!prefs || !prefs.enabled || !handler) {
+      console.log(
+        `[DEBUG] Stopping reminders - prefs enabled: ${prefs?.enabled}, handler exists: ${!!handler}`,
+      );
+      stopReminders(userId, reminderType);
+      return;
+    }
+
+    const now = spacetime.now(prefs.timezone);
+    const currentTime = now.epoch;
+    console.log(
+      `[DEBUG] Current time in ${prefs.timezone}: ${now.format("nice")}`,
+    );
+
+    // Check if enough time has passed since the last reminder
+    if (prefs.last_sent) {
+      const timeSinceLastReminder = currentTime - prefs.last_sent;
+      const minInterval = prefs.frequency_minutes * 60 * 1000;
+      console.log(
+        `[DEBUG] Time since last reminder: ${timeSinceLastReminder / (60 * 1000)} minutes`,
+      );
+      console.log(
+        `[DEBUG] Minimum interval: ${minInterval / (60 * 1000)} minutes`,
+      );
+
+      if (timeSinceLastReminder < minInterval) {
+        const remainingTime = minInterval - timeSinceLastReminder;
+        console.log(
+          `[DEBUG] Not enough time passed, scheduling for remaining time: ${remainingTime / (60 * 1000)} minutes`,
+        );
+        scheduleNextReminder(userId, prefs);
+        return;
+      }
+    }
+
+    // Convert start and end times to spacetime objects for proper comparison
+    const [startHour, startMinute] = prefs.start_time.split(":").map(Number);
+    const [endHour, endMinute] = prefs.end_time.split(":").map(Number);
+
+    const startTime = now.clone().hour(startHour).minute(startMinute);
+    const endTime = now.clone().hour(endHour).minute(endMinute);
+
+    console.log(
+      `[DEBUG] Reminder window: ${startTime.format("time")} to ${endTime.format("time")}`,
+    );
+    console.log(`[DEBUG] Current time: ${now.format("time")}`);
+
+    // Check if current time is within the reminder window
+    if (now.isBetween(startTime, endTime)) {
+      console.log(
+        `[DEBUG] Current time is within reminder window, executing handler`,
+      );
+      try {
+        console.log(
+          `[DEBUG] Calling handler.onReminder for type: ${reminderType}`,
+        );
+        await handler.onReminder(discordClient, userId);
+        console.log(`[DEBUG] Handler executed successfully`);
+
+        console.log(`[DEBUG] Updating last_sent timestamp to ${currentTime}`);
+        await reminderDb.updateLastSent(userId, reminderType, currentTime);
+        console.log(`[DEBUG] Last sent timestamp updated successfully`);
+
+        console.log(
+          `[DEBUG] Reminder sent successfully, scheduling next reminder`,
+        );
+        scheduleNextReminder(userId, prefs);
+      } catch (innerError) {
+        console.error(`[ERROR] Failed during reminder execution:`, innerError);
+        // Still try to schedule the next reminder despite the error
+        console.log(
+          `[DEBUG] Attempting to schedule next reminder despite execution error`,
+        );
+        scheduleNextReminder(userId, prefs);
+      }
+    } else {
+      // If outside reminder window, calculate time until next window
+      const nextStart = now.isBefore(startTime)
+        ? startTime
+        : startTime.add(1, "day");
+      const msUntilStart = nextStart.epoch - now.epoch;
+
+      console.log(
+        `[DEBUG] Outside reminder window. Next start time: ${nextStart.format("nice")}`,
+      );
+      console.log(
+        `[DEBUG] Time until next start: ${msUntilStart / (60 * 1000)} minutes`,
+      );
+
+      const timerKey = getTimerKey(userId, reminderType);
+      const timer = setTimeout(() => {
+        scheduleNextReminder(userId, prefs);
+      }, msUntilStart);
+
+      if (userTimers.has(timerKey)) {
+        console.log(`[DEBUG] Clearing existing timer for ${timerKey}`);
+        clearTimeout(userTimers.get(timerKey));
+      }
+      userTimers.set(timerKey, timer);
+    }
+  } catch (error) {
+    console.error("Error in sendReminder:", error);
+    // Schedule next reminder despite error to maintain reminder chain
+    const prefs = await reminderDb.getPreferences(userId, reminderType);
+    if (prefs && prefs.enabled) {
+      console.log(`[DEBUG] Scheduling next reminder despite error`);
+      scheduleNextReminder(userId, prefs);
+    }
+  }
+};
+
+export async function startReminders(
+  userId: string,
+  reminderType: string,
+): Promise<void> {
+  const prefs = await reminderDb.getPreferences(userId, reminderType);
+  if (prefs && prefs.enabled) {
+    await sendReminder(userId, reminderType);
+  }
+}
+
+export function stopReminders(userId: string, reminderType: string): void {
+  const timerKey = getTimerKey(userId, reminderType);
+  if (userTimers.has(timerKey)) {
+    clearTimeout(userTimers.get(timerKey));
+    userTimers.delete(timerKey);
+  }
+}
+
+export async function scheduleReminders(): Promise<void> {
+  for (const [type] of reminderHandlers) {
+    const users = await reminderDb.getAllEnabledUsers(type);
+    for (const prefs of users) {
+      await startReminders(prefs.user_id, type);
+    }
+  }
+}
+
+export async function initializeReminders(): Promise<void> {
+  if (!discordClient) {
+    throw new Error("Discord client not set");
+  }
+  await scheduleReminders();
+}
+</file>
+
+<file path="src/commands/waterReminder.ts">
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import * as reminderDb from "../utils/reminderDatabase";
+import * as reminderScheduler from "../utils/reminderScheduler";
+
+export const data = new SlashCommandBuilder()
+  .setName("water-reminder")
+  .setDescription("Manage water drinking reminders")
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName("start")
+      .setDescription("Start receiving water reminders")
+      .addStringOption((option) =>
+        option
+          .setName("start_time")
+          .setDescription("Start time for reminders (24h format, e.g., 08:00)")
+          .setRequired(false),
+      )
+      .addStringOption((option) =>
+        option
+          .setName("end_time")
+          .setDescription("End time for reminders (24h format, e.g., 19:00)")
+          .setRequired(false),
+      )
+      .addStringOption((option) =>
+        option
+          .setName("timezone")
+          .setDescription("Your timezone (e.g., America/Los_Angeles)")
+          .setRequired(false),
+      )
+      .addIntegerOption((option) =>
+        option
+          .setName("frequency")
+          .setDescription("Reminder frequency in minutes (default: 45)")
+          .setRequired(false),
+      )
+      .addBooleanOption((option) =>
+        option
+          .setName("random")
+          .setDescription(
+            "Enable random timing between frequency and frequency*multiple (default: true)",
+          )
+          .setRequired(false),
+      )
+      .addNumberOption((option) =>
+        option
+          .setName("random_multiple")
+          .setDescription("Maximum random frequency multiplier (default: 1.5)")
+          .setMinValue(1.0)
+          .setMaxValue(3.0)
+          .setRequired(false),
+      ),
+  )
+  .addSubcommand((subcommand) =>
+    subcommand.setName("stop").setDescription("Stop receiving water reminders"),
+  );
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const subcommand = interaction.options.getSubcommand();
+  const userId = interaction.user.id;
+
+  if (subcommand === "start") {
+    const startTime = interaction.options.getString("start_time") || "08:00";
+    const endTime = interaction.options.getString("end_time") || "19:00";
+    const timezone =
+      interaction.options.getString("timezone") || "America/Los_Angeles";
+    const frequency = interaction.options.getInteger("frequency") || 60;
+
+    // Validate time format
+    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+      await interaction.reply({
+        content: "Please provide times in 24-hour format (HH:mm), e.g., 08:00",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    try {
+      const prefs = {
+        user_id: userId,
+        reminder_type: "water",
+        enabled: true,
+        start_time: startTime,
+        end_time: endTime,
+        timezone: timezone,
+        frequency_minutes: frequency,
+        random: interaction.options.getBoolean("random") ?? true,
+        frequency_random_multiple:
+          interaction.options.getNumber("random_multiple") ?? 1.5,
+      };
+
+      await reminderDb.setPreferences(prefs);
+
+      // Send immediate reminder and start the chain
+      await reminderScheduler.startReminders(userId, "water");
+
+      await interaction.reply({
+        content:
+          `✅ Water reminders enabled! You'll receive reminders between ${startTime} and ${endTime} ${timezone}\n` +
+          `Frequency: ${frequency} minutes` +
+          ((interaction.options.getBoolean("random") ?? true)
+            ? ` (randomly between ${Math.floor(frequency)} and ${Math.floor(frequency * (interaction.options.getNumber("random_multiple") ?? 1.5))} minutes)`
+            : "") +
+          `\nYour first reminder will be sent shortly!`,
+        ephemeral: true,
+      });
+    } catch (error) {
+      console.error("Error starting water reminders:", error);
+      await interaction.reply({
+        content:
+          "There was an error setting up your water reminders. Please try again.",
+        ephemeral: true,
+      });
+    }
+  } else if (subcommand === "stop") {
+    try {
+      const prefs = await reminderDb.getPreferences(userId, "water");
+      if (prefs) {
+        await reminderDb.setPreferences({
+          ...prefs,
+          enabled: false,
+        });
+      }
+
+      await interaction.reply({
+        content: "✅ Water reminders have been disabled. Stay hydrated!",
+        ephemeral: true,
+      });
+    } catch (error) {
+      console.error("Error stopping water reminders:", error);
+      await interaction.reply({
+        content:
+          "There was an error stopping your water reminders. Please try again.",
+        ephemeral: true,
+      });
+    }
+  }
+}
+</file>
+
+<file path="src/utils/trackingDatabase.ts">
+import { db } from "../db";
+import { tracking } from "../db/schema/tracking";
+import { eq, and, between } from "drizzle-orm";
+import { randomUUID } from "crypto";
+
+export interface TrackingEntry {
+  entry_datetime: string;
+  type: string;
+  amount: number;
+  unit: string;
+  note: string | null;
+}
+
+export async function addEntry(
+  userId: string,
+  type: string,
+  amount: number,
+  unit: string,
+  note?: string,
+): Promise<string> {
+  const entry_datetime = new Date().toISOString();
+  console.log("Adding entry in UTC:", {
+    type,
+    amount,
+    unit,
+    note,
+    entry_datetime,
+  });
+
+  try {
+    await db.insert(tracking).values({
+      id: randomUUID(),
+      userId,
+      type,
+      value: JSON.stringify({ amount, unit, note, entry_datetime }),
+      timestamp: Date.now(),
+    });
+    return `Successfully tracked ${amount}${unit} of ${type}!`;
+  } catch (err) {
+    console.error("Database error in addEntry:", err);
+    throw err;
+  }
+}
+
+export async function getEntriesInRange(
+  userId: string,
+  type: string,
+  startDate: string,
+  endDate: string,
+): Promise<TrackingEntry[]> {
+  console.log("Fetching entries in UTC range:", { type, startDate, endDate });
+
+  try {
+    const startTimestamp = new Date(startDate).getTime();
+    const endTimestamp = new Date(endDate).getTime();
+
+    const entries = await db
+      .select()
+      .from(tracking)
+      .where(
+        and(
+          eq(tracking.userId, userId),
+          eq(tracking.type, type),
+          between(tracking.timestamp, startTimestamp, endTimestamp),
+        ),
+      );
+
+    return entries.map((entry) => {
+      const value = JSON.parse(entry.value);
+      return {
+        entry_datetime: value.entry_datetime,
+        type: entry.type,
+        amount: value.amount,
+        unit: value.unit,
+        note: value.note,
+      };
+    });
+  } catch (err) {
+    console.error("Database error in getEntriesInRange:", err);
+    throw err;
+  }
+}
+
+export async function getEntriesForDay(
+  userId: string,
+  type: string,
+  date: string,
+): Promise<TrackingEntry[]> {
+  console.log("Fetching entries for day in UTC:", { type, date });
+
+  try {
+    const startTimestamp = new Date(date + "T00:00:00.000Z").getTime();
+    const endTimestamp = new Date(date + "T23:59:59.999Z").getTime();
+
+    const entries = await db
+      .select()
+      .from(tracking)
+      .where(
+        and(
+          eq(tracking.userId, userId),
+          eq(tracking.type, type),
+          between(tracking.timestamp, startTimestamp, endTimestamp),
+        ),
+      );
+
+    return entries.map((entry) => {
+      const value = JSON.parse(entry.value);
+      return {
+        entry_datetime: value.entry_datetime,
+        type: entry.type,
+        amount: value.amount,
+        unit: value.unit,
+        note: value.note,
+      };
+    });
+  } catch (err) {
+    console.error("Database error in getEntriesForDay:", err);
+    throw err;
+  }
+}
+
+/**
+ * Get the total amount for a specific tracking type on a given day.
+ * @param userId The user ID.
+ * @param type The tracking type (e.g., "water").
+ * @param date The date string in YYYY-MM-DD format.
+ * @returns The sum of amounts for that day.
+ */
+export async function getTotalForDay(
+  userId: string,
+  type: string,
+  date: string
+): Promise<number> {
+  try {
+    const entries = await getEntriesForDay(userId, type, date);
+    const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+    console.log(`[DB] Total ${type} for user ${userId} on ${date}: ${total}`);
+    return total;
+  } catch (err) {
+    console.error("Database error in getTotalForDay:", err);
+    throw err;
+  }
+}
+</file>
+
+<file path="src/index.ts">
+import * as fs from "fs";
+import path from "path";
+import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
+import dotenv from "dotenv";
+dotenv.config();
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.DirectMessageTyping,
+    GatewayIntentBits.DirectMessageReactions,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageTyping,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessageReactions,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildPresences,
+  ],
+  partials: [
+    Partials.Channel,
+    Partials.Message,
+    Partials.Reaction,
+    Partials.User,
+    Partials.GuildMember,
+  ],
+});
+
+client.commands = new Collection();
+const commandsPath = path.join(__dirname, "commands");
+const commandFiles = fs
+  .readdirSync(commandsPath)
+  .filter((file) => file.endsWith(".ts"));
+
+for (const file of commandFiles) {
+  const filePath = path.join(commandsPath, file);
+  const command = require(filePath);
+
+  if ("data" in command && "execute" in command) {
+    client.commands.set(command.data.name, command);
+  } else {
+    console.error(`No command matching ${filePath} was found.`);
+  }
+}
+
+const eventsPath = path.join(__dirname, "events");
+const eventFiles = fs
+  .readdirSync(eventsPath)
+  .filter((file) => file.endsWith(".ts"));
+
+for (const file of eventFiles) {
+  const filePath = path.join(eventsPath, file);
+  const event = require(filePath);
+  const eventHandler = event.default || event;
+
+  if (eventHandler.once) {
+    client.once(eventHandler.name, (...args) => eventHandler.execute(...args));
+  } else {
+    client.on(eventHandler.name, (...args) => eventHandler.execute(...args));
+  }
+}
+
+client.login(process.env.DISCORD_TOKEN);
+</file>
+
+<file path="src/commands/llms/providers/openai.ts">
+import OpenAI from "openai";
+import { LLMConfig, LLMProvider, LLMUsageStats } from "../../../types/llm";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Cost per 1M tokens
+interface TokenRates {
+  input: number;
+  output: number;
+}
+
+const MODEL_RATES: Record<string, TokenRates> = {
+  "gpt-4o": {
+    input: 2.5, // per 1M input tokens
+    output: 10.0, // per 1M output tokens
+  },
+  "gpt-4o-mini": {
+    input: 0.15,
+    output: 0.6,
+  },
+  "gpt-3.5-turbo-0613": {
+    input: 1.5,
+    output: 2.0,
+  },
+};
+
+const getDefaultConfig = (): LLMConfig => ({
+  model: "gpt-4o-mini",
+  temperature: 0.7,
+  maxTokens: 500,
+  topP: 1,
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+});
+
+const calculateCost = (
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+): number => {
+  const rates = MODEL_RATES[model] || MODEL_RATES["gpt-4o-mini"];
+  return (
+    (promptTokens * rates.input) / 1_000_000 + // Input tokens cost
+    (completionTokens * rates.output) / 1_000_000 // Output tokens cost
+  );
+};
+
+export const complete = async (
+  prompt: string,
+  config?: Partial<LLMConfig>,
+): Promise<{ content: string; usage: LLMUsageStats }> => {
+  const finalConfig = { ...getDefaultConfig(), ...config };
+
+  // Generic LLM Chat prompt (from Claude Haiku)
+  // https://docs.anthropic.com/en/release-notes/system-prompts#oct-22nd-2024
+  const systemPrompt = `The assistant is Cooper Bot. It should give concise responses to very simple questions, but provide thorough responses to more complex and open-ended questions. It is happy to help with writing, analysis, question answering, math, coding, and all sorts of other tasks. It uses markdown for coding. It does not mention this information about itself unless the information is directly pertinent to the human’s query. Keep responses short and concise and under 1800 characters.`;
+
+  const response = await client.chat.completions.create({
+    model: finalConfig.model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: prompt },
+    ],
+    temperature: finalConfig.temperature,
+    max_tokens: finalConfig.maxTokens,
+    top_p: finalConfig.topP,
+    frequency_penalty: finalConfig.frequencyPenalty,
+    presence_penalty: finalConfig.presencePenalty,
+  });
+
+  const usage: LLMUsageStats = {
+    promptTokens: response.usage?.prompt_tokens || 0,
+    completionTokens: response.usage?.completion_tokens || 0,
+    totalTokens: response.usage?.total_tokens || 0,
+    estimatedCost: calculateCost(
+      finalConfig.model,
+      response.usage?.prompt_tokens || 0,
+      response.usage?.completion_tokens || 0,
+    ),
+  };
+
+  return {
+    content: response.choices[0]?.message?.content || "No response generated.",
+    usage,
+  };
+};
+
+export const openaiProvider: LLMProvider = {
+  name: "OpenAI",
+  availableModels: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo-0613"],
+  getDefaultConfig,
+  complete,
+};
+</file>
+
+<file path="src/commands/track.ts">
+import * as dotenv from "dotenv";
+dotenv.config();
+
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChatInputCommandInteraction,
+  Interaction,
+  SlashCommandBuilder,
+} from "discord.js";
+import * as trackingDb from "../utils/trackingDatabase";
+
+const spacetimeImport = import("spacetime");
+const CODE_START = "```\n";
+const CODE_END = "```\n";
+const USER_TIMEZONE = "America/Los_Angeles"; // This could be made configurable per user in the future
+
+// Define common tracking types and their default units
+const TRACKING_TYPES = {
+  water: { defaultUnit: "ml", description: "Track water intake" },
+  mood: { defaultUnit: "score", description: "Track mood (1-10)" },
+} as const;
+
+type TrackingType = keyof typeof TRACKING_TYPES;
+
+export const data = new SlashCommandBuilder()
+  .setName("track")
+  .setDescription("Track various metrics")
+  .addStringOption((option) =>
+    option
+      .setName("action")
+      .setDescription("What would you like to do?")
+      .setRequired(true)
+      .addChoices(
+        { name: "add", value: "add" },
+        { name: "today", value: "today" },
+        { name: "range", value: "range" },
+      ),
+  )
+  .addStringOption((option) => {
+    option
+      .setName("type")
+      .setDescription("What type of metric to track")
+      .setRequired(true);
+
+    Object.entries(TRACKING_TYPES).forEach(([type, config]) => {
+      option.addChoices({ name: type, value: type });
+    });
+
+    return option;
+  })
+  .addNumberOption((option) =>
+    option
+      .setName("amount")
+      .setDescription("Amount to track")
+      .setRequired(false),
+  )
+  .addStringOption((option) =>
+    option
+      .setName("unit")
+      .setDescription(
+        "Unit of measurement (optional, will use default if not specified)",
+      )
+      .setRequired(false),
+  )
+  .addStringOption((option) =>
+    option
+      .setName("note")
+      .setDescription("Additional notes about this entry")
+      .setRequired(false),
+  );
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const action = interaction.options.getString("action", true);
+  const type = interaction.options.getString("type", true) as TrackingType;
+
+  if (action === "add") {
+    const amount = interaction.options.getNumber("amount");
+    const unit =
+      interaction.options.getString("unit") || TRACKING_TYPES[type].defaultUnit;
+    const note = interaction.options.getString("note") || undefined;
+
+    if (amount !== null) {
+      // Direct amount provided
+      try {
+        const message = await trackingDb.addEntry(
+          interaction.user.id,
+          type,
+          amount,
+          unit,
+          note,
+        );
+        await interaction.reply(message);
+      } catch (e) {
+        console.error(e);
+        await interaction.reply({
+          content: `Error adding entry: ${e}`,
+          ephemeral: true,
+        });
+      }
+    } else {
+      // No amount provided, show quick-add buttons
+      const smallAmount = new ButtonBuilder()
+        .setCustomId(`track-${type}-small`)
+        .setLabel(`Small ${unit}`)
+        .setStyle(ButtonStyle.Primary);
+
+      const mediumAmount = new ButtonBuilder()
+        .setCustomId(`track-${type}-medium`)
+        .setLabel(`Medium ${unit}`)
+        .setStyle(ButtonStyle.Primary);
+
+      const largeAmount = new ButtonBuilder()
+        .setCustomId(`track-${type}-large`)
+        .setLabel(`Large ${unit}`)
+        .setStyle(ButtonStyle.Primary);
+
+      const cancel = new ButtonBuilder()
+        .setCustomId("cancel")
+        .setLabel("Cancel")
+        .setStyle(ButtonStyle.Danger);
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        smallAmount,
+        mediumAmount,
+        largeAmount,
+        cancel,
+      );
+
+      const response = await interaction.reply({
+        content: `How much ${type} would you like to add?`,
+        components: [row],
+      });
+
+      // Security - Ensure same user clicked the button as the original interaction
+      const collectorFilter = (i: Interaction) =>
+        i.user.id === interaction.user.id;
+
+      try {
+        const confirmation = await response.awaitMessageComponent({
+          filter: collectorFilter,
+          time: 30_000,
+        });
+
+        if (confirmation.customId === "cancel") {
+          await confirmation.update({
+            content: "Action cancelled",
+            components: [],
+          });
+        } else {
+          const [_, trackType, size] = confirmation.customId.split("-");
+          let trackAmount: number;
+
+          // Define amounts for each type and size
+          switch (trackType) {
+            case "water":
+              trackAmount =
+                size === "small" ? 250 : size === "medium" ? 500 : 1000;
+              break;
+            case "mood":
+              trackAmount = size === "small" ? 3 : size === "medium" ? 6 : 9;
+              break;
+            default:
+              trackAmount = size === "small" ? 1 : size === "medium" ? 2 : 3;
+          }
+
+          try {
+            const message = await trackingDb.addEntry(
+              interaction.user.id,
+              trackType as TrackingType,
+              trackAmount,
+              TRACKING_TYPES[trackType as TrackingType].defaultUnit,
+            );
+            await confirmation.update({
+              content: message,
+              components: [],
+            });
+          } catch (e) {
+            console.error(e);
+            await confirmation.update({
+              content: `Error adding entry: ${e}`,
+              components: [],
+            });
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        await interaction.editReply({
+          content: `Error! ${e}`,
+          components: [],
+        });
+      }
+    }
+  } else if (action === "today") {
+    try {
+      const spacetime = (await spacetimeImport).default;
+      const now = spacetime.now(USER_TIMEZONE);
+      const startOfDay = now.startOf("day").toNativeDate().toISOString();
+      const endOfDay = now.endOf("day").toNativeDate().toISOString();
+
+      const entries = await trackingDb.getEntriesInRange(
+        interaction.user.id,
+        type,
+        startOfDay,
+        endOfDay,
+      );
+
+      if (entries.length === 0) {
+        await interaction.reply(`No ${type} entries found for today.`);
+        return;
+      }
+
+      let total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+      const unit = entries[0].unit; // Assume consistent units for the same type
+
+      let response = `${CODE_START}Today's ${type} entries:\n`;
+      entries.forEach((entry) => {
+        const time = new Date(entry.entry_datetime).toLocaleTimeString(
+          "en-US",
+          {
+            timeZone: USER_TIMEZONE,
+            hour: "numeric",
+            minute: "numeric",
+          },
+        );
+        response += `${time}: ${entry.amount}${entry.unit}${entry.note ? ` (${entry.note})` : ""}\n`;
+      });
+      response += `\nTotal: ${total}${unit}${CODE_END}`;
+
+      await interaction.reply(response);
+    } catch (e) {
+      console.error(e);
+      await interaction.reply({
+        content: `Error fetching today's entries: ${e}`,
+        ephemeral: true,
+      });
+    }
+  } else if (action === "range") {
+    try {
+      const spacetime = (await spacetimeImport).default;
+      const now = spacetime.now(USER_TIMEZONE);
+      const startOfWeek = now.startOf("week").toNativeDate().toISOString();
+      const endOfWeek = now.endOf("week").toNativeDate().toISOString();
+
+      const entries = await trackingDb.getEntriesInRange(
+        interaction.user.id,
+        type,
+        startOfWeek,
+        endOfWeek,
+      );
+
+      if (entries.length === 0) {
+        await interaction.reply(`No ${type} entries found for this week.`);
+        return;
+      }
+
+      let total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+      const unit = entries[0].unit; // Assume consistent units for the same type
+
+      let response = `${CODE_START}This week's ${type} entries:\n`;
+      entries.forEach((entry) => {
+        const date = new Date(entry.entry_datetime).toLocaleDateString(
+          "en-US",
+          {
+            timeZone: USER_TIMEZONE,
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          },
+        );
+        response += `${date}: ${entry.amount}${entry.unit}${entry.note ? ` (${entry.note})` : ""}\n`;
+      });
+      response += `\nTotal: ${total}${unit}${CODE_END}`;
+
+      await interaction.reply(response);
+    } catch (e) {
+      console.error(e);
+      await interaction.reply({
+        content: `Error fetching range entries: ${e}`,
+        ephemeral: true,
+      });
+    }
+  }
+}
+</file>
+
+<file path="src/events/ready.ts">
+import { config } from "dotenv";
+import { Client, Events } from "discord.js";
+import * as reminderScheduler from "../utils/reminderScheduler";
+import { waterReminderHandler } from "../handlers/waterReminder";
+import { getAllRSSFeeds } from "../utils/rssDatabase";
+import {
+  addFeed,
+  cleanup as cleanupRSSFeeds,
+  displayAllUnprocessedItems,
+} from "../utils/rssFeedHandler";
+
+// Load environment variables
+config();
+
+export default {
+  name: Events.ClientReady,
+  once: true,
+  async execute(client: Client) {
+    console.log(`Ready! Logged in as ${client.user?.tag}`);
+
+    // Initialize RSS feeds
+    try {
+      const feeds = await getAllRSSFeeds();
+      for (const feed of feeds) {
+        await addFeed(
+          feed.name,
+          feed.url,
+          feed.channelId,
+          feed.updateFrequency,
+          feed.data,
+        );
+      }
+      console.log(`Initialized ${feeds.length} RSS feeds`);
+
+      // Display any unprocessed items
+      await displayAllUnprocessedItems(client);
+    } catch (error) {
+      console.error("Failed to initialize RSS feeds:", error);
+    }
+
+    // Initialize reminder scheduler
+    reminderScheduler.setClient(client);
+    reminderScheduler.registerHandler(waterReminderHandler);
+    await reminderScheduler.initializeReminders();
+
+    // Clean up on process exit
+    process.on("SIGINT", () => {
+      cleanupRSSFeeds();
+      process.exit(0);
+    });
+  },
+};
+</file>
+
+<file path="package.json">
+{
+  "name": "personal-discord-bot",
+  "version": "0.0.1",
+  "description": "Personal Assistant Discord Bot",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "dev": "tsc -w",
+    "start": "ts-eager src/index.ts",
+    "deploy-commands": "ts-eager src/deploy-commands.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\"",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "author": "",
+  "license": "MIT",
+  "prettier": {},
+  "devDependencies": {
+    "@types/coingecko-api": "^1.0.13",
+    "@types/node": "^22.7.9",
+    "@types/ws": "^8.5.12",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "axios": "^1.7.7",
+    "chalk": "^5.3.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "openai": "^4.68.4",
+    "prettier": "^3.3.3",
+    "rimraf": "^6.0.1",
+    "ts-eager": "^2.0.2",
+    "tslib": "^2.8.0",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.17.0",
+    "@langchain/community": "^0.3.26",
+    "@langchain/core": "^0.3.32",
+    "@langchain/langgraph": "^0.2.41",
+    "@langchain/openai": "^0.3.17",
+    "@libsql/client": "^0.14.0",
+    "@types/node-fetch": "^2.6.12",
+    "coingecko-api-v3": "^0.0.29",
+    "drizzle-kit": "^0.30.5",
+    "drizzle-orm": "^0.39.2",
+    "libsodium-wrappers": "^0.7.15",
+    "nanoid": "^5.0.9",
+    "node-fetch": "^3.3.2",
+    "rss-parser": "^3.13.0",
+    "spacetime": "^7.6.2",
+    "sqlite3": "^5.1.7",
+    "yahoo-finance2": "^2.13.2"
+  }
+}
+</file>
+
+<file path="src/handlers/waterReminder.ts">
+import { Client, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Interaction, MessageComponentInteraction, ButtonInteraction, ModalSubmitInteraction } from "discord.js";
+import { ReminderHandler } from "../types/reminder";
+import * as trackerDb from "../utils/trackingDatabase";
+import * as streakService from "../utils/streakService";
+import * as streakFormatter from "../utils/streakFormatter";
+import { STREAK_TYPES, DEFAULT_DAILY_WATER_TARGET_ML } from "../constants/streaks";
+
+// Constants for tracking
+const MAX_REACTION_TIME_MS = 3600000; // 60 minutes
+const TRACKING_TYPES = {
+  WATER: "water",
+  WATER_REACTION_TIME: "water_reaction_time",
+};
+const TRACKING_UNITS = {
+  MILLILITERS: "ml",
+  MILLISECONDS: "ms",
+};
+
+const REMINDER_MESSAGES = [
+  "💧 H2O alert! Your cells are sending an SOS for hydration!",
+  "🚰 Splash time! Your body's internal plants need watering.",
+  "💦 Hydration station calling! Time to refuel your liquid levels.",
+  "🌊 Water wizard says: Cast the spell of hydration upon thyself!",
+  "💧 Brain fog? Water is the windshield wiper for your mind!",
+  "🚰 Attention! Your personal ecosystem requires precipitation.",
+  "💦 Psst... your kidneys just texted: 'Send water!'",
+  "🌊 Mission: Hydration. Status: Pending. Action required!",
+  "💧 Water o'clock! The universal time for quenching thirst.",
+  "🚰 Friendly reminder: Humans are basically cucumbers with anxiety. Water yourself!",
+  "💦 Plot twist: The hero of your story is... water! Drink up!",
+  "🌊 Hydration vacation! Take a trip to Watertown, population: you.",
+];
+
+const CONGRATULATORY_MESSAGES = [
+  "🎉 Hydration achievement unlocked! +10 to all human stats!",
+  "💪 Water victory! Your cells are doing a happy dance right now.",
+  "⭐ Splash-tastic! You're officially a hydro-homie!",
+  "🌟 Magnificent moisturizing move! Your organs are applauding.",
+  "🎊 H2-Whoa! You're absolutely crushing this water game!",
+  "🏆 Liquid legend status achieved! Hydration hall of fame material.",
+  "🚀 Cellular celebration in progress! Thanks to your hydration heroics.",
+  "🌈 Brilliant! Your body's thirst sensors are doing a victory lap.",
+];
+
+const ENCOURAGEMENT_MESSAGES = [
+  "💭 That's alright! Your next glass of water is your comeback story.",
+  "🌱 No pressure! Your hydration journey has many chapters ahead.",
+  "💪 Water you waiting for? Just kidding! Whenever you're ready.",
+  "🌟 The path to peak hydration isn't always straight! You'll get there.",
+  "💧 Even ocean waves take breaks! Grab some H2O when you can.",
+  "🌿 Plot twist: Even cacti need water sometimes. You're doing great!",
+  "🧠 Your future hydrated self is patiently waiting in the wings.",
+  "🔮 I foresee a glass of water in your near future! The stars (and your cells) will thank you.",
+];
+
+const WATER_AMOUNT_ML = 250; // Assuming one glass of water is about 250ml
+
+const getRandomFromArray = (arr: string[]): string =>
+  arr[Math.floor(Math.random() * arr.length)];
+
+// Button Custom IDs
+const BUTTON_ID_LOG_250 = "log_water_250";
+const BUTTON_ID_LOG_500 = "log_water_500";
+const BUTTON_ID_LOG_CUSTOM = "log_water_custom";
+
+// Modal Custom ID
+const MODAL_ID_LOG_CUSTOM = "modal_log_water_custom";
+const INPUT_ID_CUSTOM_AMOUNT = "input_custom_water_amount";
+
+// --- Export necessary items for interactionCreate handler ---
+export { logWaterEntry, MODAL_ID_LOG_CUSTOM, INPUT_ID_CUSTOM_AMOUNT, STREAK_TYPES, MAX_REACTION_TIME_MS };
+// --- End Exports ---
+
+// Helper function to log water entry
+async function logWaterEntry(
+  userId: string,
+  amountMl: number,
+  interaction: ButtonInteraction | ModalSubmitInteraction // Can be triggered by button or modal
+) {
+  try {
+    await trackerDb.addEntry(
+      userId,
+      TRACKING_TYPES.WATER,
+      amountMl,
+      TRACKING_UNITS.MILLILITERS,
+      `Logged via button/modal`
+    );
+    console.log(`[DEBUG] User ${userId} logged ${amountMl}ml of water.`);
+
+    // Provide feedback to the user - reply directly
+    const replyOptions = { content: `💧 Logged ${amountMl}ml of water! Stay hydrated!` };
+    if (interaction.isRepliable()) {
+      // Check if deferred from modal submission or already replied (shouldn't happen often here)
+      if (interaction.deferred || interaction.replied) {
+        // If already deferred/replied (e.g., by modal system), follow up
+        // Using followUp here as a safety, though direct reply is typical for logWaterEntry
+        await interaction.followUp(replyOptions);
+      } else {
+        // Otherwise, reply directly
+        await interaction.reply(replyOptions);
+      }
+    }
+  } catch (err) {
+    console.error("Error logging water entry:", err);
+    // Inform user about the error
+    const errorReplyOptions = { content: "❌ Sorry, there was an error logging your water intake.", ephemeral: true };
+    if (interaction.isRepliable()) {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp(errorReplyOptions);
+      } else {
+        await interaction.reply(errorReplyOptions);
+      }
+    }
+  }
+}
+
+export const waterReminderHandler: ReminderHandler = {
+  type: "water",
+  defaultMessages: REMINDER_MESSAGES,
+  defaultFrequencyMinutes: 60, // Minimum default frequency
+  defaultRandom: true,
+  defaultFrequencyRandomMultiple: 1.5,
+
+  onReminder: async (client: Client, userId: string) => {
+    console.log(`[DEBUG] Water reminder handler started for user ${userId}`);
+    const user = await client.users.fetch(userId);
+
+    // Create buttons
+    const log250Button = new ButtonBuilder()
+      .setCustomId(BUTTON_ID_LOG_250)
+      .setLabel("Log 250ml")
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji("💧"); // Optional emoji
+
+    const log500Button = new ButtonBuilder()
+      .setCustomId(BUTTON_ID_LOG_500)
+      .setLabel("Log 500ml")
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji("🌊"); // Optional emoji
+
+    const logCustomButton = new ButtonBuilder()
+      .setCustomId(BUTTON_ID_LOG_CUSTOM)
+      .setLabel("Log Custom...")
+      .setStyle(ButtonStyle.Secondary);
+
+    // Create action row
+    const row = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(log250Button, log500Button, logCustomButton);
+
+    // Send message with buttons
+    const message = await user.send({
+      content: getRandomFromArray(REMINDER_MESSAGES),
+      components: [row], // Add the buttons
+    });
+
+    const reminderSentTime = Date.now();
+    let streakUpdatedThisCycle = false; // Flag to ensure streak is updated only once
+
+    // --- Reaction Collector (for consistency streak) ---
+    const reactionCollector = message.createReactionCollector({
+      filter: (reaction: any, reactUser: any) => reactUser.id === userId,
+      max: 1,
+      time: MAX_REACTION_TIME_MS,
+    });
+
+    reactionCollector.on("collect", async (reaction) => {
+      if (streakUpdatedThisCycle) return; // Already handled by button
+      streakUpdatedThisCycle = true;
+      buttonCollector.stop(); // Stop listening for button clicks
+
+      const reactionTime = Date.now() - reminderSentTime;
+      console.log(`[DEBUG] User ${userId} reacted in ${reactionTime}ms`);
+
+      // Track reaction time
+      await trackerDb.addEntry(
+        userId,
+        TRACKING_TYPES.WATER_REACTION_TIME,
+        reactionTime,
+        TRACKING_UNITS.MILLISECONDS,
+        `Reaction: ${reaction.emoji.name}`
+      );
+
+      // Update daily consistency streak
+      const streakResult = await streakService.updateStreak(
+        userId,
+        STREAK_TYPES.WATER_DAILY_CONSISTENCY
+      );
+
+      // Fetch daily water total
+      const todayDateStr = new Date().toISOString().split('T')[0];
+      const dailyIntake = await trackerDb.getTotalForDay(userId, TRACKING_TYPES.WATER, todayDateStr);
+
+      // Format and potentially send streak message
+      const streakMessage = streakFormatter.formatStreakUpdateMessage(
+        streakResult,
+        dailyIntake,
+        DEFAULT_DAILY_WATER_TARGET_ML
+      );
+      if (streakMessage) {
+        // Send streak update in a separate message or followup
+        try {
+          await message.reply(streakMessage);
+        } catch (err) {
+          console.warn("Could not reply to original message for streak update (likely deleted):", err);
+          try {
+            await user.send(streakMessage); // Send as new DM if reply fails
+          } catch (dmErr) {
+            console.error("Failed to send streak update as DM:", dmErr);
+          }
+        }
+      }
+
+      // Disable buttons after interaction
+      row.components.forEach((button) => button.setDisabled(true));
+      try {
+        await message.edit({ components: [row] });
+      } catch (editErr) {
+        console.warn("Could not edit message to disable buttons (likely deleted):", editErr);
+      }
+    });
+
+    // --- Button Interaction Collector ---
+    const buttonCollector = message.createMessageComponentCollector({
+      filter: (i: MessageComponentInteraction) =>
+        i.user.id === userId &&
+        [BUTTON_ID_LOG_250, BUTTON_ID_LOG_500, BUTTON_ID_LOG_CUSTOM].includes(i.customId),
+      max: 1, // Only collect one button interaction
+      time: MAX_REACTION_TIME_MS,
+    });
+
+    buttonCollector.on("collect", async (interaction: ButtonInteraction) => {
+      if (streakUpdatedThisCycle) return; // Already handled by reaction
+      streakUpdatedThisCycle = true;
+      reactionCollector.stop(); // Stop listening for reactions
+
+      const interactionTime = Date.now() - reminderSentTime;
+      console.log(`[DEBUG] User ${userId} interacted with button ${interaction.customId} after ${interactionTime}ms`);
+
+      // Track interaction time (similar to reaction time)
+      await trackerDb.addEntry(
+        userId,
+        TRACKING_TYPES.WATER_REACTION_TIME,
+        interactionTime,
+        TRACKING_UNITS.MILLISECONDS,
+        `Button interaction: ${interaction.customId}`
+      );
+
+      // Update daily consistency streak
+      const streakResult = await streakService.updateStreak(
+        userId,
+        STREAK_TYPES.WATER_DAILY_CONSISTENCY
+      );
+
+      // Fetch daily water total (needed for formatter)
+      const todayDateStr = new Date().toISOString().split('T')[0];
+      const dailyIntake = await trackerDb.getTotalForDay(userId, TRACKING_TYPES.WATER, todayDateStr);
+
+      // Format and potentially send streak message
+      const streakMessage = streakFormatter.formatStreakUpdateMessage(
+        streakResult,
+        dailyIntake,
+        DEFAULT_DAILY_WATER_TARGET_ML
+      );
+      if (streakMessage) {
+        // Send streak update as a new DM instead of follow-up
+        try {
+          await user.send(streakMessage);
+        } catch (dmErr) {
+          console.error(`Failed to send streak update DM to user ${userId}:`, dmErr);
+        }
+      }
+
+      // Handle specific button
+      try {
+        if (interaction.customId === BUTTON_ID_LOG_250) {
+          await logWaterEntry(userId, 250, interaction);
+        } else if (interaction.customId === BUTTON_ID_LOG_500) {
+          await logWaterEntry(userId, 500, interaction);
+        } else if (interaction.customId === BUTTON_ID_LOG_CUSTOM) {
+          // Show Modal
+          const modal = new ModalBuilder()
+            .setCustomId(MODAL_ID_LOG_CUSTOM)
+            .setTitle("Log Custom Water Amount");
+
+          const amountInput = new TextInputBuilder()
+            .setCustomId(INPUT_ID_CUSTOM_AMOUNT)
+            .setLabel("Amount (in ml)")
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder("e.g., 750")
+            .setRequired(true);
+
+          const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(amountInput);
+          modal.addComponents(firstActionRow);
+
+          await interaction.showModal(modal);
+          // Modal submission is handled separately (see Step 6)
+        }
+      } catch (error) {
+        console.error("Error handling button interaction:", error);
+        if (interaction.isRepliable()) {
+          const opts = { content: "An error occurred while processing your request.", ephemeral: true };
+          if (interaction.replied || interaction.deferred) await interaction.followUp(opts);
+          else await interaction.reply(opts);
+        }
+      }
+
+      // Disable buttons after interaction (unless it was the modal trigger)
+      if (interaction.customId !== BUTTON_ID_LOG_CUSTOM) {
+        row.components.forEach((button) => button.setDisabled(true));
+        try {
+          await message.edit({ components: [row] });
+        } catch (editErr) {
+          console.warn("Could not edit message to disable buttons (likely deleted):", editErr);
+        }
+      }
+    });
+
+    // --- Handle Collector End (Timeout) ---
+    // Combine logic: use the reaction collector's end event, but check the flag
+    reactionCollector.on("end", async (collected) => {
+      if (!streakUpdatedThisCycle && collected.size === 0) {
+        // Only run if no reaction AND no button was pressed
+        console.log(`[DEBUG] No reaction or button press from user ${userId} within timeout`);
+
+        // Ensure button collector is also stopped
+        if (!buttonCollector.ended) buttonCollector.stop();
+
+        // Track no reaction at max time
+        await trackerDb.addEntry(
+          userId,
+          TRACKING_TYPES.WATER_REACTION_TIME,
+          MAX_REACTION_TIME_MS,
+          TRACKING_UNITS.MILLISECONDS,
+          "No interaction (timeout)"
+        );
+
+        // Update streak (will likely break streak or reset to 1)
+        await streakService.updateStreak(userId, STREAK_TYPES.WATER_DAILY_CONSISTENCY);
+
+        // Potentially inform user about timeout/streak break via DM?
+      }
+    });
+  },
+};
+</file>
+
+</files>

@@ -7,12 +7,58 @@ import path from "path";
 import { openaiProvider } from "../commands/llms/providers/openai";
 
 /**
+ * Chunks a string into Discord-friendly message sizes (under 2000 characters)
+ * Tries to split at paragraph breaks first, then at newlines, and finally at word boundaries
+ * @param text The text to chunk
+ * @param maxLength Maximum length for each chunk (defaults to 1900 to leave room for formatting)
+ * @returns Array of chunked messages
+ */
+function chunkDiscordMessage(text: string, maxLength: number = 1900): string[] {
+  if (!text || text.length === 0) return [];
+  if (text.length <= maxLength) return [text];
+
+  const chunks: string[] = [];
+  let remainingText = text;
+
+  while (remainingText.length > 0) {
+    if (remainingText.length <= maxLength) {
+      chunks.push(remainingText);
+      break;
+    }
+
+    // Try to find paragraph breaks (double newlines) within the limit
+    let splitIndex = remainingText.lastIndexOf('\n\n', maxLength);
+
+    // If no paragraph break, try single newlines
+    if (splitIndex === -1) {
+      splitIndex = remainingText.lastIndexOf('\n', maxLength);
+    }
+
+    // If no newlines, split at word boundary
+    if (splitIndex === -1) {
+      splitIndex = remainingText.lastIndexOf(' ', maxLength);
+    }
+
+    // If all else fails, just split at the max length
+    if (splitIndex === -1) {
+      splitIndex = maxLength;
+    }
+
+    // Add the chunk and continue with remaining text
+    chunks.push(remainingText.substring(0, splitIndex).trim());
+    remainingText = remainingText.substring(splitIndex).trim();
+  }
+
+  return chunks;
+}
+
+/**
  * Processes a batch of posts using GPT-4.1-mini to categorize and summarize them
  * @param posts Array of Bluesky posts to process
- * @returns A concise summary of the posts grouped by themes
+ * @returns An array of chunked summaries, each under Discord's character limit
  */
-async function summarizePosts(posts: BlueskyPost[]): Promise<string> {
-  if (posts.length === 0) return "";
+async function summarizePosts(posts: BlueskyPost[]): Promise<string[]> {
+  if (posts.length === 0) return [];
 
   try {
     // Format the posts for the prompt, including reposts
@@ -32,16 +78,54 @@ async function summarizePosts(posts: BlueskyPost[]): Promise<string> {
       })
       .join("\n\n");
 
-    const prompt = `
-      Analyze the following social media posts and identify general themes across them. For each theme:
+    const prompt = `Analyze the following social media posts and identify general themes focused **only on news and financial information**. For each theme:
 
-- Provide a concise, original summary that captures the core ideas without just rephrasing individual posts.
-- Determine the overall sentiment of the theme and include a quick sentiment emoji indicator (e.g. :thumbsup: positive, :thumbsdown: negative, :neutral_face: neutral).
-- List the authors’ handles in parentheses to show who contributed to that theme.
+- Combine closely related stories into a single concise theme.
+- Provide a very short, factual summary of the core news or financial topic.
+- Add a brief, emoji-enhanced line explaining why it matters (impact, consequence, or relevance).
+- List contributors as clickable links using randomized generic handles (e.g., @FinTwitter, @MarketWatch).
+- Use clear, concise language suitable for quick reading on Discord.
+- Do not include personal opinions, emotions, or sentiment analysis.
+- Do not add introductions, conclusions, or mention post IDs.
+- Keep summaries minimal while retaining essential context.
 
-Use engaging Discord formatting and emojis to highlight themes and sentiments. Focus on the most interesting conversations and trends.
+Example style to follow:
 
-Do not mention post IDs or that this is an automated summary. No final summary needed. Keep the response under 2000 characters.
+💰 **China Tech Bonds & Trade Policy**
+- Chinese firms to issue ¥300B in tech bonds; central bank prepping tech bond board.
+- Commerce Ministry highlights dumping impact on domestic industry.
+⚠️ Why: 💵 Boosts tech financing + ⚖️ potential trade policy shifts.
+👥 [@FinTwitter](https://bsky.app/profile/fin-twitter.bsky.social), [@MarketWatch](https://bsky.app/profile/marketwatch.bsky.social)
+
+📉 **Taiwan 5Y Gov Bond Yield Drops**
+- Yield down 2bps to 1.4000%, indicating slight easing in borrowing costs.
+⚠️ Why: 📉 Lower yields can signal easier credit conditions.
+👥 [@CooperBot](https://bsky.app/profile/cooperbot.bsky.social)
+
+🚀 **US Space Launch Advances**
+- NASA schedules Artemis II mission; private firms ramp up satellite deployments.
+⚠️ Why: 🌌 Expands space exploration + 📡 boosts satellite infrastructure.
+👥 [@SkyWatcher](https://bsky.app/profile/skywatcher.bsky.social), [@OrbitalNews](https://bsky.app/profile/orbitalnews.bsky.social), [@SpaceBuzz](https://bsky.app/profile/spacebuzz.bsky.social)
+
+🌡️ **Global Heatwave Impacts Agriculture**
+- Extreme temperatures hit Europe and Asia, damaging crop yields.
+⚠️ Why: 🌾 Crop losses risk food prices + 🌍 signals climate change effects.
+👥 [@ClimateWatch](https://bsky.app/profile/climatewatch.bsky.social), [@AgriDaily](https://bsky.app/profile/agridaily.bsky.social), [@EcoReport](https://bsky.app/profile/ecoreport.bsky.social)
+🏥 **New Drug Approval in Oncology**
+
+FDA approves novel cancer treatment showing improved survival rates.
+⚠️ Why: 💉 Advances patient outcomes + 💰 opens pharma market opportunities.
+👥 [@HealthScope](https://bsky.app/profile/healthscope.bsky.social), [@MediBrief](https://bsky.app/profile/medibrief.bsky.social), [@BioNews](https://bsky.app/profile/bionews.bsky.social)
+
+⚖️ **EU Antitrust Fine on Tech Giant**
+- EU fines major tech company €1.2B for market dominance abuse.
+⚠️ Why: 🏛️ Enforces competition laws + 📉 may affect company valuation.
+👥 [@LegalLens](https://bsky.app/profile/legallens.bsky.social), [@TechReg](https://bsky.app/profile/techreg.bsky.social), [@MarketPulse](https://bsky.app/profile/marketpulse.bsky.social)
+
+🌐 **Cyberattack on Major Bank**
+- Large-scale breach disrupts services; investigation ongoing.
+⚠️ Why: 🔒 Raises security concerns + 💸 potential financial losses.
+👥 [@CyberWatch](https://bsky.app/profile/cyberwatch.bsky.social), [@SecureNews](https://bsky.app/profile/securenews.bsky.social), [@InfoGuard](https://bsky.app/profile/infoguard.bsky.social)
 
 Posts to analyze:
       ${postsText}
@@ -49,14 +133,15 @@ Posts to analyze:
 
     const result = await openaiProvider.complete(prompt, {
       model: "gpt-4.1-mini",
-      maxTokens: 2000,
+      maxTokens: 1800,
       temperature: 0.3,
     });
 
-    return result.content;
+    // Chunk the response into Discord-friendly message sizes
+    return chunkDiscordMessage(result.content);
   } catch (error) {
     console.error("Error processing posts with GPT-4.1-mini:", error);
-    return "";
+    return [];
   }
 }
 
@@ -306,19 +391,20 @@ const getCronSchedule = (): string => {
  * Fetches and summarizes the Bluesky feed for a specific time period
  * @param startTime Optional start time in ISO format; defaults to 1 hour ago
  * @param endTime Optional end time in ISO format; defaults to now
+ * @returns Array of chunked summaries, each under Discord's character limit
  */
 const fetchAndSummarize = async (
   startTime?: string,
   endTime?: string,
-): Promise<string> => {
+): Promise<string[]> => {
   if (!(await init())) {
-    return "";
+    return [];
   }
 
   try {
     if (!agent) {
       console.error("Bluesky agent not initialized");
-      return "";
+      return [];
     }
 
     // Default time range: last hour
@@ -457,7 +543,7 @@ const fetchAndSummarize = async (
     console.log(`Found ${posts.length} posts in the specified time range`);
 
     if (posts.length === 0) {
-      return "";
+      return [];
     }
 
     // Store posts in cache with conflict handling
@@ -486,13 +572,13 @@ const fetchAndSummarize = async (
       // Continue execution even if caching fails
     }
 
-    // Summarize posts
-    const summarizedPosts = await summarizePosts(posts);
+    // Summarize posts and get chunked messages
+    const chunkedMessages = await summarizePosts(posts);
 
-    return summarizedPosts;
+    return chunkedMessages;
   } catch (error) {
     console.error("Error fetching Bluesky feed:", error);
-    return "";
+    return [];
   }
 };
 
