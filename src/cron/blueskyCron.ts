@@ -1,8 +1,5 @@
 import cron from "node-cron";
-import {
-  fetchAndSummarize,
-  getChannelId,
-} from "../utils/blueskyService";
+import { fetchAndSummarize, getChannelId } from "../utils/blueskyService";
 import { Client, TextChannel, MessageFlags } from "discord.js";
 
 /**
@@ -10,7 +7,7 @@ import { Client, TextChannel, MessageFlags } from "discord.js";
  */
 async function fetchAndSendSummary(
   client: Client,
-  timeRangeMinutes = 60,
+  timeRangeMinutes = 30,
 ): Promise<void> {
   const channelId = getChannelId();
 
@@ -51,14 +48,17 @@ async function fetchAndSendSummary(
     // Send each chunk with a small delay to avoid rate limiting
     const sendMessageWithDelay = async (chunks: string[], index = 0) => {
       if (index >= chunks.length) {
-        console.log(`Bluesky summary posted successfully (${chunks.length} messages)`);
+        console.log(
+          `Bluesky summary posted successfully (${chunks.length} messages)`,
+        );
         return;
       }
 
-      if (chunks[index].trim()) { // Only send non-empty messages
+      if (chunks[index].trim()) {
+        // Only send non-empty messages
         await channel.send({
           content: chunks[index],
-          flags: MessageFlags.SuppressEmbeds // Disable link embeds
+          flags: MessageFlags.SuppressEmbeds, // Disable link embeds
         });
       }
 
@@ -68,7 +68,6 @@ async function fetchAndSendSummary(
 
     // Start sending messages
     await sendMessageWithDelay(summaryChunks);
-
   } catch (error) {
     console.error("Error posting Bluesky summary:", error);
   }

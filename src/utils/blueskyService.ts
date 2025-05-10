@@ -27,16 +27,16 @@ function chunkDiscordMessage(text: string, maxLength: number = 1900): string[] {
     }
 
     // Try to find paragraph breaks (double newlines) within the limit
-    let splitIndex = remainingText.lastIndexOf('\n\n', maxLength);
+    let splitIndex = remainingText.lastIndexOf("\n\n", maxLength);
 
     // If no paragraph break, try single newlines
     if (splitIndex === -1) {
-      splitIndex = remainingText.lastIndexOf('\n', maxLength);
+      splitIndex = remainingText.lastIndexOf("\n", maxLength);
     }
 
     // If no newlines, split at word boundary
     if (splitIndex === -1) {
-      splitIndex = remainingText.lastIndexOf(' ', maxLength);
+      splitIndex = remainingText.lastIndexOf(" ", maxLength);
     }
 
     // If all else fails, just split at the max length
@@ -65,7 +65,8 @@ async function summarizePosts(posts: BlueskyPost[]): Promise<string[]> {
     const postsText = posts
       .map((post, index) => {
         const authorName = post.author.displayName || post.author.handle;
-        let postText = `${authorName}: "${post.record.text}"`;
+        const authorLink = `https://bsky.app/profile/${post.author.handle}`;
+        let postText = `[${authorName}](https://bsky.app/profile/${post.author.handle}): "${post.record.text}" (${post.record.createdAt})`;
 
         // Include quote information if available
         if (post.quote) {
@@ -78,16 +79,16 @@ async function summarizePosts(posts: BlueskyPost[]): Promise<string[]> {
       })
       .join("\n\n");
 
-    const prompt = `Analyze the following social media posts and identify general themes focused **only on news and financial information**. For each theme:
+    const prompt = `You are a summarization assistant. Given multiple social media posts or news snippets about related topics, produce concise unbiased summaries grouped by theme.
 
-- Combine closely related stories into a single concise theme.
-- Provide a very short, factual summary of the core news or financial topic.
-- Add a brief, emoji-enhanced line explaining why it matters (impact, consequence, or relevance).
-- List contributors as clickable links using randomized generic handles (e.g., @FinTwitter, @MarketWatch).
-- Use clear, concise language suitable for quick reading on Discord.
-- Do not include personal opinions, emotions, or sentiment analysis.
-- Do not add introductions, conclusions, or mention post IDs.
-- Keep summaries minimal while retaining essential context.
+For each theme:
+- Combine related stories into one headline and summary sentence.
+- If it includes it in the original post, extract time.
+- Append the time in parentheses immediately after the summary sentence, e.g. (4:30 PM).
+- Include 1 short bullet "why it matters" line with relevant emojis.
+- Add 3 randomized generic contributor handles formatted as clickable links.
+- Do NOT add sentiment, introductions, or conclusions.
+- Keep summaries brief and factual for easy scanning.
 
 Example style to follow:
 
@@ -98,7 +99,7 @@ Example style to follow:
 👥 [@FinTwitter](https://bsky.app/profile/fin-twitter.bsky.social), [@MarketWatch](https://bsky.app/profile/marketwatch.bsky.social)
 
 📉 **Taiwan 5Y Gov Bond Yield Drops**
-- Yield down 2bps to 1.4000%, indicating slight easing in borrowing costs.
+- Yield down 2bps to 1.4000%, indicating slight easing in borrowing costs. (5:00 PM)
 ⚠️ Why: 📉 Lower yields can signal easier credit conditions.
 👥 [@CooperBot](https://bsky.app/profile/cooperbot.bsky.social)
 
@@ -108,7 +109,7 @@ Example style to follow:
 👥 [@SkyWatcher](https://bsky.app/profile/skywatcher.bsky.social), [@OrbitalNews](https://bsky.app/profile/orbitalnews.bsky.social), [@SpaceBuzz](https://bsky.app/profile/spacebuzz.bsky.social)
 
 🌡️ **Global Heatwave Impacts Agriculture**
-- Extreme temperatures hit Europe and Asia, damaging crop yields.
+- Extreme temperatures hit Europe and Asia, damaging crop yields. (8:00 PM)
 ⚠️ Why: 🌾 Crop losses risk food prices + 🌍 signals climate change effects.
 👥 [@ClimateWatch](https://bsky.app/profile/climatewatch.bsky.social), [@AgriDaily](https://bsky.app/profile/agridaily.bsky.social), [@EcoReport](https://bsky.app/profile/ecoreport.bsky.social)
 🏥 **New Drug Approval in Oncology**
@@ -123,7 +124,7 @@ FDA approves novel cancer treatment showing improved survival rates.
 👥 [@LegalLens](https://bsky.app/profile/legallens.bsky.social), [@TechReg](https://bsky.app/profile/techreg.bsky.social), [@MarketPulse](https://bsky.app/profile/marketpulse.bsky.social)
 
 🌐 **Cyberattack on Major Bank**
-- Large-scale breach disrupts services; investigation ongoing.
+- Large-scale breach disrupts services; investigation ongoing. (2:32 PM)
 ⚠️ Why: 🔒 Raises security concerns + 💸 potential financial losses.
 👥 [@CyberWatch](https://bsky.app/profile/cyberwatch.bsky.social), [@SecureNews](https://bsky.app/profile/securenews.bsky.social), [@InfoGuard](https://bsky.app/profile/infoguard.bsky.social)
 
@@ -131,9 +132,10 @@ Posts to analyze:
       ${postsText}
     `;
 
+    console.log(prompt);
+
     const result = await openaiProvider.complete(prompt, {
       model: "gpt-4.1-mini",
-      maxTokens: 1800,
       temperature: 0.3,
     });
 
@@ -495,8 +497,8 @@ const fetchAndSummarize = async (
             const quoted = quotedPost.data.thread.post;
             const quotedText =
               typeof quoted.record === "object" &&
-                quoted.record !== null &&
-                "text" in quoted.record
+              quoted.record !== null &&
+              "text" in quoted.record
                 ? String(quoted.record.text)
                 : "";
 
@@ -507,20 +509,20 @@ const fetchAndSummarize = async (
               author: {
                 did:
                   typeof quoted.author === "object" &&
-                    quoted.author !== null &&
-                    "did" in quoted.author
+                  quoted.author !== null &&
+                  "did" in quoted.author
                     ? String(quoted.author.did)
                     : "",
                 handle:
                   typeof quoted.author === "object" &&
-                    quoted.author !== null &&
-                    "handle" in quoted.author
+                  quoted.author !== null &&
+                  "handle" in quoted.author
                     ? String(quoted.author.handle)
                     : "",
                 displayName:
                   typeof quoted.author === "object" &&
-                    quoted.author !== null &&
-                    "displayName" in quoted.author
+                  quoted.author !== null &&
+                  "displayName" in quoted.author
                     ? String(quoted.author.displayName)
                     : undefined,
               },
