@@ -9,6 +9,7 @@ import { openaiProvider } from "../commands/llms/providers/openai";
 /**
  * Chunks a string into Discord-friendly message sizes (under 2000 characters)
  * Tries to split at paragraph breaks first, then at newlines, and finally at word boundaries
+ * Preserves markdown formatting across chunks
  * @param text The text to chunk
  * @param maxLength Maximum length for each chunk (defaults to 1900 to leave room for formatting)
  * @returns Array of chunked messages
@@ -44,9 +45,48 @@ function chunkDiscordMessage(text: string, maxLength: number = 1900): string[] {
       splitIndex = maxLength;
     }
 
-    // Add the chunk and continue with remaining text
-    chunks.push(remainingText.substring(0, splitIndex).trim());
-    remainingText = remainingText.substring(splitIndex).trim();
+    // Add the chunk without trimming to preserve formatting
+    const chunk = remainingText.substring(0, splitIndex + 1); // Include the split character
+    chunks.push(chunk);
+
+    // Continue with remaining text without trimming
+    remainingText = remainingText.substring(splitIndex + 1);
+
+    // If we're splitting in the middle of a markdown section, preserve the formatting
+    // Check if we're in the middle of a bold/header section
+    const boldAsterisksCount = (chunk.match(/\*/g) || []).length;
+    const boldUnderscoresCount = (chunk.match(/_/g) || []).length;
+    const hashCount = (chunk.match(/#/g) || []).length;
+
+    // If we have an odd number of formatting characters, add the corresponding character to the next chunk
+    let formattingPrefix = "";
+
+    // Handle bold asterisks (** or *)
+    if (boldAsterisksCount % 2 !== 0) {
+      // Check if it's ** (bold) or * (italic)
+      const lastAsteriskPos = chunk.lastIndexOf("*");
+      if (lastAsteriskPos > 0 && chunk[lastAsteriskPos - 1] === "*") {
+        formattingPrefix += "**";
+      } else {
+        formattingPrefix += "*";
+      }
+    }
+
+    // Handle bold underscores (_ or __)
+    if (boldUnderscoresCount % 2 !== 0) {
+      // Check if it's __ (bold) or _ (italic)
+      const lastUnderscorePos = chunk.lastIndexOf("_");
+      if (lastUnderscorePos > 0 && chunk[lastUnderscorePos - 1] === "_") {
+        formattingPrefix += "__";
+      } else {
+        formattingPrefix += "_";
+      }
+    }
+
+    // Add the formatting prefix to the next chunk if needed
+    if (formattingPrefix) {
+      remainingText = formattingPrefix + remainingText;
+    }
   }
 
   return chunks;
@@ -79,56 +119,39 @@ async function summarizePosts(posts: BlueskyPost[]): Promise<string[]> {
       })
       .join("\n\n");
 
-    const prompt = `You are a summarization assistant. Given multiple social media posts or news snippets about related topics, produce concise unbiased summaries grouped by theme.
+    const prompt = `You are a summarization agent. Given multiple social media posts or news snippets, group them into clear thematic clusters based on shared topics or context.
 
 For each theme:
-- Combine related stories into one headline and summary sentence.
-- If it includes it in the original post, extract time.
-- Append the time in parentheses immediately after the summary sentence, e.g. (4:30 PM).
-- Include 1 short bullet "why it matters" line with relevant emojis.
-- Add 3 randomized generic contributor handles formatted as clickable links.
-- Do NOT add sentiment, introductions, or conclusions.
-- Keep summaries brief and factual for easy scanning.
+- Start with a concise emoji-rich headline line capturing the main topic (no “Headline:” label).
+- Follow with a brief factual summary combining all relevant posts, using emojis to shorten and highlight key points. Use bullet points if multiple distinct facts or perspectives exist (no “Summary:” label).
+- Include explicit timestamps in parentheses immediately after relevant points, e.g. (3:46 AM UTC).
+- Add one concise bullet explaining why this theme matters, using relevant emojis.
+- Provide 3 randomized generic contributor handles as clickable links.
+- Separate each theme clearly with spacing or a line break for easy scanning.
+- Avoid sentiment, introductions, conclusions, or self-references.
+- Keep summaries unbiased and focused on facts and connections.
 
-Example style to follow:
+Examples:
 
-💰 **China Tech Bonds & Trade Policy**
-- Chinese firms to issue ¥300B in tech bonds; central bank prepping tech bond board.
-- Commerce Ministry highlights dumping impact on domestic industry.
-⚠️ Why: 💵 Boosts tech financing + ⚖️ potential trade policy shifts.
-👥 [@FinTwitter](https://bsky.app/profile/fin-twitter.bsky.social), [@MarketWatch](https://bsky.app/profile/marketwatch.bsky.social)
+📉 Trade Tariffs & 🌐 Political Signals
+- 🇨🇳 Tariffs on China may be reduced to boost economy (3:46 AM UTC)
+- 🗳️ Swing states show complex voting patterns influenced by 🎓 education & demographics (3:39 AM UTC)
+- ⚔️ New global conflicts raise geopolitical concerns (3:42 AM UTC)
+- **Why it matters:** 🌍 Economic & political shifts impact global stability & markets
+- Contributors: [@econberger](https://bsky.app/profile/econberger.bsky.social), [@pearkes](https://bsky.app/profile/peark.es), [@aaronsojourner](https://bsky.app/profile/aaronsojourner.org)
 
-📉 **Taiwan 5Y Gov Bond Yield Drops**
-- Yield down 2bps to 1.4000%, indicating slight easing in borrowing costs. (5:00 PM)
-⚠️ Why: 📉 Lower yields can signal easier credit conditions.
-👥 [@CooperBot](https://bsky.app/profile/cooperbot.bsky.social)
+🏥 Surgeon General Appointment Controversy
+- 🏛️ Confirmation amid threats to opposing senators; concerns over dismantling health agency & impact on 🧠 neurodivergent community (3:48 AM UTC)
+- ⚖️ Debate over qualifications vs. political figures highlights tension in health policy (3:42 AM UTC)
+- **Why it matters:** 💉 Leadership affects public health & vulnerable groups
+- Contributors: [@alexwenzel](https://bsky.app/profile/alexwenzel.bsky.social), [@cassidoo](https://bsky.app/profile/cassidoo.co), [@altfws](https://bsky.app/profile/altfws.altgov.info)
 
-🚀 **US Space Launch Advances**
-- NASA schedules Artemis II mission; private firms ramp up satellite deployments.
-⚠️ Why: 🌌 Expands space exploration + 📡 boosts satellite infrastructure.
-👥 [@SkyWatcher](https://bsky.app/profile/skywatcher.bsky.social), [@OrbitalNews](https://bsky.app/profile/orbitalnews.bsky.social), [@SpaceBuzz](https://bsky.app/profile/spacebuzz.bsky.social)
+✊ Local Activism & Civic Engagement in Newark
+- 🗣️ Senator filibuster, 🏙️ mayor protest & 🛫 air traffic controller whistleblowing signal rising activism (3:26 AM UTC)
+- **Why it matters:** 🔥 Civic engagement drives accountability & change locally
+- Contributors: [@aaronsojourner](https://bsky.app/profile/aaronsojourner.org), [@engineeringbae](https://bsky.app/profile/engineeringbae.bsky.social), [@pearkes](https://bsky.app/profile/peark.es)
 
-🌡️ **Global Heatwave Impacts Agriculture**
-- Extreme temperatures hit Europe and Asia, damaging crop yields. (8:00 PM)
-⚠️ Why: 🌾 Crop losses risk food prices + 🌍 signals climate change effects.
-👥 [@ClimateWatch](https://bsky.app/profile/climatewatch.bsky.social), [@AgriDaily](https://bsky.app/profile/agridaily.bsky.social), [@EcoReport](https://bsky.app/profile/ecoreport.bsky.social)
-🏥 **New Drug Approval in Oncology**
-
-FDA approves novel cancer treatment showing improved survival rates.
-⚠️ Why: 💉 Advances patient outcomes + 💰 opens pharma market opportunities.
-👥 [@HealthScope](https://bsky.app/profile/healthscope.bsky.social), [@MediBrief](https://bsky.app/profile/medibrief.bsky.social), [@BioNews](https://bsky.app/profile/bionews.bsky.social)
-
-⚖️ **EU Antitrust Fine on Tech Giant**
-- EU fines major tech company €1.2B for market dominance abuse.
-⚠️ Why: 🏛️ Enforces competition laws + 📉 may affect company valuation.
-👥 [@LegalLens](https://bsky.app/profile/legallens.bsky.social), [@TechReg](https://bsky.app/profile/techreg.bsky.social), [@MarketPulse](https://bsky.app/profile/marketpulse.bsky.social)
-
-🌐 **Cyberattack on Major Bank**
-- Large-scale breach disrupts services; investigation ongoing. (2:32 PM)
-⚠️ Why: 🔒 Raises security concerns + 💸 potential financial losses.
-👥 [@CyberWatch](https://bsky.app/profile/cyberwatch.bsky.social), [@SecureNews](https://bsky.app/profile/securenews.bsky.social), [@InfoGuard](https://bsky.app/profile/infoguard.bsky.social)
-
-Posts to analyze:
+Use these examples as a guide for formatting and content focus:
       ${postsText}
     `;
 
@@ -497,8 +520,8 @@ const fetchAndSummarize = async (
             const quoted = quotedPost.data.thread.post;
             const quotedText =
               typeof quoted.record === "object" &&
-              quoted.record !== null &&
-              "text" in quoted.record
+                quoted.record !== null &&
+                "text" in quoted.record
                 ? String(quoted.record.text)
                 : "";
 
@@ -509,20 +532,20 @@ const fetchAndSummarize = async (
               author: {
                 did:
                   typeof quoted.author === "object" &&
-                  quoted.author !== null &&
-                  "did" in quoted.author
+                    quoted.author !== null &&
+                    "did" in quoted.author
                     ? String(quoted.author.did)
                     : "",
                 handle:
                   typeof quoted.author === "object" &&
-                  quoted.author !== null &&
-                  "handle" in quoted.author
+                    quoted.author !== null &&
+                    "handle" in quoted.author
                     ? String(quoted.author.handle)
                     : "",
                 displayName:
                   typeof quoted.author === "object" &&
-                  quoted.author !== null &&
-                  "displayName" in quoted.author
+                    quoted.author !== null &&
+                    "displayName" in quoted.author
                     ? String(quoted.author.displayName)
                     : undefined,
               },
